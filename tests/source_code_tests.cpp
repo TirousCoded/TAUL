@@ -14,17 +14,17 @@ TEST(source_code_tests, defaultCtor) {
 
 	EXPECT_FALSE(sc.pos_in_bounds(0));
 	EXPECT_FALSE(sc.pos_in_bounds(1));
-	EXPECT_FALSE(sc.pos_in_bounds(taul::no_source_pos));
+	EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
 	EXPECT_TRUE(sc.pages().empty());
 
 	EXPECT_FALSE(sc.page_at(0));
 	EXPECT_FALSE(sc.page_at(1));
-	EXPECT_FALSE(sc.page_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
 
 	EXPECT_FALSE(sc.location_at(0));
 	EXPECT_FALSE(sc.location_at(1));
-	EXPECT_FALSE(sc.location_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 
 
@@ -49,7 +49,7 @@ TEST(source_code_tests, moveCtor) {
 	EXPECT_TRUE(sc.pos_in_bounds(4));
 	EXPECT_TRUE(sc.pos_in_bounds(5));
 	EXPECT_FALSE(sc.pos_in_bounds(6));
-	EXPECT_FALSE(sc.pos_in_bounds(taul::no_source_pos));
+	EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
 	if (sc.pages().size() == 2) {
 		EXPECT_EQ(sc.pages()[0].pos, 0);
@@ -74,7 +74,7 @@ TEST(source_code_tests, moveCtor) {
 	if (sc.page_at(5)) { EXPECT_EQ(*sc.page_at(5), 1); }
 	else ADD_FAILURE();
 	EXPECT_FALSE(sc.page_at(6));
-	EXPECT_FALSE(sc.page_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
 
 	if (sc.location_at(0)) {
 		const taul::source_location loc = *sc.location_at(0);
@@ -125,7 +125,7 @@ TEST(source_code_tests, moveCtor) {
 	}
 	else ADD_FAILURE();
 	EXPECT_FALSE(sc.location_at(6));
-	EXPECT_FALSE(sc.location_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 
 
@@ -152,7 +152,7 @@ TEST(source_code_tests, moveAssign) {
 	EXPECT_TRUE(sc.pos_in_bounds(4));
 	EXPECT_TRUE(sc.pos_in_bounds(5));
 	EXPECT_FALSE(sc.pos_in_bounds(6));
-	EXPECT_FALSE(sc.pos_in_bounds(taul::no_source_pos));
+	EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
 	if (sc.pages().size() == 2) {
 		EXPECT_EQ(sc.pages()[0].pos, 0);
@@ -177,7 +177,7 @@ TEST(source_code_tests, moveAssign) {
 	if (sc.page_at(5)) { EXPECT_EQ(*sc.page_at(5), 1); }
 	else ADD_FAILURE();
 	EXPECT_FALSE(sc.page_at(6));
-	EXPECT_FALSE(sc.page_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
 
 	if (sc.location_at(0)) {
 		const taul::source_location loc = *sc.location_at(0);
@@ -228,7 +228,7 @@ TEST(source_code_tests, moveAssign) {
 	}
 	else ADD_FAILURE();
 	EXPECT_FALSE(sc.location_at(6));
-	EXPECT_FALSE(sc.location_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 
 
@@ -253,7 +253,7 @@ TEST(source_code_tests, moveAssign_ontoSelf) {
 	EXPECT_TRUE(sc.pos_in_bounds(4));
 	EXPECT_TRUE(sc.pos_in_bounds(5));
 	EXPECT_FALSE(sc.pos_in_bounds(6));
-	EXPECT_FALSE(sc.pos_in_bounds(taul::no_source_pos));
+	EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
 	if (sc.pages().size() == 2) {
 		EXPECT_EQ(sc.pages()[0].pos, 0);
@@ -278,7 +278,7 @@ TEST(source_code_tests, moveAssign_ontoSelf) {
 	if (sc.page_at(5)) { EXPECT_EQ(*sc.page_at(5), 1); }
 	else ADD_FAILURE();
 	EXPECT_FALSE(sc.page_at(6));
-	EXPECT_FALSE(sc.page_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
 
 	if (sc.location_at(0)) {
 		const taul::source_location loc = *sc.location_at(0);
@@ -329,7 +329,7 @@ TEST(source_code_tests, moveAssign_ontoSelf) {
 	}
 	else ADD_FAILURE();
 	EXPECT_FALSE(sc.location_at(6));
-	EXPECT_FALSE(sc.location_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 
 
@@ -359,7 +359,7 @@ TEST(source_code_tests, add_str) {
 	EXPECT_TRUE(sc.pos_in_bounds(7));
 	EXPECT_TRUE(sc.pos_in_bounds(8));
 	EXPECT_FALSE(sc.pos_in_bounds(9));
-	EXPECT_FALSE(sc.pos_in_bounds(taul::no_source_pos));
+	EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
 	if (sc.pages().size() == 3) {
 		EXPECT_EQ(sc.pages()[0].pos, 0);
@@ -384,7 +384,7 @@ TEST(source_code_tests, add_str) {
 	if (sc.page_at(7)) { EXPECT_EQ(*sc.page_at(7), 2); } else ADD_FAILURE();
 	if (sc.page_at(8)) { EXPECT_EQ(*sc.page_at(8), 2); } else ADD_FAILURE();
 	EXPECT_FALSE(sc.page_at(9));
-	EXPECT_FALSE(sc.page_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
 
 	if (sc.location_at(0)) {
 		const taul::source_location loc = *sc.location_at(0);
@@ -459,7 +459,7 @@ TEST(source_code_tests, add_str) {
 	}
 	else ADD_FAILURE();
 	EXPECT_FALSE(sc.location_at(9));
-	EXPECT_FALSE(sc.location_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 
 
@@ -632,7 +632,7 @@ TEST(source_code_tests, add_file_success) {
 	EXPECT_TRUE(sc.pos_in_bounds(0));
 	EXPECT_TRUE(sc.pos_in_bounds(25));
 	EXPECT_FALSE(sc.pos_in_bounds(26));
-	EXPECT_FALSE(sc.pos_in_bounds(taul::no_source_pos));
+	EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
 	if (sc.pages().size() == 2) {
 		EXPECT_EQ(sc.pages()[0].pos, 0);
@@ -648,7 +648,7 @@ TEST(source_code_tests, add_file_success) {
 	if (sc.page_at(24)) { EXPECT_EQ(*sc.page_at(24), 0); } else ADD_FAILURE();
 	if (sc.page_at(25)) { EXPECT_EQ(*sc.page_at(25), 1); } else ADD_FAILURE();
 	EXPECT_FALSE(sc.page_at(26));
-	EXPECT_FALSE(sc.page_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
 	
 	if (sc.location_at(0)) {
 		const taul::source_location loc = *sc.location_at(0);
@@ -675,7 +675,7 @@ TEST(source_code_tests, add_file_success) {
 	}
 	else ADD_FAILURE();
 	EXPECT_FALSE(sc.location_at(26));
-	EXPECT_FALSE(sc.location_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 
 
@@ -696,17 +696,17 @@ TEST(source_code_tests, add_file_failure) {
 
 	EXPECT_FALSE(sc.pos_in_bounds(0));
 	EXPECT_FALSE(sc.pos_in_bounds(1));
-	EXPECT_FALSE(sc.pos_in_bounds(taul::no_source_pos));
+	EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
 	EXPECT_TRUE(sc.pages().empty());
 
 	EXPECT_FALSE(sc.page_at(0));
 	EXPECT_FALSE(sc.page_at(1));
-	EXPECT_FALSE(sc.page_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
 
 	EXPECT_FALSE(sc.location_at(0));
 	EXPECT_FALSE(sc.location_at(1));
-	EXPECT_FALSE(sc.location_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 
 
@@ -725,16 +725,16 @@ TEST(source_code_tests, reset) {
 
 	EXPECT_FALSE(sc.pos_in_bounds(0));
 	EXPECT_FALSE(sc.pos_in_bounds(1));
-	EXPECT_FALSE(sc.pos_in_bounds(taul::no_source_pos));
+	EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
 	EXPECT_TRUE(sc.pages().empty());
 
 	EXPECT_FALSE(sc.page_at(0));
 	EXPECT_FALSE(sc.page_at(1));
-	EXPECT_FALSE(sc.page_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
 
 	EXPECT_FALSE(sc.location_at(0));
 	EXPECT_FALSE(sc.location_at(1));
-	EXPECT_FALSE(sc.location_at(taul::no_source_pos));
+	EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 

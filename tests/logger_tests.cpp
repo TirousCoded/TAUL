@@ -24,7 +24,7 @@ protected:
 };
 
 
-TEST(logger_tests, basic_usage) {
+TEST(logger_tests, basicUsage) {
 
 	const auto lgr = std::make_shared<test_logger>();
 

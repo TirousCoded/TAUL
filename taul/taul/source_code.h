@@ -33,6 +33,10 @@ namespace taul {
 	// character/line values index from 1, not 0
 
 
+	// take note that source_pos (and thus no_pos) can be used to refer to positions
+	// in ANY source string, not just taul::source_code, w/ this being the case so
+	// that we're not semantically coupled stricly to JUST using taul::source_code
+
 	// want this to be 32-bit, as it's large enough for pretty much all use cases,
 	// but small enough to be nice-and-compact for use in end-user's code
 
@@ -41,11 +45,11 @@ namespace taul {
 	// this is useful for end-user code which *could* specify a source code
 	// position, but could also use this to specify a lack of association
 
-	constexpr source_pos no_source_pos = source_pos(-1);
+	//constexpr source_pos no_pos = source_pos(-1); TODO: delete this
 
 
 	struct source_page final {
-		source_pos      pos	    = no_source_pos;
+		source_pos      pos	    = 0;
 		std::size_t     length  = 0;
 		std::string	    origin;
 	};
@@ -55,7 +59,7 @@ namespace taul {
 	// I'm using std::string so that source_location can outlive its source_code object
 
 	struct source_location final {
-		source_pos      pos     = no_source_pos;
+		source_pos      pos     = 0;
 		std::string	    origin;
 		std::size_t     chr     = 1;
 		std::size_t     line    = 1;
@@ -65,7 +69,7 @@ namespace taul {
 	class source_code final {
 	public:
 
-		source_code();
+		source_code() = default;
 		source_code(const source_code&) = delete;
 		source_code(source_code&& x) noexcept;
 

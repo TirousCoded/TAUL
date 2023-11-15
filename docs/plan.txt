@@ -14,17 +14,17 @@ how our project actually ends up turning out
 -- DEVELOPMENT ORDER --
 
 
-	1) loggers & source code
-	2) scripts, grammars & loading
-	3) tokens, lexers & lexical analysis
-	4) nodes, parsers & syntactic analysis
-	5) traversers
-	6) contracts
-	7) script compiling
-	8) 'taulc.exe' CLI driver app
-	9) documentation
-	
-	
+    1) loggers & source code
+    2) scripts, grammars & loading
+    3) tokens, lexers & lexical analysis
+    4) nodes, parsers & syntactic analysis
+    5) traversers
+    6) contracts
+    7) script compiling
+    8) 'taulc.exe' CLI driver app
+    9) documentation
+    
+    
 -- FRONTEND API --
 
 
@@ -34,50 +34,50 @@ virtual void taul::logger::on_log(const std::string& msg)
 
 taul::logger_ref 		= std::shared_ptr<taul::logger>
 
-	derivatives of taul::logger are to be injected as taul::logger_ref into types/functions 
-	when the end-user wishes their behaviour to be diagnostically logged, w/ these derivatives
-	wrapping usage of whatever logging system the end-user wants to use
-	
-	to this end, in everything below, if an 'lgr' parameter is passed in, or is injected,
-	this diagnostic logging is the intent
-	
+    derivatives of taul::logger are to be injected as taul::logger_ref into types/functions 
+    when the end-user wishes their behaviour to be diagnostically logged, w/ these derivatives
+    wrapping usage of whatever logging system the end-user wants to use
+    
+    to this end, in everything below, if an 'lgr' parameter is passed in, or is injected,
+    this diagnostic logging is the intent
+    
 template<typename... Args>
 void taul::log(const taul::logger_ref& lgr, std::format_string<Args...> fmt, Args&&... args)
 
-	taul::log is used to perform logging, w/ these using the C++20 formatting system to do 
-	so efficiently
-	
-	for taul::log, if lgr == nullptr, no logging will occur, w/ this being intended behaviour 
-	as it means they can be used when, say via a parameter to a function, a logger MAY be 
-	logged, but nullptr could also be passed in
+    taul::log is used to perform logging, w/ these using the C++20 formatting system to do 
+    so efficiently
+    
+    for taul::log, if lgr == nullptr, no logging will occur, w/ this being intended behaviour 
+    as it means they can be used when, say via a parameter to a function, a logger MAY be 
+    logged, but nullptr could also be passed in
 
 TAUL_LOG(lgr, fmt, args)
 TAUL_LOG_IF(cond, lgr, fmt, args)
-	
-	the TAUL_LOG and TAUL_LOG_IF are the preferred method of logging, w/ TAUL_LOG being a 
-	simple wrapping macro, and TAUL_LOG_IF wrapping a TAUL_LOG usage in a ternary operator
-	
-	both TAUL_LOG and TAUL_LOG_IF are to be valid expression-like macros, both of which
-	are to return nothing (and so should be written in the form '((void)x)', where 'x' is
-	the rest of the macro)
+    
+    the TAUL_LOG and TAUL_LOG_IF are the preferred method of logging, w/ TAUL_LOG being a 
+    simple wrapping macro, and TAUL_LOG_IF wrapping a TAUL_LOG usage in a ternary operator
+    
+    both TAUL_LOG and TAUL_LOG_IF are to be valid expression-like macros, both of which
+    are to return nothing (and so should be written in the form '((void)x)', where 'x' is
+    the rest of the macro)
 
 taul::stdout_logger		<- logger to stdout
 taul::stderr_logger		<- logger to stderr
 
 taul::logger_ref taul::make_stdout_logger()
 taul::logger_ref taul::make_stderr_logger()
-	
-	taul::stdout_logger and taul::stderr_logger are provided, alongside their corresponding
-	'make_***' functions, to summarize the common use cases of logging to stdout or stderr
+    
+    taul::stdout_logger and taul::stderr_logger are provided, alongside their corresponding
+    'make_***' functions, to summarize the common use cases of logging to stdout or stderr
 
 taul::thread_ctx
 
-	taul::thread_ctx objects encapsulate state which can be used by parts of TAUL library
-	code to more efficiently perform their work (primarily recycling of memory to avoid
-	heap allocation), but at the cost of thread-safety, w/ the users of the taul::thread_ctx
-	being made dependent upon it
-	
-	anywhere a taul::thread_ctx is injected or is a parameter, this is the intent
+    taul::thread_ctx objects encapsulate state which can be used by parts of TAUL library
+    code to more efficiently perform their work (primarily recycling of memory to avoid
+    heap allocation), but at the cost of thread-safety, w/ the users of the taul::thread_ctx
+    being made dependent upon it
+    
+    anywhere a taul::thread_ctx is injected or is a parameter, this is the intent
 
 taul::source_code
 taul::source_location
@@ -87,7 +87,7 @@ taul::source_pos = std::uint32_t
 
 constexpr taul::source_pos taul::no_source_pos = taul::source_pos(-1)
 
-	the final value in the range of taul::source_pos specially indicates no position
+    the final value in the range of taul::source_pos specially indicates no position
 
 bool taul::source_code::is_pos_in_bounds(taul::source_pos pos) const noexcept
 
@@ -97,41 +97,41 @@ const std::vector<taul::source_page>& taul::source_code::get_pages() const noexc
 
 const taul::source_page& taul::source_code::get_page_at(taul::source_pos pos) const noexcept
 
-	in Go's compiler, the source code of a compilation is represented by a datastructure which 
-	conceptually concatenates ALL of the source code into a single large *string*, and then 
-	this lets one represent a particular line/character/file location by a SINGLE INDEX VALUE
-	
-	taul::source_code is a datastructure which does this generally, and taul::source_pos is 
-	the associated integer type
-	
-	taul::source_location is a struct detailing the line/character/file location queried from 
-	a taul::source_code via a taul::source_pos using taul::source_code::get_location, w/ the
-	taul::source_code::is_pos_in_bounds method being used to determine if a position is legal
-	to use in this way
-	
-	each unit of source code added into a taul::source_code object will constitute the addition
-	of a new 'page' into it, for said unit, w/ taul::source_code::get_pages being used to
-	access the vector of pages in the taul::source_code object, and w/ taul::source_code::get_page_at
-	being used to resolve the page at a given position in the taul::source_code
-	
+    in Go's compiler, the source code of a compilation is represented by a datastructure which 
+    conceptually concatenates ALL of the source code into a single large *string*, and then 
+    this lets one represent a particular line/character/file location by a SINGLE INDEX VALUE
+    
+    taul::source_code is a datastructure which does this generally, and taul::source_pos is 
+    the associated integer type
+    
+    taul::source_location is a struct detailing the line/character/file location queried from 
+    a taul::source_code via a taul::source_pos using taul::source_code::get_location, w/ the
+    taul::source_code::is_pos_in_bounds method being used to determine if a position is legal
+    to use in this way
+    
+    each unit of source code added into a taul::source_code object will constitute the addition
+    of a new 'page' into it, for said unit, w/ taul::source_code::get_pages being used to
+    access the vector of pages in the taul::source_code object, and w/ taul::source_code::get_page_at
+    being used to resolve the page at a given position in the taul::source_code
+    
 taul::token
 
-	taul::token objects encapsulate a non-owning memory-view of a section of lexically matched
-	string content, encapsulating alongside it additional information about potential lexer
-	production rule association and taul::source_pos information
-	
+    taul::token objects encapsulate a non-owning memory-view of a section of lexically matched
+    string content, encapsulating alongside it additional information about potential lexer
+    production rule association and taul::source_pos information
+    
 static taul::token taul::token::failure(std::string_view txt, taul::source_pos pos = taul::no_source_pos) noexcept
 
-	taul::token objects may specially encapsulate *failure* token state in which they do not
-	encapsulate any lexer production rule association
+    taul::token objects may specially encapsulate *failure* token state in which they do not
+    encapsulate any lexer production rule association
 
 taul::node
 
-	taul::node objects encapsulate handles to lexical/syntactic node tree information
-	
-	there is no type for the tree as a whole, instead, the tree structure is handled via
-	handling a node for the root of the tree, w/ the tree structure being relative to this
-	
+    taul::node objects encapsulate handles to lexical/syntactic node tree information
+    
+    there is no type for the tree as a whole, instead, the tree structure is handled via
+    handling a node for the root of the tree, w/ the tree structure being relative to this
+    
 taul::traverser		<- base class
 
 virtual void taul::traverser::on_begin()
@@ -141,56 +141,56 @@ virtual void taul::traverser::on_exit(const taul::node& nd)
 
 void taul::traverse(const taul::node& nd, const taul::traverser& t, const taul::logger_ref& lgr = nullptr)
 
-	traversers are used to perform depth-first traversals of node trees, w/ the traverser
-	object being able to have internal state bundled w/ it
-	
-	taul::traverser is the abstract base class used to derive new traversers
-	
-	the taul::traverse function is used to perform traversal of the node tree of nd, 
-	using the specified traverser t
-	
-	traversal always begins w/ on_begin being called to prepare the traverser object, and
-	always ends w/ on_end being called to cleanup following traversal
-	
-	for each node traversed, on_enter is called w/ the node, followed by its children, if 
-	any, being traversed recursively, followed by on_exit being called to finish up
-	
-	on_enter is called w/ a 'bool&' passed in called skip_children, this if set to true
-	during on_enter it communicates to the larger system that the children of the node
-	should NOT be traversed (ie. they should be *skipped*), w/ skip_children always
-	starting off equal to false when on_enter begins
+    traversers are used to perform depth-first traversals of node trees, w/ the traverser
+    object being able to have internal state bundled w/ it
+    
+    taul::traverser is the abstract base class used to derive new traversers
+    
+    the taul::traverse function is used to perform traversal of the node tree of nd, 
+    using the specified traverser t
+    
+    traversal always begins w/ on_begin being called to prepare the traverser object, and
+    always ends w/ on_end being called to cleanup following traversal
+    
+    for each node traversed, on_enter is called w/ the node, followed by its children, if 
+    any, being traversed recursively, followed by on_exit being called to finish up
+    
+    on_enter is called w/ a 'bool&' passed in called skip_children, this if set to true
+    during on_enter it communicates to the larger system that the children of the node
+    should NOT be traversed (ie. they should be *skipped*), w/ skip_children always
+    starting off equal to false when on_enter begins
 
 taul::grammar
 
 taul::lexer_rule
 taul::parser_rule
 
-	taul::grammar is an opaque container of lexer/parser production rule information,
-	alongside grammar metadata
-	
-	these are immutable, generated by the load/preload functions below
+    taul::grammar is an opaque container of lexer/parser production rule information,
+    alongside grammar metadata
+    
+    these are immutable, generated by the load/preload functions below
 
 std::optional<taul::lexer> taul::grammar::get_lexer(std::string_view name) const
 std::optional<taul::parser> taul::grammar::get_parser(std::string_view name) const
 
-	these are used to lookup lexer/parser function objects by name
+    these are used to lookup lexer/parser function objects by name
 
 taul::lexer taul::grammar::get_full_lexer() const
 
 taul::grammar::operator taul::lexer() const
 
-	this returns a special lexer function object which performs lexical analysis using ALL lexer
-	rules of the grammar, and respecting the grammar-wide bias thereof
-	
-	get_full_lexer may be invoked via implicitly converting taul::grammar to taul::lexer
+    this returns a special lexer function object which performs lexical analysis using ALL lexer
+    rules of the grammar, and respecting the grammar-wide bias thereof
+    
+    get_full_lexer may be invoked via implicitly converting taul::grammar to taul::lexer
 
 taul::lexer
 taul::parser
 
 taul::token taul::lexer::operator()(std::string_view txt, const taul::logger_ref& lgr = nullptr) const
 
-std::optional<taul::node> taul::parser::operator()(std::span<taul::token> tokens, const taul::logger_ref& lgr = nullptr) const
-std::optional<taul::node> taul::parser::operator()(std::span<taul::token> tokens, const taul::thread_ctx& ctx, const taul::logger_ref& lgr = nullptr) const
+std::optional<taul::node> taul::parser::operator()(std::span<const taul::token> tokens, const taul::logger_ref& lgr = nullptr) const
+std::optional<taul::node> taul::parser::operator()(std::span<const taul::token> tokens, const taul::thread_ctx& ctx, const taul::logger_ref& lgr = nullptr) const
 
 std::optional<taul::node> taul::parser::operator()(std::string_view txt, const taul::logger_ref& lgr = nullptr) const
 std::optional<taul::node> taul::parser::operator()(std::string_view txt, const taul::thread_ctx& ctx, const taul::logger_ref& lgr = nullptr) const
@@ -200,103 +200,103 @@ taul::cst_tag		<- tag struct
 std::optional<taul::node> taul::parser::operator()(std::string_view txt, taul::cst_tag, const taul::logger_ref& lgr = nullptr) const
 std::optional<taul::node> taul::parser::operator()(std::string_view txt, taul::cst_tag, const taul::thread_ctx& ctx, const taul::logger_ref& lgr = nullptr) const
 
-	lexer/parser function objects are opaque function objects queried from grammars which thusly
-	encapsulate the usage of lexer/parser production rules for lexical/syntactic parsing
-	
-	the lexer function objects take in std::string_view, and return tokens, returning a *failure*
-	token if lexical analysis fails
-	
-	the parser function objects take in spans of tokens, returning a node tree encapsulating
-	the parsed AST, if successful
-	
-	the parser function object call overload w/ taul::cst_tag is to produce a CST rather than an AST,
-	w/ lexical information included into the structure of the tree
-	
-	parsing, if passed a taul::thread_ctx, will use it for its allocation, resulting in the resultant
-	node tree being not thread-safe regarding destruction
-	
-	parsing may also be done w/ a std::string_view, which will first tokenize txt as in a manner
-	equivalent to using taul::tokenize(_into)
-	
-	IMPORTANT: when implementing, we can avoid unneeded heap allocations by putting a vector of
-	           tokens into taul::thread_ctx to use
-	
+    lexer/parser function objects are opaque function objects queried from grammars which thusly
+    encapsulate the usage of lexer/parser production rules for lexical/syntactic parsing
+    
+    the lexer function objects take in std::string_view, and return tokens, returning a *failure*
+    token if lexical analysis fails
+    
+    the parser function objects take in spans of tokens, returning a node tree encapsulating
+    the parsed AST, if successful
+    
+    the parser function object call overload w/ taul::cst_tag is to produce a CST rather than an AST,
+    w/ lexical information included into the structure of the tree
+    
+    parsing, if passed a taul::thread_ctx, will use it for its allocation, resulting in the resultant
+    node tree being not thread-safe regarding destruction
+    
+    parsing may also be done w/ a std::string_view, which will first tokenize txt as in a manner
+    equivalent to using taul::tokenize(_into)
+    
+    IMPORTANT: when implementing, we can avoid unneeded heap allocations by putting a vector of
+               tokens into taul::thread_ctx to use
+    
 std::vector<taul::token> taul::tokenize(const taul::lexer& f, std::string_view txt, const taul::logger_ref& lgr = nullptr)
 
 void taul::tokenize_into(std::vector<taul::token>& target, const taul::lexer& f, std::string_view txt, const taul::logger_ref& lgr = nullptr)
 
-	these functions take a lexer function object f and tokenizes them into a vector of tokens
-	
-	if a token during tokenization produced has length 0, then to avoid an infinite loop (since 
-	the lexer will otherwise deterministically resolve the same token over-and-other) the function
-	will insert a failure token matching the next character into the output
-	
-	if during the above the length 0 token is located at the end of the txt, no failure
-	token will be inserted
-	
-	furthermore, if during the above the last token in the output was a failure token placed
-	there due to a previous failure one character prior, this last token's covered span of
-	characters will be extended by one, rather than a new failure token being produced
+    these functions take a lexer function object f and tokenizes them into a vector of tokens
+    
+    if a token during tokenization produced has length 0, then to avoid an infinite loop (since 
+    the lexer will otherwise deterministically resolve the same token over-and-other) the function
+    will insert a failure token matching the next character into the output
+    
+    if during the above the length 0 token is located at the end of the txt, no failure
+    token will be inserted
+    
+    furthermore, if during the above the last token in the output was a failure token placed
+    there due to a previous failure one character prior, this last token's covered span of
+    characters will be extended by one, rather than a new failure token being produced
 
 taul::contract_factory
 taul::contract
 
 bool taul::contract::conforms(const taul::grammar& target) const noexcept
 
-	taul::contract is used to define an abstract interface of lexer/parser production
-	rules, and possibly other information, which is expected of a grammar which
-	conforms to said interface
-	
-	this could be useful as a way to sanity check grammars
-	
-	taul::contract::conforms is used to check if target conforms to the interface 
-	of the taul::contract
-	
-	taul::contract objects are created via taul::contract_factory
+    taul::contract is used to define an abstract interface of lexer/parser production
+    rules, and possibly other information, which is expected of a grammar which
+    conforms to said interface
+    
+    this could be useful as a way to sanity check grammars
+    
+    taul::contract::conforms is used to check if target conforms to the interface 
+    of the taul::contract
+    
+    taul::contract objects are created via taul::contract_factory
 
 taul::script_writer
 taul::script
 
-	TAUL grammars are loaded via 'scripts', which are *immediate-mode* commands sequences
-	describing a sequence of nestable expressions, alongside other commands, which are
-	executed in sequence, w/out branching, upon a state machine to build the grammar,
-	according to the semantics of the system interpreting it
-	
-	expressions come in two types: 'simple' and 'composite'
-	
-	simple expressions are described by a single command describing it
-	
-	composite expressions are composed of three components:
-		1) an 'open' command, unique to the expression type in question, which acts as
-		   a *header*, details information about the expression
-		2) a sequence of commands describing the nested subexpressions of the expression
-		3) a 'close' command, of which there's only one, which semantically marks the
-		   end of the composite expression
-	
-	there are also other commands, like ones used to encode information about the location a
-	expression corresponds to in source code, which supplement the above w/ additional details
-	
-	these scripts are to be portable, and their exact interpretation is left up to the 
-	interpreter to decide, as stated, w/ the process of iterating over and evaluating them 
-	being open-ended such that multiple possible ways of processing them may be implemented, 
-	for different purposes
-	
-	these scripts make liberal usage of strings internally in order to avoid the need to use
-	things like indices and other *complicating* technical details
-	
-	taul::script encapsulates a script, w/ taul::script_writer being used to write them
-	
+    TAUL grammars are loaded via 'scripts', which are *immediate-mode* commands sequences
+    describing a sequence of nestable expressions, alongside other commands, which are
+    executed in sequence, w/out branching, upon a state machine to build the grammar,
+    according to the semantics of the system interpreting it
+    
+    expressions come in two types: 'simple' and 'composite'
+    
+    simple expressions are described by a single command describing it
+    
+    composite expressions are composed of three components:
+        1) an 'open' command, unique to the expression type in question, which acts as
+           a *header*, details information about the expression
+        2) a sequence of commands describing the nested subexpressions of the expression
+        3) a 'close' command, of which there's only one, which semantically marks the
+           end of the composite expression
+    
+    there are also other commands, like ones used to encode information about the location a
+    expression corresponds to in source code, which supplement the above w/ additional details
+    
+    these scripts are to be portable, and their exact interpretation is left up to the 
+    interpreter to decide, as stated, w/ the process of iterating over and evaluating them 
+    being open-ended such that multiple possible ways of processing them may be implemented, 
+    for different purposes
+    
+    these scripts make liberal usage of strings internally in order to avoid the need to use
+    things like indices and other *complicating* technical details
+    
+    taul::script encapsulates a script, w/ taul::script_writer being used to write them
+    
 taul::script_error
 taul::script_error_counter
 
-	taul::script_error is an enumeration of errors/warnings which case arise during TAUL script compilation
-	
-	taul::script_error_counter is a diagnostic helper which records the number of times each 
-	taul::script_error arose during parsing/compilation of a TAUL script
-	
-	taul::script_error_counter thusly stores an internal array of counts, w/ one entry for each
-	taul::script_error value
-	
+    taul::script_error is an enumeration of errors/warnings which can arise during TAUL script compilation
+    
+    taul::script_error_counter is a diagnostic helper which records the number of times each 
+    taul::script_error arose during parsing/compilation of a TAUL script
+    
+    taul::script_error_counter thusly stores an internal array of counts, w/ one entry for each
+    taul::script_error value
+    
 std::optional<taul::script> taul::compile(const std::filesystem::path& src_path, const taul::logger_ref& lgr = nullptr)
 std::optional<taul::script> taul::compile(const std::filesystem::path& src_path, const taul::thread_ctx& ctx, const taul::logger_ref& lgr = nullptr)
 std::optional<taul::script> taul::compile(const std::filesystem::path& src_path, taul::script_error_counter& ec, const taul::logger_ref& lgr = nullptr)
@@ -307,13 +307,13 @@ std::optional<taul::script> taul::compile(const taul::source_code& src, const ta
 std::optional<taul::script> taul::compile(const taul::source_code& src, taul::script_error_counter& ec, const taul::logger_ref& lgr = nullptr)
 std::optional<taul::script> taul::compile(const taul::source_code& src, taul::script_error_counter& ec, const taul::thread_ctx& ctx, const taul::logger_ref& lgr = nullptr)
 
-	taul::compile is used to compile TAUL source code into a taul::script object (if compilation succeeds)
-	
-	taul::compile may be used w/ immediate source code, or w/ source code loaded from a file
-	
-	taul::source_code is required for direct compilation rather than std::string_view as the ladder would
-	not be able to provide source code location information
-	
+    taul::compile is used to compile TAUL source code into a taul::script object (if compilation succeeds)
+    
+    taul::compile may be used w/ immediate source code, or w/ source code loaded from a file
+    
+    taul::source_code is required for direct compilation rather than std::string_view as the ladder would
+    not be able to provide source code location information
+    
 std::optional<taul::grammar> taul::load(const std::filesystem::path& src_path, const taul::logger_ref& lgr = nullptr)
 std::optional<taul::grammar> taul::load(const std::filesystem::path& src_path, const taul::thread_ctx& ctx, const taul::logger_ref& lgr = nullptr)
 std::optional<taul::grammar> taul::load(const std::filesystem::path& src_path, taul::script_error_counter& ec, const taul::logger_ref& lgr = nullptr)
@@ -329,42 +329,42 @@ std::optional<taul::grammar> taul::load(const taul::script& scr, const taul::thr
 std::optional<taul::grammar> taul::load(const taul::script& scr, taul::script_error_counter& ec, const taul::logger_ref& lgr = nullptr)
 std::optional<taul::grammar> taul::load(const taul::script& scr, taul::script_error_counter& ec, const taul::thread_ctx& ctx, const taul::logger_ref& lgr = nullptr)
 
-	taul::load is used to load a grammar via a taul::script
-	
-	overloads are provided both for immediate usage of a pre-compiled taul::script, or via
-	the compiling, then loading, of one from source code, or source code from a file
+    taul::load is used to load a grammar via a taul::script
+    
+    overloads are provided both for immediate usage of a pre-compiled taul::script, or via
+    the compiling, then loading, of one from source code, or source code from a file
 
 typedef taul::grammar(*fetcher)(const taul::logger_ref&)
 
-	taul::fetcher functions are provided by C++ code generated by 'taulc.exe' in order to
-	*fetch* the pre-compiled/loaded grammar thereof
-	
-	
+    taul::fetcher functions are provided by C++ code generated by 'taulc.exe' in order to
+    *fetch* the pre-compiled/loaded grammar thereof
+    
+    
 -- CLI DRIVER APP API --
 
-	
+    
 taulc help <command>
 
-	prints reference information about <command>, pretty self-explanatory
-	
+    prints reference information about <command>, pretty self-explanatory
+    
 taulc version
 
-	prints the version of 'taulc.exe'
+    prints the version of 'taulc.exe'
 
 taulc check <source-path>
 
-	check attempts to compile the contents of <source-path> for the sake of 
-	checking if it is able to compile successfully, producing no output
-	
+    check attempts to compile the contents of <source-path> for the sake of 
+    checking if it is able to compile successfully, producing no output
+    
 taulc compile <fetcher> <source-path> <output-path>
 
-	compile performs compilation of the contents of <source-path>, and emits an 
-	output to <output-path>, overwriting any existing file, outputting nothing 
-	if the compilation fails
-	
-	the output is a C++ header file encapsulating a grammar fetcher function
-	
-	the fetcher will be located in a 'taul::fetchers::*' namespace, w/ the name
-	of the fetcher function being <fetcher>
-		
-		
+    compile performs compilation of the contents of <source-path>, and emits an 
+    output to <output-path>, overwriting any existing file, outputting nothing 
+    if the compilation fails
+    
+    the output is a C++ header file encapsulating a grammar fetcher function
+    
+    the fetcher will be located in a 'taul::fetchers::*' namespace, w/ the name
+    of the fetcher function being <fetcher>
+        
+        

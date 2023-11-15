@@ -2,14 +2,10 @@
 
 #include "source_code.h"
 
-#include "general.h"
-
 #include <fstream>
 
+#include "asserts.h"
 
-taul::source_code::source_code() {
-	//
-}
 
 taul::source_code::source_code(source_code&& x) noexcept {
 	std::swap(_concat, x._concat);
@@ -105,7 +101,7 @@ bool taul::source_code::add_file(
 		buff.resize(file_size, '\0'); // <- TODO: std::string can handle stray nulls, right?
 		ifs.read(buff.data(), file_size);
 		add_str(src_path.string(), buff);
-		TAUL_LOG(lgr, "taul::source_code::add_file loaded {} chars. from {}!", ifs.gcount(), src_path_s);
+		TAUL_LOG(lgr, "taul::source_code::add_file loaded {} chars from \"{}\"!", ifs.gcount(), src_path_s);
 	}
 	TAUL_LOG_IF(!ifs.is_open(), lgr, "taul::source_code::add_file failed due to \"{}\" not found!", src_path_s);
 	return ifs.is_open();

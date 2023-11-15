@@ -46,8 +46,14 @@ namespace taul {
 }
 
 
+// TAUL_LOG now uses short circuiting to avoid evaluation of taul::log
+// in situations where lgr == nullptr, as in those situations it'll let
+// us avoid things like potential heap usage in the arguments of taul::log
+
+// thus, TAUL_LOG is preferred to taul::log for basic logging
+
 #define TAUL_LOG(lgr, fmt, ...) \
-((void)taul::log(lgr, fmt, __VA_ARGS__))
+((void)(bool(lgr) && (taul::log(lgr, fmt, __VA_ARGS__), true)))
 
 // use a && short circuit to conditionally use TAUL_LOG
 
