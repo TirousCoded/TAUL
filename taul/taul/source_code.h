@@ -15,132 +15,132 @@
 namespace taul {
 
 
-	// these 'source code' objects encapsulate a collection of source code 'pages',
-	// corresponding to the various different strings, files, etc. where the source
-	// code of a compilation may come from
+    // these 'source code' objects encapsulate a collection of source code 'pages',
+    // corresponding to the various different strings, files, etc. where the source
+    // code of a compilation may come from
 
-	// the collection is represented as a single string composed of the concatenation
-	// of the pages, such that every character/line/origin location has a corresponding
-	// 32-bit source_pos value uniquely identifying it, allowing all of said information
-	// to thus be reduced down to this 32-bit source_pos value
+    // the collection is represented as a single string composed of the concatenation
+    // of the pages, such that every character/line/origin location has a corresponding
+    // 32-bit source_pos value uniquely identifying it, allowing all of said information
+    // to thus be reduced down to this 32-bit source_pos value
 
-	// each page is likewise also accessed via an index in the source code object
+    // each page is likewise also accessed via an index in the source code object
 
-	// a string identifier is included in each page's metadata called its 'origin',
-	// which generally refers to either the filepath to the page's associated source
-	// code file, or some other string identifier naming its *origin* in some way
+    // a string identifier is included in each page's metadata called its 'origin',
+    // which generally refers to either the filepath to the page's associated source
+    // code file, or some other string identifier naming its *origin* in some way
 
-	// character/line values index from 1, not 0
-
-
-	// take note that source_pos (and thus no_pos) can be used to refer to positions
-	// in ANY source string, not just taul::source_code, w/ this being the case so
-	// that we're not semantically coupled stricly to JUST using taul::source_code
-
-	// want this to be 32-bit, as it's large enough for pretty much all use cases,
-	// but small enough to be nice-and-compact for use in end-user's code
-
-	using source_pos = std::uint32_t;
-
-	// this is useful for end-user code which *could* specify a source code
-	// position, but could also use this to specify a lack of association
-
-	//constexpr source_pos no_pos = source_pos(-1); TODO: delete this
+    // character/line values index from 1, not 0
 
 
-	struct source_page final {
-		source_pos      pos	    = 0;
-		std::size_t     length  = 0;
-		std::string	    origin;
-	};
+    // take note that source_pos (and thus no_pos) can be used to refer to positions
+    // in ANY source string, not just taul::source_code, w/ this being the case so
+    // that we're not semantically coupled stricly to JUST using taul::source_code
 
-	// note how source_location stores a std::string, be mindful of its heap usage
+    // want this to be 32-bit, as it's large enough for pretty much all use cases,
+    // but small enough to be nice-and-compact for use in end-user's code
 
-	// I'm using std::string so that source_location can outlive its source_code object
+    using source_pos = std::uint32_t;
 
-	struct source_location final {
-		source_pos      pos     = 0;
-		std::string	    origin;
-		std::size_t     chr     = 1;
-		std::size_t     line    = 1;
-	};
+    // this is useful for end-user code which *could* specify a source code
+    // position, but could also use this to specify a lack of association
+
+    //constexpr source_pos no_pos = source_pos(-1); TODO: delete this
 
 
-	class source_code final {
-	public:
+    struct source_page final {
+        source_pos      pos	    = 0;
+        std::size_t     length  = 0;
+        std::string	    origin;
+    };
 
-		source_code() = default;
-		source_code(const source_code&) = delete;
-		source_code(source_code&& x) noexcept;
+    // note how source_location stores a std::string, be mindful of its heap usage
 
-		~source_code() noexcept = default;
+    // I'm using std::string so that source_location can outlive its source_code object
 
-		source_code& operator=(const source_code&) = delete;
-		source_code& operator=(source_code&& rhs) noexcept;
-
-
-		// this returns a view of the concatenated source code string
-
-		std::string_view str() const noexcept;
-
-
-		bool pos_in_bounds(source_pos pos) const noexcept;
+    struct source_location final {
+        source_pos      pos     = 0;
+        std::string	    origin;
+        std::size_t     chr     = 1;
+        std::size_t     line    = 1;
+    };
 
 
-		std::span<const source_page> pages() const noexcept;
+    class source_code final {
+    public:
+
+        source_code() = default;
+        source_code(const source_code&) = delete;
+        source_code(source_code&& x) noexcept;
+
+        ~source_code() noexcept = default;
+
+        source_code& operator=(const source_code&) = delete;
+        source_code& operator=(source_code&& rhs) noexcept;
 
 
-		// this, if successful, returns the page index of the page pos is within
+        // this returns a view of the concatenated source code string
 
-		std::optional<std::size_t> page_at(source_pos pos) const noexcept;
-
-
-		std::optional<source_location> location_at(source_pos pos) const noexcept;
+        std::string_view str() const noexcept;
 
 
-		void add_str(std::string origin, const std::string& x);
-		void add_str(std::string origin, std::string_view x);
-
-		// behaviour is undefined if x == nullptr
-
-		void add_str(std::string origin, const char* x);
+        bool pos_in_bounds(source_pos pos) const noexcept;
 
 
-		// returns if successful
-
-		bool add_file(
-			const std::filesystem::path& src_path, 
-			const logger_ref& lgr = nullptr);
+        std::span<const source_page> pages() const noexcept;
 
 
-		void reset() noexcept;
+        // this, if successful, returns the page index of the page pos is within
+
+        std::optional<std::size_t> page_at(source_pos pos) const noexcept;
 
 
-	private:
-
-		std::string _concat;
-		std::vector<source_page> _pages;
-
-		// each _pages entry gets an entry in this, detailing where in _lineStarts
-		// begins its lines
-
-		std::vector<std::size_t> _pageLineStartOffsets;
-
-		// TODO: I'm sure there's a way to do this better, but we'll just
-		//       record the positions of all the line starts, then linearly
-		//       iterate across when resolving a position's line number
-
-		// here 'line start' refers to the position AFTER the newline, which
-		// we're considering to be the final character of the *previous* line
-
-		std::vector<source_pos> _lineStarts;
+        std::optional<source_location> location_at(source_pos pos) const noexcept;
 
 
-		// this is to be called BEFORE doing anything else when adding a new page
+        void add_str(std::string origin, const std::string& x);
+        void add_str(std::string origin, std::string_view x);
 
-		void _addLineStarts(std::string_view s);
+        // behaviour is undefined if x == nullptr
 
-		std::pair<std::size_t, std::size_t> resolveChrAndLine(std::size_t pageInd, source_pos pos) const noexcept;
-	};
+        void add_str(std::string origin, const char* x);
+
+
+        // returns if successful
+
+        bool add_file(
+            const std::filesystem::path& src_path, 
+            const logger_ref& lgr = nullptr);
+
+
+        void reset() noexcept;
+
+
+    private:
+
+        std::string _concat;
+        std::vector<source_page> _pages;
+
+        // each _pages entry gets an entry in this, detailing where in _lineStarts
+        // begins its lines
+
+        std::vector<std::size_t> _pageLineStartOffsets;
+
+        // TODO: I'm sure there's a way to do this better, but we'll just
+        //       record the positions of all the line starts, then linearly
+        //       iterate across when resolving a position's line number
+
+        // here 'line start' refers to the position AFTER the newline, which
+        // we're considering to be the final character of the *previous* line
+
+        std::vector<source_pos> _lineStarts;
+
+
+        // this is to be called BEFORE doing anything else when adding a new page
+
+        void _addLineStarts(std::string_view s);
+
+        std::pair<std::size_t, std::size_t> resolveChrAndLine(std::size_t pageInd, source_pos pos) const noexcept;
+    };
 }
 
