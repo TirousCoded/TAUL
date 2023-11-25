@@ -32,7 +32,7 @@ protected:
         output += "shutdown\n";
     }
 
-    static_assert(taul::spec_opcodes == 7);
+    static_assert(taul::spec_opcodes == 18);
 
     inline void on_grammar_bias(taul::bias b) override final {
         output += std::format("grammar-bias {}\n", b);
@@ -58,11 +58,58 @@ protected:
         output += std::format("ppr \"{}\"\n", name);
     }
 
-    inline void on_char() override final {
-        output += std::format("char\n");
+    inline void on_begin() override final {
+        output += std::format("begin\n");
+    }
+    
+    inline void on_end() override final {
+        output += std::format("end\n");
+    }
+    
+    inline void on_any() override final {
+        output += std::format("any\n");
+    }
+
+    inline void on_string(std::string_view units) override final {
+        output += std::format("string \"{}\"\n", units);
+    }
+
+    inline void on_charset(std::string_view units) override final {
+        output += std::format("charset \"{}\"\n", units);
+    }
+
+    inline void on_sequence() override final {
+        output += std::format("sequence\n");
+    }
+
+    inline void on_set(taul::bias b) override final {
+        output += std::format("set {}\n", b);
+    }
+
+    inline void on_modifier(std::uint16_t min, std::uint16_t max) override final {
+        output += std::format("modifier {}, {}\n", min, max);
+    }
+
+    inline void on_assertion(taul::polarity p) override final {
+        output += std::format("assertion {}\n", p);
+    }
+
+    inline void on_constraint(taul::polarity p) override final {
+        output += std::format("constraint {}\n", p);
+    }
+
+    inline void on_junction() override final {
+        output += std::format("junction\n");
+    }
+
+    inline void on_localend() override final {
+        output += std::format("localend\n");
     }
 };
 
+
+// these tests are for spec writing/interpreting, w/ the semantics of
+// loading being beyond its scope
 
 // we'll test spec writers/interpreters as a single unit, as neither can 
 // be used in isolation
@@ -92,16 +139,63 @@ TEST(spec_tests, tests) {
 
     // test done w/ main usage
 
-    static_assert(taul::spec_opcodes == 7);
+    static_assert(taul::spec_opcodes == 18);
 
     const auto spec1 = sw
         .grammar_bias(taul::bias::last_shortest)
         .lpr_decl("lpr0")
         .ppr_decl("ppr0")
         .lpr("lpr0")
-        .char0()
+        .begin()
+        .end()
+        .any()
+        .string("abc")
+        .charset("abc")
+        .sequence()
+        .set(taul::bias::last_shortest)
+        .any()
+        .close()
+        .close()
+        .assertion(taul::polarity::negative)
+        .modifier(3, 4)
+        .any()
+        .close()
+        .close()
+        .constraint(taul::polarity::negative)
+        .any()
+        .junction()
+        .sequence()
+        .string("a")
+        .localend()
+        .string("bc")
+        .close()
+        .close()
         .close()
         .ppr("ppr0")
+        .begin()
+        .end()
+        .any()
+        .string("abc")
+        .charset("abc")
+        .sequence()
+        .set()
+        .any()
+        .close()
+        .close()
+        .assertion()
+        .modifier(3)
+        .any()
+        .close()
+        .close()
+        .constraint()
+        .any()
+        .junction()
+        .sequence()
+        .string("a")
+        .localend()
+        .string("bc")
+        .close()
+        .close()
         .close()
         .done();
 
@@ -142,9 +236,56 @@ TEST(spec_tests, tests) {
     expected += "lpr-decl \"lpr0\"\n";
     expected += "ppr-decl \"ppr0\"\n";
     expected += "lpr \"lpr0\"\n";
-    expected += "char\n";
+    expected += "begin\n";
+    expected += "end\n";
+    expected += "any\n";
+    expected += "string \"abc\"\n";
+    expected += "charset \"abc\"\n";
+    expected += "sequence\n";
+    expected += "set last-shortest\n";
+    expected += "any\n";
+    expected += "close\n";
+    expected += "close\n";
+    expected += "assertion negative\n";
+    expected += "modifier 3, 4\n";
+    expected += "any\n";
+    expected += "close\n";
+    expected += "close\n";
+    expected += "constraint negative\n";
+    expected += "any\n";
+    expected += "junction\n";
+    expected += "sequence\n";
+    expected += "string \"a\"\n";
+    expected += "localend\n";
+    expected += "string \"bc\"\n";
+    expected += "close\n";
+    expected += "close\n";
     expected += "close\n";
     expected += "ppr \"ppr0\"\n";
+    expected += "begin\n";
+    expected += "end\n";
+    expected += "any\n";
+    expected += "string \"abc\"\n";
+    expected += "charset \"abc\"\n";
+    expected += "sequence\n";
+    expected += "set first-longest\n";
+    expected += "any\n";
+    expected += "close\n";
+    expected += "close\n";
+    expected += "assertion positive\n";
+    expected += "modifier 3, 0\n";
+    expected += "any\n";
+    expected += "close\n";
+    expected += "close\n";
+    expected += "constraint positive\n";
+    expected += "any\n";
+    expected += "junction\n";
+    expected += "sequence\n";
+    expected += "string \"a\"\n";
+    expected += "localend\n";
+    expected += "string \"bc\"\n";
+    expected += "close\n";
+    expected += "close\n";
     expected += "close\n";
     expected += "shutdown\n";
 

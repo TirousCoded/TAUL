@@ -24,7 +24,7 @@ taul::token text_lexer_fn(
     const std::shared_ptr<taul::lexer_state>& state,
     std::string_view txt,
     taul::source_pos offset,
-    const taul::logger_ref& lgr) {
+    const std::shared_ptr<taul::logger>& lgr) {
     TAUL_LOG(lgr, "test_lexer_fn called w/ \"{}\" w/ offset {}", (std::string)txt, offset);
     assert(state);
     static_cast<test_lexer_state*>(state.get())->last = txt;
@@ -36,7 +36,7 @@ taul::token text_lexer_fn(
 class LexerTests : public testing::Test {
 protected:
 
-    taul::logger_ref lgr = nullptr;
+    std::shared_ptr<taul::logger> lgr = nullptr;
     std::shared_ptr<test_lexer_state> state = nullptr;
 
 

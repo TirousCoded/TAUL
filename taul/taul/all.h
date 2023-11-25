@@ -11,6 +11,7 @@
 #include "source_code.h"
 
 #include "bias.h"
+#include "polarity.h"
 
 #include "spec_error.h"
 #include "spec_opcode.h"

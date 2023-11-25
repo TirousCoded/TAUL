@@ -11,11 +11,6 @@
 namespace taul {
 
 
-    class logger;
-
-    using logger_ref = std::shared_ptr<logger>;
-
-    
     class logger {
     public:
         
@@ -38,7 +33,7 @@ namespace taul {
 
 
     template<typename... Args>
-    inline void log(const logger_ref& lgr, std::format_string<Args...> fmt, Args&&... args) {
+    inline void log(const std::shared_ptr<logger>& lgr, std::format_string<Args...> fmt, Args&&... args) {
         if (lgr) {
             lgr->log(fmt, std::forward<Args&&>(args)...);
         }
@@ -108,7 +103,7 @@ namespace taul {
     };
 
 
-    logger_ref make_stdout_logger();
-    logger_ref make_stderr_logger();
+    std::shared_ptr<logger> make_stdout_logger();
+    std::shared_ptr<logger> make_stderr_logger();
 }
 

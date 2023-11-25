@@ -3,6 +3,7 @@
 #include "token.h"
 
 #include "asserts.h"
+#include "rules.h"
 
 
 taul::token::token(const lexer_rule& lpr, std::string_view str, source_pos pos) noexcept 

@@ -5,13 +5,13 @@
 #include "asserts.h"
 
 
-void taul::tokenize_into(std::vector<token>& target, const lexer& f, std::string_view txt, const logger_ref& lgr) {
+void taul::tokenize_into(std::vector<token>& target, const lexer& f, std::string_view txt, const std::shared_ptr<logger>& lgr) {
     tokenize_into(target, f, txt, 0, lgr);
 }
 
-void taul::tokenize_into(std::vector<token>& target, const lexer& f, std::string_view txt, source_pos offset, const logger_ref& lgr) {
+void taul::tokenize_into(std::vector<token>& target, const lexer& f, std::string_view txt, source_pos offset, const std::shared_ptr<logger>& lgr) {
     TAUL_ASSERT(offset <= txt.length());
-    TAUL_LOG(lgr, "tokenizing \"{}\" (offset=={})", (std::string)txt, offset);
+    TAUL_LOG(lgr, "tokenizing \"{}\" (offset=={})...", (std::string)txt, offset);
     bool backIsFail = false;
     do {
         const auto tkn = f(txt, offset, lgr);
@@ -53,14 +53,14 @@ void taul::tokenize_into(std::vector<token>& target, const lexer& f, std::string
     else {
         TAUL_LOG(lgr, "token discarded; no final token output");
     }
-    TAUL_LOG(lgr, "tokenization complete");
+    TAUL_LOG(lgr, "tokenization complete!");
 }
 
-std::vector<taul::token> taul::tokenize(const lexer& f, std::string_view txt, const logger_ref& lgr) {
+std::vector<taul::token> taul::tokenize(const lexer& f, std::string_view txt, const std::shared_ptr<logger>& lgr) {
     return tokenize(f, txt, 0, lgr);
 }
 
-std::vector<taul::token> taul::tokenize(const lexer& f, std::string_view txt, source_pos offset, const logger_ref& lgr) {
+std::vector<taul::token> taul::tokenize(const lexer& f, std::string_view txt, source_pos offset, const std::shared_ptr<logger>& lgr) {
     TAUL_ASSERT(offset <= txt.length());
     std::vector<token> result{};
     tokenize_into(result, f, txt, offset, lgr);

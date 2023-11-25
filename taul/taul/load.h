@@ -9,10 +9,13 @@
 
 #include "logger.h"
 #include "bias.h"
+#include "polarity.h"
 #include "spec_error.h"
 #include "spec_opcode.h"
 #include "spec.h"
 #include "grammar.h"
+
+#include "internal/lexer_pat.h"
 
 
 namespace taul {
@@ -21,8 +24,8 @@ namespace taul {
     // our unit tests will only test the spec_error_counter overloads, and presume the ones 
     // w/out spec_error_counter simply *forward* to the ones that do
 
-    std::optional<grammar> load(const spec& s, const logger_ref& lgr = nullptr);
-    std::optional<grammar> load(const spec& s, spec_error_counter& ec, const logger_ref& lgr = nullptr);
+    std::optional<grammar> load(const spec& s, const std::shared_ptr<logger>& lgr = nullptr);
+    std::optional<grammar> load(const spec& s, spec_error_counter& ec, const std::shared_ptr<logger>& lgr = nullptr);
 
 
     namespace internal {
@@ -32,7 +35,7 @@ namespace taul {
         public:
 
             spec_error_counter* ec = nullptr;
-            logger_ref lgr = nullptr;
+            std::shared_ptr<logger> lgr = nullptr;
 
             bool success = false;
 
@@ -124,15 +127,25 @@ namespace taul {
                 parser,     // push/pop ppr association to/from ETS
             };
 
+            struct les_entry final {
+                source_pos offset; // the recorded offset of the end of the constrained expr's match
+            };
+
             struct ess_entry final {
                 spec_opcode         opcode;
-                ets_type            type;
-                std::string_view    name;       // name of lpr/ppr, if any
-                std::size_t         index;      // index of lpr/ppr, if any
+                ets_type            type            = ets_type::none;
+                std::string_view    name            = "";               // name of lpr/ppr, if any
+                bool                has_lpr_pat     = false;            // pops from lexer_pats on pop (push must be done manually)
+                
+                // the below are *not* to be initialized explicitly
+                
+                std::size_t         index           = std::size_t(-1);  // index of lpr/ppr, if any
+                bool                has_les_entry   = false;            // if has an LES entry to pop (see mark_junction to push)
             };
 
             std::vector<ess_entry> ess;
             std::vector<ets_type> ets;
+            std::vector<les_entry> les;
 
             inline void push_expr(ess_entry entry) {
                 ess.push_back(entry);
@@ -146,14 +159,85 @@ namespace taul {
                     if (ess.back().type != ets_type::none) {
                         ets.pop_back();
                     }
+                    if (ess.back().has_les_entry) {
+                        les.pop_back();
+                    }
                     ess.pop_back();
                 }
+            }
+
+            // this is called in junction to push an LES entry for the current contraint expr
+
+            inline void mark_junction() noexcept {
+                if (ess.empty()) return;
+                if (ess.back().opcode != spec_opcode::constraint) return;
+                if (ess.back().has_les_entry) return;
+                les.push_back(les_entry{});
+                ess.back().has_les_entry = true;
             }
 
             inline bool in_composite_expr() const noexcept { return !ess.empty(); }
             inline bool in_lpr_or_ppr() const noexcept { return !ets.empty(); }
             inline bool in_lpr() const noexcept { return in_lpr_or_ppr() && ets.back() == ets_type::lexer; }
             inline bool in_ppr() const noexcept { return in_lpr_or_ppr() && ets.back() == ets_type::parser; }
+
+
+            // these stacks are for handling the lexer/parser 'pattern' expr trees, which get
+            // built via them
+
+            std::vector<std::shared_ptr<internal::lexer_pat>> lexer_pats;
+
+            // this is for simple exprs (eg. 'char') to *bind* their lexer pattern object
+            // to the top one of the lexer_pats stack, instead of pushing to the stack
+
+            template<typename LexerPat, typename... Args>
+            inline std::shared_ptr<internal::lexer_pat> bind_lexer_pat(Args&&... args) {
+                auto _new = std::make_shared<LexerPat>(std::forward<Args>(args)...);
+                if (!lexer_pats.empty()) {
+                    lexer_pats.back()->children.push_back(_new);
+                }
+                return _new;
+            }
+
+            // this is for composite exprs to push their lexer pattern object to the top of lexer_pats
+
+            template<typename LexerPat, typename... Args>
+            inline std::shared_ptr<internal::lexer_pat> push_lexer_pat(Args&&... args) {
+                auto _new = bind_lexer_pat<LexerPat>(std::forward<Args>(args)...);
+                lexer_pats.push_back(_new);
+                return _new;
+            }
+
+            // this is the pop counterpart to push_lexer_pat, and is called automatically in on_close
+
+            inline std::shared_ptr<internal::lexer_pat> pop_lexer_pat() {
+                std::shared_ptr<internal::lexer_pat> result = nullptr;
+                if (!lexer_pats.empty()) {
+                    result = lexer_pats.back();
+                    lexer_pats.pop_back();
+                }
+                return result;
+            }
+
+            inline void handle_pop_lexer_pat_for_top_ess() {
+                if (!in_lpr()) return;
+                if (!ess.back().has_lpr_pat) return;
+                auto popped = pop_lexer_pat();
+                if (ess.back().opcode == taul::spec_opcode::lpr) {
+                    bind_lexer_pat_to_lpr(ess.back().name, popped);
+                }
+            }
+
+
+            // these maps lpr/ppr names to their lexer/parser 'pattern' expr trees, for us to
+            // then use to build final lexers/parsers during taul::load
+
+            std::unordered_map<std::string_view, std::shared_ptr<internal::lexer_pat>> lexer_pat_map;
+
+            inline void bind_lexer_pat_to_lpr(std::string_view lpr, std::shared_ptr<internal::lexer_pat> pat) {
+                TAUL_ASSERT(!lexer_pat_map.contains(lpr));
+                lexer_pat_map[lpr] = std::move(pat);
+            }
 
 
             template<typename... Args>
@@ -183,13 +267,23 @@ namespace taul {
             void check_all_pprs_are_defined();
             void check_all_lprs_and_pprs_are_defined();
 
+            void check_subexpr_count_legal(spec_opcode opcode, std::size_t n);
+
+            void check_junction_in_constraint_scope();
+            void check_junction_not_misplaced();
+            void check_junction_not_already_established();
+            void check_has_junction_if_constraint();
+            void check_localend_in_constraint_scope_and_after_junction();
+
+            std::size_t get_top_lexer_pat_lpr_index() const noexcept;
+
 
         protected:
 
             void on_startup() override final;
             void on_shutdown() override final;
 
-            static_assert(spec_opcodes == 7);
+            static_assert(spec_opcodes == 18);
 
             void on_grammar_bias(bias b) override final;
             void on_close() override final;
@@ -197,7 +291,19 @@ namespace taul {
             void on_ppr_decl(std::string_view name) override final;
             void on_lpr(std::string_view name) override final;
             void on_ppr(std::string_view name) override final;
-            void on_char() override final;
+
+            void on_begin() override final;
+            void on_end() override final;
+            void on_any() override final;
+            void on_string(std::string_view s) override final;
+            void on_charset(std::string_view s) override final;
+            void on_sequence() override final;
+            void on_set(bias b) override final;
+            void on_modifier(std::uint16_t min, std::uint16_t max) override final;
+            void on_assertion(polarity p) override final;
+            void on_constraint(polarity p) override final;
+            void on_junction() override final;
+            void on_localend() override final;
         };
     }
 }

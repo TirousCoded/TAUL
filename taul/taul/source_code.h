@@ -110,7 +110,7 @@ namespace taul {
 
         bool add_file(
             const std::filesystem::path& src_path, 
-            const logger_ref& lgr = nullptr);
+            const std::shared_ptr<logger>& lgr = nullptr);
 
 
         void reset() noexcept;

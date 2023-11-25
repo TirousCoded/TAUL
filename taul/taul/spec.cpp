@@ -40,8 +40,70 @@ taul::spec_writer& taul::spec_writer::ppr(std::string_view name) {
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::char0() {
-    internal::spec_write_opcode(_temp, spec_opcode::char0);
+taul::spec_writer& taul::spec_writer::begin() {
+    internal::spec_write_opcode(_temp, spec_opcode::begin);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::end() {
+    internal::spec_write_opcode(_temp, spec_opcode::end);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::any() {
+    internal::spec_write_opcode(_temp, spec_opcode::any);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::string(std::string_view s) {
+    internal::spec_write_opcode(_temp, spec_opcode::string);
+    internal::spec_write_str(_temp, s);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::charset(std::string_view s) {
+    internal::spec_write_opcode(_temp, spec_opcode::charset);
+    internal::spec_write_str(_temp, s);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::sequence() {
+    internal::spec_write_opcode(_temp, spec_opcode::sequence);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::set(bias b) {
+    internal::spec_write_opcode(_temp, spec_opcode::set);
+    internal::spec_write_bias(_temp, b);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::modifier(std::uint16_t min, std::uint16_t max) {
+    internal::spec_write_opcode(_temp, spec_opcode::modifier);
+    internal::spec_write_u16(_temp, min);
+    internal::spec_write_u16(_temp, max);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::assertion(polarity p) {
+    internal::spec_write_opcode(_temp, spec_opcode::assertion);
+    internal::spec_write_polarity(_temp, p);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::constraint(polarity p) {
+    internal::spec_write_opcode(_temp, spec_opcode::constraint);
+    internal::spec_write_polarity(_temp, p);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::junction() {
+    internal::spec_write_opcode(_temp, spec_opcode::junction);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::localend() {
+    internal::spec_write_opcode(_temp, spec_opcode::localend);
     return *this;
 }
 
@@ -61,13 +123,14 @@ void taul::spec_interpreter::interpret(const spec& x) {
 }
 
 std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
-    static_assert(spec_opcodes == 7);
+    static_assert(spec_opcodes == 18);
     std::size_t len = 0;
     const auto opcode = internal::spec_read_opcode(s, offset, len);
     switch (opcode) {
     case spec_opcode::grammar_bias:
     {
-        on_grammar_bias(internal::spec_read_bias(s, offset + len, len));
+        const auto b = internal::spec_read_bias(s, offset + len, len);
+        on_grammar_bias(b);
     }
     break;
     case spec_opcode::close:
@@ -77,27 +140,94 @@ std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
     break;
     case spec_opcode::lpr_decl:
     {
-        on_lpr_decl(internal::spec_read_str(s, offset + len, len));
+        const auto name = internal::spec_read_str(s, offset + len, len);
+        on_lpr_decl(name);
     }
     break;
     case spec_opcode::ppr_decl:
     {
-        on_ppr_decl(internal::spec_read_str(s, offset + len, len));
+        const auto name = internal::spec_read_str(s, offset + len, len);
+        on_ppr_decl(name);
     }
     break;
     case spec_opcode::lpr:
     {
-        on_lpr(internal::spec_read_str(s, offset + len, len));
+        const auto name = internal::spec_read_str(s, offset + len, len);
+        on_lpr(name);
     }
     break;
     case spec_opcode::ppr:
     {
-        on_ppr(internal::spec_read_str(s, offset + len, len));
+        const auto name = internal::spec_read_str(s, offset + len, len);
+        on_ppr(name);
     }
     break;
-    case spec_opcode::char0:
+    case spec_opcode::begin:
     {
-        on_char();
+        on_begin();
+    }
+    break;
+    case spec_opcode::end:
+    {
+        on_end();
+    }
+    break;
+    case spec_opcode::any:
+    {
+        on_any();
+    }
+    break;
+    case spec_opcode::string:
+    {
+        const auto s0 = internal::spec_read_str(s, offset + len, len);
+        on_string(s0);
+    }
+    break;
+    case spec_opcode::charset:
+    {
+        const auto s0 = internal::spec_read_str(s, offset + len, len);
+        on_charset(s0);
+    }
+    break;
+    case spec_opcode::sequence:
+    {
+        on_sequence();
+    }
+    break;
+    case spec_opcode::set:
+    {
+        const auto b = internal::spec_read_bias(s, offset + len, len);
+        on_set(b);
+    }
+    break;
+    case spec_opcode::modifier:
+    {
+        // remember, in C++ argument eval order is undefined... I think
+        const auto min = internal::spec_read_u16(s, offset + len, len);
+        const auto max = internal::spec_read_u16(s, offset + len, len);
+        on_modifier(min, max);
+    }
+    break;
+    case spec_opcode::assertion:
+    {
+        const auto p = internal::spec_read_polarity(s, offset + len, len);
+        on_assertion(p);
+    }
+    break;
+    case spec_opcode::constraint:
+    {
+        const auto p = internal::spec_read_polarity(s, offset + len, len);
+        on_constraint(p);
+    }
+    break;
+    case spec_opcode::junction:
+    {
+        on_junction();
+    }
+    break;
+    case spec_opcode::localend:
+    {
+        on_localend();
     }
     break;
     default: TAUL_DEADEND; break;
@@ -129,6 +259,10 @@ void taul::internal::spec_write_opcode(spec& s, spec_opcode opcode) noexcept {
 
 void taul::internal::spec_write_bias(spec& s, bias b) noexcept {
     spec_write_u8(s, (std::uint8_t)b);
+}
+
+void taul::internal::spec_write_polarity(spec& s, polarity p) noexcept {
+    spec_write_u8(s, (std::uint8_t)p);
 }
 
 void taul::internal::spec_write_str(spec& s, std::string_view x) noexcept {
@@ -169,6 +303,10 @@ taul::spec_opcode taul::internal::spec_read_opcode(const spec& s, std::size_t of
 
 taul::bias taul::internal::spec_read_bias(const spec& s, std::size_t offset, std::size_t& len) noexcept {
     return (taul::bias)spec_read_u8(s, offset, len);
+}
+
+taul::polarity taul::internal::spec_read_polarity(const spec& s, std::size_t offset, std::size_t& len) noexcept {
+    return (taul::polarity)spec_read_u8(s, offset, len);
 }
 
 std::string_view taul::internal::spec_read_str(const spec& s, std::size_t offset, std::size_t& len) noexcept {

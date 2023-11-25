@@ -4,17 +4,19 @@
 
 
 #include <stddef.h>
+#include <ostream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <format>
 
 #include "source_code.h"
-#include "rules.h"
-
-#include <stdexcept>
 
 
 namespace taul {
+
+
+    struct lexer_rule;
 
 
     class failure_token_error final : public std::logic_error {
@@ -95,4 +97,10 @@ struct std::formatter<taul::token> final : std::formatter<std::string> {
         return formatter<string>::format(x.fmt(), ctx);
     }
 };
+
+namespace std {
+    inline std::ostream& operator<<(std::ostream& stream, const taul::token& x) {
+        return stream << x.fmt();
+    }
+}
 

@@ -31,7 +31,7 @@ namespace taul {
         std::vector<token>& target,
         const lexer& f,
         std::string_view txt,
-        const logger_ref& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr);
 
     // the 'offset' below refers to where in txt lexical analysis is to begin
 
@@ -42,12 +42,12 @@ namespace taul {
         const lexer& f,
         std::string_view txt,
         source_pos offset,
-        const logger_ref& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr);
 
     std::vector<token> tokenize(
         const lexer& f,
         std::string_view txt,
-        const logger_ref& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr);
 
     // the 'offset' below refers to where in txt lexical analysis is to begin
 
@@ -57,6 +57,6 @@ namespace taul {
         const lexer& f,
         std::string_view txt,
         source_pos offset,
-        const logger_ref& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr);
 }
 

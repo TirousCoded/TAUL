@@ -23,7 +23,7 @@ taul::token test_lexer_fn_1(
     const std::shared_ptr<taul::lexer_state>& state,
     std::string_view txt,
     taul::source_pos offset,
-    const taul::logger_ref& lgr) {
+    const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(state);
     TAUL_IN_BOUNDS(offset, 0, txt.length() + 1);
     const auto& gram = static_cast<test_lexer_state*>(state.get())->gram;
@@ -46,7 +46,7 @@ taul::token test_lexer_fn_2(
     const std::shared_ptr<taul::lexer_state>& state,
     std::string_view txt,
     taul::source_pos offset,
-    const taul::logger_ref& lgr) {
+    const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(state);
     TAUL_IN_BOUNDS(offset, 0, txt.length() + 1);
     const auto& gram = static_cast<test_lexer_state*>(state.get())->gram;
@@ -62,7 +62,7 @@ taul::token test_lexer_fn_2(
 class TokenizeTests : public testing::Test {
 protected:
 
-    taul::logger_ref lgr;
+    std::shared_ptr<taul::logger> lgr;
     taul::grammar gram;
     taul::lexer lex1, lex2;
 

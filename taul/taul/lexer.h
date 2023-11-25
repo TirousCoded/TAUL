@@ -29,7 +29,7 @@ namespace taul {
         const std::shared_ptr<lexer_state>& state,
         std::string_view txt,
         source_pos offset,
-        const logger_ref& lgr);
+        const std::shared_ptr<logger>& lgr);
 
     class lexer_state {
     public:
@@ -42,7 +42,7 @@ namespace taul {
         const std::shared_ptr<lexer_state>&,
         std::string_view,
         source_pos,
-        const logger_ref&) {
+        const std::shared_ptr<logger>&) {
         return token{};
     }
 
@@ -70,7 +70,7 @@ namespace taul {
 
         token operator()(
             std::string_view txt,
-            const logger_ref& lgr = nullptr) const;
+            const std::shared_ptr<logger>& lgr = nullptr) const;
 
         // the 'offset' below refers to where in txt lexical analysis is to begin
 
@@ -79,7 +79,7 @@ namespace taul {
         token operator()(
             std::string_view txt,
             source_pos offset,
-            const logger_ref& lgr = nullptr) const;
+            const std::shared_ptr<logger>& lgr = nullptr) const;
 
 
     private:

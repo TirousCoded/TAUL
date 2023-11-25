@@ -89,7 +89,7 @@ void taul::source_code::add_str(std::string origin, const char* x) {
 
 bool taul::source_code::add_file(
     const std::filesystem::path& src_path, 
-    const logger_ref& lgr) {
+    const std::shared_ptr<logger>& lgr) {
     // using this to format src_path, but avoiding heap allocating if lgr == nullptr
     const std::string src_path_s = bool(lgr) ? src_path.string() : std::string();
     TAUL_LOG(lgr, "taul::source_code::add_file loading page from \"{}\"...", src_path_s);

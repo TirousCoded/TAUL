@@ -8,7 +8,7 @@
 class TokenTests : public testing::Test {
 protected:
 
-    taul::logger_ref lgr;
+    std::shared_ptr<taul::logger> lgr;
     taul::grammar gram;
 
 

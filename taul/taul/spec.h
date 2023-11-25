@@ -8,6 +8,7 @@
 #include <span>
 
 #include "bias.h"
+#include "polarity.h"
 #include "spec_opcode.h"
 
 
@@ -34,7 +35,7 @@ namespace taul {
         spec_writer& operator=(spec_writer&&) noexcept = delete;
 
 
-        static_assert(spec_opcodes == 7);
+        static_assert(spec_opcodes == 18);
 
         spec_writer& grammar_bias(bias b);
         spec_writer& close();
@@ -43,7 +44,18 @@ namespace taul {
         spec_writer& lpr(std::string_view name);
         spec_writer& ppr(std::string_view name);
 
-        spec_writer& char0();
+        spec_writer& begin();
+        spec_writer& end();
+        spec_writer& any();
+        spec_writer& string(std::string_view s);
+        spec_writer& charset(std::string_view s);
+        spec_writer& sequence();
+        spec_writer& set(bias b = bias::first_longest);
+        spec_writer& modifier(std::uint16_t min, std::uint16_t max = 0);
+        spec_writer& assertion(polarity p = polarity::positive);
+        spec_writer& constraint(polarity p = polarity::positive);
+        spec_writer& junction();
+        spec_writer& localend();
 
 
         // finishes writing, returning the finished spec, resetting
@@ -82,7 +94,7 @@ namespace taul {
         virtual void on_startup() {}
         virtual void on_shutdown() {}
 
-        static_assert(spec_opcodes == 7);
+        static_assert(spec_opcodes == 18);
 
         virtual void on_grammar_bias(bias b) {}
         virtual void on_close() {}
@@ -90,7 +102,19 @@ namespace taul {
         virtual void on_ppr_decl(std::string_view name) {}
         virtual void on_lpr(std::string_view name) {}
         virtual void on_ppr(std::string_view name) {}
-        virtual void on_char() {}
+
+        virtual void on_begin() {}
+        virtual void on_end() {}
+        virtual void on_any() {}
+        virtual void on_string(std::string_view s) {}
+        virtual void on_charset(std::string_view s) {}
+        virtual void on_sequence() {}
+        virtual void on_set(bias b) {}
+        virtual void on_modifier(std::uint16_t min, std::uint16_t max) {}
+        virtual void on_assertion(polarity p) {}
+        virtual void on_constraint(polarity p) {}
+        virtual void on_junction() {}
+        virtual void on_localend() {}
 
 
     private:
@@ -107,6 +131,7 @@ namespace taul {
         void spec_write_u32(spec& s, std::uint32_t x) noexcept;
         void spec_write_opcode(spec& s, spec_opcode opcode) noexcept;
         void spec_write_bias(spec& s, bias b) noexcept;
+        void spec_write_polarity(spec& s, polarity p) noexcept;
         void spec_write_str(spec& s, std::string_view x) noexcept;
 
         std::uint8_t spec_read_u8(const spec& s, std::size_t offset, std::size_t& len) noexcept;
@@ -114,6 +139,7 @@ namespace taul {
         std::uint32_t spec_read_u32(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         taul::spec_opcode spec_read_opcode(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         taul::bias spec_read_bias(const spec& s, std::size_t offset, std::size_t& len) noexcept;
+        taul::polarity spec_read_polarity(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         std::string_view spec_read_str(const spec& s, std::size_t offset, std::size_t& len) noexcept;
     }
 }

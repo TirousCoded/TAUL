@@ -37,11 +37,11 @@ taul::lexer& taul::lexer::operator=(lexer&& rhs) noexcept {
     return *this;
 }
 
-taul::token taul::lexer::operator()(std::string_view txt, const logger_ref& lgr) const {
+taul::token taul::lexer::operator()(std::string_view txt, const std::shared_ptr<logger>& lgr) const {
     return (*this)(txt, 0, lgr);
 }
 
-taul::token taul::lexer::operator()(std::string_view txt, source_pos offset, const logger_ref& lgr) const {
+taul::token taul::lexer::operator()(std::string_view txt, source_pos offset, const std::shared_ptr<logger>& lgr) const {
     TAUL_ASSERT(offset <= txt.length());
     token result{};
     if (_f) {

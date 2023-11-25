@@ -3,6 +3,7 @@
 #pragma once
 
 
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -12,6 +13,7 @@
 #include "logger.h"
 #include "bias.h"
 #include "rules.h"
+#include "lexer.h"
 
 
 namespace taul {
@@ -64,6 +66,15 @@ namespace taul {
         const parser_rule& ppr(const std::string& name) const;
         const parser_rule& ppr(std::string_view name) const;
         const parser_rule& ppr(const char* name) const;
+
+
+        // these are used to get lexers/parsers associated w/ LPRs/PPRs
+
+        // the below throw std::out_of_range if there is no LPR/PPR w/ name
+
+        taul::lexer lexer(const std::string& name) const;
+        taul::lexer lexer(std::string_view name) const;
+        taul::lexer lexer(const char* name) const;
 
 
         // contains returns if *either* and LPR or a PPR exists w/ name, w/
@@ -132,4 +143,10 @@ struct std::formatter<taul::grammar> final : std::formatter<std::string> {
         return formatter<string>::format(x.fmt(), ctx);
     }
 };
+
+namespace std {
+    inline std::ostream& operator<<(std::ostream& stream, const taul::grammar& x) {
+        return stream << x.fmt();
+    }
+}
 
