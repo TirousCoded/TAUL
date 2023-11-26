@@ -112,8 +112,6 @@ namespace taul {
             // the ETS is pushed to, and thus popped from, for exprs which imbue this
             // association as part of their semantics
 
-            // TODO: we haven't added LES yet, so be sure to do that when we need it!
-
             // the LES is used to push local-end info
 
             // the ETS and LES are used so that the top-most expr has access to contextual
@@ -127,9 +125,7 @@ namespace taul {
                 parser,     // push/pop ppr association to/from ETS
             };
 
-            struct les_entry final {
-                source_pos offset; // the recorded offset of the end of the constrained expr's match
-            };
+            struct les_entry final {};
 
             struct ess_entry final {
                 spec_opcode         opcode;
@@ -262,6 +258,8 @@ namespace taul {
             void check_lpr_not_already_defined(std::string_view name);
             void check_ppr_not_already_defined(std::string_view name);
 
+            void check_lpr_or_ppr_exists_with_name(std::string_view name);
+
             void check_all_scopes_closed();
             void check_all_lprs_are_defined();
             void check_all_pprs_are_defined();
@@ -283,7 +281,7 @@ namespace taul {
             void on_startup() override final;
             void on_shutdown() override final;
 
-            static_assert(spec_opcodes == 18);
+            static_assert(spec_opcodes == 19);
 
             void on_grammar_bias(bias b) override final;
             void on_close() override final;
@@ -297,6 +295,7 @@ namespace taul {
             void on_any() override final;
             void on_string(std::string_view s) override final;
             void on_charset(std::string_view s) override final;
+            void on_name(std::string_view name) override final;
             void on_sequence() override final;
             void on_set(bias b) override final;
             void on_modifier(std::uint16_t min, std::uint16_t max) override final;

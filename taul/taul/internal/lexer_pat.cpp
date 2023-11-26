@@ -275,3 +275,17 @@ taul::token taul::internal::localend_lexer_pat::eval(const grammar_data& gramdat
         ? taul::token(gramdat._lprs[lprInd], "", offset)
         : taul::token::failure("", offset);
 }
+
+taul::internal::name_ofLPR_forLPR_lexer_pat::name_ofLPR_forLPR_lexer_pat(std::size_t lprInd, std::size_t lprIndOfRef)
+    : lexer_pat(lprInd), 
+    lprIndOfRef(lprIndOfRef) {}
+
+taul::token taul::internal::name_ofLPR_forLPR_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+    TAUL_IN_BOUNDS(lprInd, 0, gramdat._lprs.size());
+    TAUL_ASSERT(lprIndOfRef < gramdat._lprs.size());
+    const auto tkn = gramdat._lprs[lprIndOfRef].lexer()(txt, offset, lgr);
+    return
+        (bool)tkn
+        ? taul::token(gramdat._lprs[lprInd], tkn.str(), offset)
+        : taul::token::failure("", offset);
+}

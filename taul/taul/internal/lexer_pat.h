@@ -154,6 +154,23 @@ namespace taul {
                 const source_pos localend_offset,
                 const std::shared_ptr<taul::logger>& lgr) override final;
         };
+        
+        class name_ofLPR_forLPR_lexer_pat final : public lexer_pat {
+        public:
+
+            std::size_t lprIndOfRef = std::size_t(-1);
+
+
+            name_ofLPR_forLPR_lexer_pat(std::size_t lprInd, std::size_t lprIndOfRef);
+
+
+            taul::token eval(
+                const grammar_data& gramdat,
+                std::string_view txt,
+                source_pos offset,
+                const source_pos localend_offset,
+                const std::shared_ptr<taul::logger>& lgr) override final;
+        };
 
         class sequence_lexer_pat final : public lexer_pat {
         public:

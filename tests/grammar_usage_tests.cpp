@@ -50,7 +50,11 @@ TEST_F(GrammarUsage, lexerExpr_toplevel) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr0 = gram.lpr("f0");
     const auto& lpr1 = gram.lpr("f1");
     const auto lex0 = gram.lexer("f0");
@@ -116,7 +120,11 @@ TEST_F(GrammarUsage, lexerExpr_begin) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr = gram.lpr("f");
     const auto lex = gram.lexer("f");
 
@@ -163,7 +171,11 @@ TEST_F(GrammarUsage, lexerExpr_end) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr = gram.lpr("f");
     const auto lex = gram.lexer("f");
 
@@ -214,7 +226,11 @@ TEST_F(GrammarUsage, lexerExpr_any) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr = gram.lpr("f");
     const auto lex = gram.lexer("f");
 
@@ -265,7 +281,11 @@ TEST_F(GrammarUsage, lexerExpr_string) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr = gram.lpr("f");
     const auto lex = gram.lexer("f");
 
@@ -320,7 +340,11 @@ TEST_F(GrammarUsage, lexerExpr_charset) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr = gram.lpr("f");
     const auto lex = gram.lexer("f");
 
@@ -375,6 +399,110 @@ TEST_F(GrammarUsage, lexerExpr_charset) {
     EXPECT_EQ(lex("abc c", 3, lgr), taul::token::failure("", 3));
 }
 
+TEST_F(GrammarUsage, lexerExpr_name) {
+
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("a")
+        .lpr_decl("b")
+        .lpr_decl("c")
+        .lpr_decl("f")
+        .lpr("f")
+        .name("a")
+        .name("b")
+        .name("c")
+        .modifier(0, 1)
+        .name("f") // test recursion
+        .close()
+        .close()
+        // wanna be sure that impl can handle def being *after* usage
+        .lpr("a")
+        .string("a")
+        .close()
+        .lpr("b")
+        .string("b")
+        .close()
+        .lpr("c")
+        .string("c")
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& lpr = gram.lpr("f");
+    const auto lex = gram.lexer("f");
+
+
+    // test w/out offset
+
+    // success
+
+    EXPECT_EQ(lex("abc", lgr), taul::token(lpr, "abc"));
+    EXPECT_EQ(lex("abca", lgr), taul::token(lpr, "abc"));
+    EXPECT_EQ(lex("abcab", lgr), taul::token(lpr, "abc"));
+    EXPECT_EQ(lex("abc123", lgr), taul::token(lpr, "abc"));
+    EXPECT_EQ(lex("abcabc", lgr), taul::token(lpr, "abcabc"));
+    EXPECT_EQ(lex("abcabca", lgr), taul::token(lpr, "abcabc"));
+    EXPECT_EQ(lex("abcabcab", lgr), taul::token(lpr, "abcabc"));
+    EXPECT_EQ(lex("abcabc123", lgr), taul::token(lpr, "abcabc"));
+    EXPECT_EQ(lex("abcabcabc", lgr), taul::token(lpr, "abcabcabc"));
+    EXPECT_EQ(lex("abcabcabca", lgr), taul::token(lpr, "abcabcabc"));
+    EXPECT_EQ(lex("abcabcabcab", lgr), taul::token(lpr, "abcabcabc"));
+    EXPECT_EQ(lex("abcabcabc123", lgr), taul::token(lpr, "abcabcabc"));
+    EXPECT_EQ(lex("abcabcabcabc", lgr), taul::token(lpr, "abcabcabcabc"));
+    EXPECT_EQ(lex("abcabcabcabca", lgr), taul::token(lpr, "abcabcabcabc"));
+    EXPECT_EQ(lex("abcabcabcabcab", lgr), taul::token(lpr, "abcabcabcabc"));
+    EXPECT_EQ(lex("abcabcabcabc123", lgr), taul::token(lpr, "abcabcabcabc"));
+
+    // failure
+
+    EXPECT_EQ(lex("", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex("a", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex("ab", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex("def", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex("ABC", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex("123", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex("&*$", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex("\r\n\t", lgr), taul::token::failure(""));
+
+
+    // test w/ offset
+
+    // success
+
+    EXPECT_EQ(lex("+-=abc", 3, lgr), taul::token(lpr, "abc", 3));
+    EXPECT_EQ(lex("+-=abca", 3, lgr), taul::token(lpr, "abc", 3));
+    EXPECT_EQ(lex("+-=abcab", 3, lgr), taul::token(lpr, "abc", 3));
+    EXPECT_EQ(lex("+-=abc123", 3, lgr), taul::token(lpr, "abc", 3));
+    EXPECT_EQ(lex("+-=abcabc", 3, lgr), taul::token(lpr, "abcabc", 3));
+    EXPECT_EQ(lex("+-=abcabca", 3, lgr), taul::token(lpr, "abcabc", 3));
+    EXPECT_EQ(lex("+-=abcabcab", 3, lgr), taul::token(lpr, "abcabc", 3));
+    EXPECT_EQ(lex("+-=abcabc123", 3, lgr), taul::token(lpr, "abcabc", 3));
+    EXPECT_EQ(lex("+-=abcabcabc", 3, lgr), taul::token(lpr, "abcabcabc", 3));
+    EXPECT_EQ(lex("+-=abcabcabca", 3, lgr), taul::token(lpr, "abcabcabc", 3));
+    EXPECT_EQ(lex("+-=abcabcabcab", 3, lgr), taul::token(lpr, "abcabcabc", 3));
+    EXPECT_EQ(lex("+-=abcabcabc123", 3, lgr), taul::token(lpr, "abcabcabc", 3));
+    EXPECT_EQ(lex("+-=abcabcabcabc", 3, lgr), taul::token(lpr, "abcabcabcabc", 3));
+    EXPECT_EQ(lex("+-=abcabcabcabca", 3, lgr), taul::token(lpr, "abcabcabcabc", 3));
+    EXPECT_EQ(lex("+-=abcabcabcabcab", 3, lgr), taul::token(lpr, "abcabcabcabc", 3));
+    EXPECT_EQ(lex("+-=abcabcabcabc123", 3, lgr), taul::token(lpr, "abcabcabcabc", 3));
+
+    // failure
+
+    EXPECT_EQ(lex("+-=", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex("+-=a", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex("+-=ab", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex("+-=def", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex("+-=ABC", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex("+-=123", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex("+-=&*$", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex("+-=\r\n\t", 3, lgr), taul::token::failure("", 3));
+}
+
 TEST_F(GrammarUsage, lexerExpr_sequence) {
 
     const auto spec =
@@ -405,7 +533,11 @@ TEST_F(GrammarUsage, lexerExpr_sequence) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr0 = gram.lpr("f0");
     const auto& lpr1 = gram.lpr("f1");
     const auto lex0 = gram.lexer("f0");
@@ -559,7 +691,11 @@ TEST_F(GrammarUsage, lexerExpr_set) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr0 = gram.lpr("f0");
     const auto& lpr1 = gram.lpr("f1");
     const auto& lpr2 = gram.lpr("f2");
@@ -788,7 +924,11 @@ TEST_F(GrammarUsage, lexerExpr_modifier) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr0 = gram.lpr("f0");
     const auto& lpr1 = gram.lpr("f1");
     const auto& lpr2 = gram.lpr("f2");
@@ -1021,7 +1161,11 @@ TEST_F(GrammarUsage, lexerExpr_assertion) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr0 = gram.lpr("f0");
     const auto& lpr1 = gram.lpr("f1");
     const auto lex0 = gram.lexer("f0");
@@ -1110,7 +1254,11 @@ TEST_F(GrammarUsage, lexerExpr_constraint) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr0 = gram.lpr("f0");
     const auto& lpr1 = gram.lpr("f1");
     const auto lex0 = gram.lexer("f0");
@@ -1217,7 +1365,11 @@ TEST_F(GrammarUsage, lexerExpr_localend) {
         .close()
         .done();
 
-    const taul::grammar gram = std::move(*taul::load(spec, lgr));
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
     const auto& lpr0 = gram.lpr("f0");
     const auto& lpr1 = gram.lpr("f1");
     const auto lex0 = gram.lexer("f0");

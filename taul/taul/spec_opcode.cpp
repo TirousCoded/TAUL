@@ -6,7 +6,7 @@
 
 
 std::string taul::fmt_spec_opcode(spec_opcode x) {
-    static_assert(spec_opcodes == 18);
+    static_assert(spec_opcodes == 19);
     std::string result{};
     switch (x) {
     case spec_opcode::grammar_bias:     result = "grammar-bias";    break;
@@ -20,6 +20,7 @@ std::string taul::fmt_spec_opcode(spec_opcode x) {
     case spec_opcode::any:              result = "any";             break;
     case spec_opcode::string:           result = "string";          break;
     case spec_opcode::charset:          result = "charset";         break;
+    case spec_opcode::name:             result = "name";            break;
     case spec_opcode::sequence:         result = "sequence";        break;
     case spec_opcode::set:              result = "set";             break;
     case spec_opcode::modifier:         result = "modifier";        break;

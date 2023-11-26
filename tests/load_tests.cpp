@@ -20,7 +20,7 @@
 // this test is for general usage of *all* instructions, so be sure to
 // update it as we add new instructions
 
-static_assert(taul::spec_opcodes == 18);
+static_assert(taul::spec_opcodes == 19);
 
 TEST(load_tests, success) {
     const auto lgr = taul::make_stderr_logger();
@@ -40,6 +40,8 @@ TEST(load_tests, success) {
         .any()
         .string("abc")
         .charset("abc")
+        .name("lpr0") // legal lpr ref
+        .name("lpr1") // legal lpr ref
         // test composite lexer exprs
         // sequence
         .sequence() // test empty
@@ -212,6 +214,10 @@ TEST(load_tests, success) {
         //.any()
         //.string("abc")
         //.charset("abc")
+        //.name("lpr0") // legal lpr ref
+        //.name("lpr1") // legal lpr ref
+        //.name("ppr0") // legal ppr ref
+        //.name("ppr1") // legal ppr ref
         //// test composite parser exprs
         //// sequence
         //.sequence() // test empty
@@ -461,11 +467,68 @@ TEST(load_tests, success_withExpectedGrammarBiasOverwriting) {
     else ADD_FAILURE();
 }
 
+// this tests that name works w/ lprs/pprs defined AFTER name usage
+
+TEST(load_tests, success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .ppr_decl("ppr0")
+        .lpr_decl("lpr1")
+        .ppr_decl("ppr1")
+        .lpr("lpr0")
+        .name("lpr1")
+        .close()
+        .ppr("ppr0")
+        //.name("ppr1") TODO: add later
+        .close()
+        .lpr("lpr1")
+        .close()
+        .ppr("ppr1")
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+
+        EXPECT_EQ(gram->bias(), taul::bias::first_longest);
+
+        if (gram->contains_lpr("lpr0")) {
+            EXPECT_EQ(gram->lpr("lpr0").name, "lpr0");
+            EXPECT_EQ(gram->lpr("lpr0").index, 0);
+        }
+        else ADD_FAILURE();
+        if (gram->contains_lpr("lpr1")) {
+            EXPECT_EQ(gram->lpr("lpr1").name, "lpr1");
+            EXPECT_EQ(gram->lpr("lpr1").index, 1);
+        }
+        else ADD_FAILURE();
+        if (gram->contains_ppr("ppr0")) {
+            EXPECT_EQ(gram->ppr("ppr0").name, "ppr0");
+            EXPECT_EQ(gram->ppr("ppr0").index, 0);
+        }
+        else ADD_FAILURE();
+        if (gram->contains_ppr("ppr1")) {
+            EXPECT_EQ(gram->ppr("ppr1").name, "ppr1");
+            EXPECT_EQ(gram->ppr("ppr1").index, 1);
+        }
+        else ADD_FAILURE();
+    }
+    else ADD_FAILURE();
+}
+
 
 // the below detail what errors each instruction can raise, and thus which must
 // be unit tested, and being specified *in order*
 
-static_assert(taul::spec_errors == 16);
+static_assert(taul::spec_errors == 17);
 
 // grammar-bias
 //      illegal-in-lpr-scope
@@ -1090,6 +1153,97 @@ TEST(load_tests, charset_forErr_illegal_in_no_scope) {
 
     //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
     EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+// TODO: when we add parsers, we'll need to have different versions of below tests for
+//       name usages in lprs and pprs
+
+// name
+//      illegal-in-ppr-scope
+//      illegal-in-no-scope
+//      rule-not-found (rule never declared)
+//      rule-not-found (rule declared after name referencing it) (for lprs)
+
+TEST(load_tests, name_forErr_illegal_in_ppr_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .ppr_decl("ppr0")
+        .lpr("lpr0")
+        .close()
+        .ppr("ppr0")
+        .name("lpr0")
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, name_forErr_illegal_in_no_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr("lpr0")
+        .close()
+        .name("lpr0")
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, name_forErr_rule_not_found_ruleNeverDeclared) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr("lpr0")
+        .name("non-existent-rule")
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::rule_not_found), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, name_forErr_rule_not_found_ruleDeclaredAfterNameReferencingIt_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr("lpr0")
+        .name("lpr1")
+        .close()
+        .lpr_decl("lpr1")
+        .lpr("lpr1")
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::rule_not_found), 1);
     EXPECT_FALSE(gram);
 }
 

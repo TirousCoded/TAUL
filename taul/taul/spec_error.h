@@ -21,6 +21,8 @@ namespace taul {
         rule_never_declared,            // expected lpr/ppr but never declared
         rule_never_defined,             // lpr/ppr declared but never defined
         rule_already_defined,           // attempted to define already defined lpr/ppr
+        rule_not_found,                 // name specified name of non-existent lpr/ppr
+        //rule_may_not_be_ppr,            // name specified name of ppr, but only lpr may be specified
         illegal_in_lpr_scope,           // illegal instruction use in lpr expr scope
         illegal_in_ppr_scope,           // illegal instruction use in ppr expr scope
         illegal_in_no_scope,            // illegal instruction use outside expr scope

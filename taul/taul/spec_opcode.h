@@ -26,6 +26,10 @@ namespace taul {
         any,            // lexer-only   TODO: add parser
         string,         // lexer-only   TODO: add parser
         charset,        // lexer-only   TODO: add parser
+
+        // TODO: when we add parser stuff, update "success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage"
+
+        name,           // lexer-only   TODO: add parser
         sequence,       // lexer-only   TODO: add parser
         set,            // lexer-only   TODO: add parser
         modifier,       // lexer-only   TODO: add parser TODO: in docs, mention max==0 disables max

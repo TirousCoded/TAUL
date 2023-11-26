@@ -32,7 +32,7 @@ protected:
         output += "shutdown\n";
     }
 
-    static_assert(taul::spec_opcodes == 18);
+    static_assert(taul::spec_opcodes == 19);
 
     inline void on_grammar_bias(taul::bias b) override final {
         output += std::format("grammar-bias {}\n", b);
@@ -70,12 +70,16 @@ protected:
         output += std::format("any\n");
     }
 
-    inline void on_string(std::string_view units) override final {
-        output += std::format("string \"{}\"\n", units);
+    inline void on_string(std::string_view s) override final {
+        output += std::format("string \"{}\"\n", s);
     }
 
-    inline void on_charset(std::string_view units) override final {
-        output += std::format("charset \"{}\"\n", units);
+    inline void on_charset(std::string_view s) override final {
+        output += std::format("charset \"{}\"\n", s);
+    }
+    
+    inline void on_name(std::string_view name) override final {
+        output += std::format("name \"{}\"\n", name);
     }
 
     inline void on_sequence() override final {
@@ -139,7 +143,7 @@ TEST(spec_tests, tests) {
 
     // test done w/ main usage
 
-    static_assert(taul::spec_opcodes == 18);
+    static_assert(taul::spec_opcodes == 19);
 
     const auto spec1 = sw
         .grammar_bias(taul::bias::last_shortest)
@@ -154,6 +158,7 @@ TEST(spec_tests, tests) {
         .sequence()
         .set(taul::bias::last_shortest)
         .any()
+        .name("lpr0")
         .close()
         .close()
         .assertion(taul::polarity::negative)
@@ -180,6 +185,8 @@ TEST(spec_tests, tests) {
         .sequence()
         .set()
         .any()
+        .name("lpr0")
+        .name("ppr0")
         .close()
         .close()
         .assertion()
@@ -244,6 +251,7 @@ TEST(spec_tests, tests) {
     expected += "sequence\n";
     expected += "set last-shortest\n";
     expected += "any\n";
+    expected += "name \"lpr0\"\n";
     expected += "close\n";
     expected += "close\n";
     expected += "assertion negative\n";
@@ -270,6 +278,8 @@ TEST(spec_tests, tests) {
     expected += "sequence\n";
     expected += "set first-longest\n";
     expected += "any\n";
+    expected += "name \"lpr0\"\n";
+    expected += "name \"ppr0\"\n";
     expected += "close\n";
     expected += "close\n";
     expected += "assertion positive\n";

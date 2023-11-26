@@ -110,6 +110,12 @@ void taul::internal::load_spec_interpreter::check_ppr_not_already_defined(std::s
     }
 }
 
+void taul::internal::load_spec_interpreter::check_lpr_or_ppr_exists_with_name(std::string_view name) {
+    if (!has_lpr_decl(name) && !has_ppr_decl(name)) {
+        raise(spec_error::rule_not_found, "no lexer/parser rule found with name {}!", (std::string)name);
+    }
+}
+
 void taul::internal::load_spec_interpreter::check_all_scopes_closed() {
     for (auto it = ess.rbegin(); it != ess.rend(); it++) {
         raise(spec_error::scope_not_closed, "{} does not have corresponding {}!", it->opcode, spec_opcode::close);
@@ -289,6 +295,19 @@ void taul::internal::load_spec_interpreter::on_charset(std::string_view s) {
     check_not_in_ppr_scope(spec_opcode::charset);
     check_in_lpr_or_ppr_scope(spec_opcode::charset);
     bind_lexer_pat<charset_lexer_pat>(get_top_lexer_pat_lpr_index(), (std::string)s);
+}
+
+void taul::internal::load_spec_interpreter::on_name(std::string_view name) {
+    check_not_in_ppr_scope(spec_opcode::name);
+    check_in_lpr_or_ppr_scope(spec_opcode::name);
+    check_lpr_or_ppr_exists_with_name(name);
+    // if name can't be found, we'll pass this *dummy* value
+    std::size_t lprIndOfRef = std::size_t(-1);
+    if (lprs.contains(name)) {
+        const auto& lpr = lprs.at(name);
+        lprIndOfRef = lpr.index;
+    }
+    bind_lexer_pat<name_ofLPR_forLPR_lexer_pat>(get_top_lexer_pat_lpr_index(), lprIndOfRef);
 }
 
 void taul::internal::load_spec_interpreter::on_sequence() {

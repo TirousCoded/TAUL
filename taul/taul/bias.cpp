@@ -14,7 +14,7 @@ std::string taul::fmt_bias(bias x) {
     case bias::last_shortest:   result = "last-shortest";   break;
     case bias::first:           result = "first";           break;
     case bias::last:            result = "last";            break;
-    default:                    TAUL_DEADEND;		        break;
+    default:                    TAUL_DEADEND;               break;
     }
     return result;
 }
