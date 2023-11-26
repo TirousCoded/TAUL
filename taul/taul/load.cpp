@@ -191,13 +191,6 @@ void taul::internal::load_spec_interpreter::check_localend_in_constraint_scope_a
     }
 }
 
-std::size_t taul::internal::load_spec_interpreter::get_top_lexer_pat_lpr_index() const noexcept {
-    return 
-        lexer_pats.empty()
-        ? std::size_t(-1) // <- dummy value, as loading should fail anyway
-        : lexer_pats.back()->lprInd;
-}
-
 void taul::internal::load_spec_interpreter::on_startup() {
     TAUL_ASSERT(ec);
     success = true; // <- deem eval successful until proven otherwise
@@ -270,31 +263,31 @@ void taul::internal::load_spec_interpreter::on_ppr(std::string_view name) {
 void taul::internal::load_spec_interpreter::on_begin() {
     check_not_in_ppr_scope(spec_opcode::begin);
     check_in_lpr_or_ppr_scope(spec_opcode::begin);
-    bind_lexer_pat<begin_lexer_pat>(get_top_lexer_pat_lpr_index());
+    bind_lexer_pat<begin_lexer_pat>();
 }
 
 void taul::internal::load_spec_interpreter::on_end() {
     check_not_in_ppr_scope(spec_opcode::end);
     check_in_lpr_or_ppr_scope(spec_opcode::end);
-    bind_lexer_pat<end_lexer_pat>(get_top_lexer_pat_lpr_index());
+    bind_lexer_pat<end_lexer_pat>();
 }
 
 void taul::internal::load_spec_interpreter::on_any() {
     check_not_in_ppr_scope(spec_opcode::any);
     check_in_lpr_or_ppr_scope(spec_opcode::any);
-    bind_lexer_pat<any_lexer_pat>(get_top_lexer_pat_lpr_index());
+    bind_lexer_pat<any_lexer_pat>();
 }
 
 void taul::internal::load_spec_interpreter::on_string(std::string_view s) {
     check_not_in_ppr_scope(spec_opcode::string);
     check_in_lpr_or_ppr_scope(spec_opcode::string);
-    bind_lexer_pat<string_lexer_pat>(get_top_lexer_pat_lpr_index(), (std::string)s);
+    bind_lexer_pat<string_lexer_pat>((std::string)s);
 }
 
 void taul::internal::load_spec_interpreter::on_charset(std::string_view s) {
     check_not_in_ppr_scope(spec_opcode::charset);
     check_in_lpr_or_ppr_scope(spec_opcode::charset);
-    bind_lexer_pat<charset_lexer_pat>(get_top_lexer_pat_lpr_index(), (std::string)s);
+    bind_lexer_pat<charset_lexer_pat>((std::string)s);
 }
 
 void taul::internal::load_spec_interpreter::on_name(std::string_view name) {
@@ -307,42 +300,42 @@ void taul::internal::load_spec_interpreter::on_name(std::string_view name) {
         const auto& lpr = lprs.at(name);
         lprIndOfRef = lpr.index;
     }
-    bind_lexer_pat<name_ofLPR_forLPR_lexer_pat>(get_top_lexer_pat_lpr_index(), lprIndOfRef);
+    bind_lexer_pat<name_ofLPR_forLPR_lexer_pat>(lprIndOfRef);
 }
 
 void taul::internal::load_spec_interpreter::on_sequence() {
     check_not_in_ppr_scope(spec_opcode::sequence);
     check_in_lpr_or_ppr_scope(spec_opcode::sequence);
     push_expr(ess_entry{ spec_opcode::sequence, ets_type::none, "", true });
-    push_lexer_pat<sequence_lexer_pat>(get_top_lexer_pat_lpr_index());
+    push_lexer_pat<sequence_lexer_pat>();
 }
 
 void taul::internal::load_spec_interpreter::on_set(bias b) {
     check_not_in_ppr_scope(spec_opcode::set);
     check_in_lpr_or_ppr_scope(spec_opcode::set);
     push_expr(ess_entry{ spec_opcode::set, ets_type::none, "", true });
-    push_lexer_pat<set_lexer_pat>(get_top_lexer_pat_lpr_index(), b);
+    push_lexer_pat<set_lexer_pat>(b);
 }
 
 void taul::internal::load_spec_interpreter::on_modifier(std::uint16_t min, std::uint16_t max) {
     check_not_in_ppr_scope(spec_opcode::modifier);
     check_in_lpr_or_ppr_scope(spec_opcode::modifier);
     push_expr(ess_entry{ spec_opcode::modifier, ets_type::none, "", true });
-    push_lexer_pat<modifier_lexer_pat>(get_top_lexer_pat_lpr_index(), min, max);
+    push_lexer_pat<modifier_lexer_pat>(min, max);
 }
 
 void taul::internal::load_spec_interpreter::on_assertion(polarity p) {
     check_not_in_ppr_scope(spec_opcode::assertion);
     check_in_lpr_or_ppr_scope(spec_opcode::assertion);
     push_expr(ess_entry{ spec_opcode::assertion, ets_type::none, "", true });
-    push_lexer_pat<assertion_lexer_pat>(get_top_lexer_pat_lpr_index(), p);
+    push_lexer_pat<assertion_lexer_pat>(p);
 }
 
 void taul::internal::load_spec_interpreter::on_constraint(polarity p) {
     check_not_in_ppr_scope(spec_opcode::constraint);
     check_in_lpr_or_ppr_scope(spec_opcode::constraint);
     push_expr(ess_entry{ spec_opcode::constraint, ets_type::none, "", true });
-    push_lexer_pat<constraint_lexer_pat>(get_top_lexer_pat_lpr_index(), p);
+    push_lexer_pat<constraint_lexer_pat>(p);
 }
 
 void taul::internal::load_spec_interpreter::on_junction() {
@@ -354,6 +347,6 @@ void taul::internal::load_spec_interpreter::on_junction() {
 
 void taul::internal::load_spec_interpreter::on_localend() {
     check_localend_in_constraint_scope_and_after_junction();
-    bind_lexer_pat<localend_lexer_pat>(get_top_lexer_pat_lpr_index());
+    bind_lexer_pat<localend_lexer_pat>();
 }
 

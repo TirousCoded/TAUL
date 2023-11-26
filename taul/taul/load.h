@@ -273,8 +273,6 @@ namespace taul {
             void check_has_junction_if_constraint();
             void check_localend_in_constraint_scope_and_after_junction();
 
-            std::size_t get_top_lexer_pat_lpr_index() const noexcept;
-
 
         protected:
 

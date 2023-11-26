@@ -19,6 +19,20 @@ namespace taul {
     namespace internal {
 
 
+        struct match final {
+            bool success;
+            std::string_view txt;
+            source_pos offset;
+        };
+
+        inline match make_match(
+            bool success,
+            std::string_view txt,
+            source_pos offset) noexcept {
+            return match{ success, txt, offset };
+        }
+
+
         // TODO: currently, we're gonna build our lexer/parser patterns as trees of
         //       the below, which is fine, but I feel we could revise the below 
         //       implementation to GREATLY improve memory locality, which I think
@@ -36,8 +50,6 @@ namespace taul {
         class lexer_pat : public lexer_state {
         public:
 
-            const std::size_t lprInd;
-
             // these lexer_pat objects form an expr tree for the lpr, w/ children thusly
             // encapsulating the children of any particular node in this tree
 
@@ -46,12 +58,12 @@ namespace taul {
             std::vector<std::shared_ptr<lexer_pat>> children;
 
 
-            lexer_pat(std::size_t lprInd);
+            lexer_pat();
 
             virtual ~lexer_pat() noexcept = default;
 
 
-            virtual taul::token eval(
+            virtual match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -63,6 +75,8 @@ namespace taul {
         class toplevel_lexer_pat final : public lexer_pat {
         public:
 
+            const std::size_t lprInd;
+
             // IMPORTANT: this MUST be non-owning or it'll form a strong reference cycle!
 
             const grammar_data* gramdat;
@@ -71,7 +85,7 @@ namespace taul {
             toplevel_lexer_pat(std::size_t lprInd);
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -82,10 +96,10 @@ namespace taul {
         class begin_lexer_pat final : public lexer_pat {
         public:
 
-            begin_lexer_pat(std::size_t lprInd);
+            begin_lexer_pat();
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -96,10 +110,10 @@ namespace taul {
         class end_lexer_pat final : public lexer_pat {
         public:
 
-            end_lexer_pat(std::size_t lprInd);
+            end_lexer_pat();
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -110,10 +124,10 @@ namespace taul {
         class any_lexer_pat final : public lexer_pat {
         public:
 
-            any_lexer_pat(std::size_t lprInd);
+            any_lexer_pat();
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -127,10 +141,10 @@ namespace taul {
             std::string s;
 
 
-            string_lexer_pat(std::size_t lprInd, std::string s);
+            string_lexer_pat(std::string s);
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -144,10 +158,10 @@ namespace taul {
             std::string s;
 
 
-            charset_lexer_pat(std::size_t lprInd, std::string s);
+            charset_lexer_pat(std::string s);
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -161,10 +175,10 @@ namespace taul {
             std::size_t lprIndOfRef = std::size_t(-1);
 
 
-            name_ofLPR_forLPR_lexer_pat(std::size_t lprInd, std::size_t lprIndOfRef);
+            name_ofLPR_forLPR_lexer_pat(std::size_t lprIndOfRef);
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -175,10 +189,10 @@ namespace taul {
         class sequence_lexer_pat final : public lexer_pat {
         public:
 
-            sequence_lexer_pat(std::size_t lprInd);
+            sequence_lexer_pat();
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -192,10 +206,10 @@ namespace taul {
             bias b;
 
 
-            set_lexer_pat(std::size_t lprInd, bias b);
+            set_lexer_pat(bias b);
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -209,10 +223,10 @@ namespace taul {
             std::uint16_t min, max;
 
 
-            modifier_lexer_pat(std::size_t lprInd, std::uint16_t min, std::uint16_t max);
+            modifier_lexer_pat(std::uint16_t min, std::uint16_t max);
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -226,10 +240,10 @@ namespace taul {
             taul::polarity p;
 
 
-            assertion_lexer_pat(std::size_t lprInd, taul::polarity p);
+            assertion_lexer_pat(taul::polarity p);
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -243,10 +257,10 @@ namespace taul {
             taul::polarity p;
 
 
-            constraint_lexer_pat(std::size_t lprInd, taul::polarity p);
+            constraint_lexer_pat(taul::polarity p);
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -257,10 +271,10 @@ namespace taul {
         class localend_lexer_pat final : public lexer_pat {
         public:
 
-            localend_lexer_pat(std::size_t lprInd);
+            localend_lexer_pat();
 
 
-            taul::token eval(
+            match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
