@@ -33,6 +33,840 @@ protected:
 };
 
 
+TEST_F(GrammarUsage, grammarWideLexer) {
+
+    auto spec_fn =
+        [](taul::bias b) -> taul::spec {
+        return
+            taul::spec_writer()
+            .grammar_bias(b)
+            .lpr_decl("ab1")
+            .lpr_decl("ab2")
+            .lpr_decl("a")
+            .lpr_decl("c")
+            .lpr_decl("bc1")
+            .lpr_decl("bc2")
+            .lpr_decl("ws")
+            .lpr_decl("abc")
+            .lpr("ab1")
+            .string("ab")
+            .close()
+            .lpr("ab2")
+            .string("ab")
+            .close()
+            .lpr("a")
+            .string("a")
+            .close()
+            .lpr("c")
+            .string("c")
+            .close()
+            .lpr("bc1")
+            .string("bc")
+            .close()
+            .lpr("bc2")
+            .string("bc")
+            .close()
+            .lpr("ws", taul::qualifier::skip)
+            .charset(" \t")
+            .close()
+            .lpr("abc", taul::qualifier::exclude)
+            .string("abc")
+            .close()
+            .done();
+        };
+
+
+    auto fl_spec = spec_fn(taul::bias::first_longest);
+    auto fs_spec = spec_fn(taul::bias::first_shortest);
+    auto ll_spec = spec_fn(taul::bias::last_longest);
+    auto ls_spec = spec_fn(taul::bias::last_shortest);
+    auto f_spec = spec_fn(taul::bias::first);
+    auto l_spec = spec_fn(taul::bias::last);
+
+    auto fl_loaded = taul::load(fl_spec, lgr);
+    auto fs_loaded = taul::load(fs_spec, lgr);
+    auto ll_loaded = taul::load(ll_spec, lgr);
+    auto ls_loaded = taul::load(ls_spec, lgr);
+    auto f_loaded = taul::load(f_spec, lgr);
+    auto l_loaded = taul::load(l_spec, lgr);
+
+    ASSERT_TRUE(fl_loaded);
+    ASSERT_TRUE(fs_loaded);
+    ASSERT_TRUE(ll_loaded);
+    ASSERT_TRUE(ls_loaded);
+    ASSERT_TRUE(f_loaded);
+    ASSERT_TRUE(l_loaded);
+
+    const taul::grammar fl_gram = std::move(*fl_loaded);
+    const taul::grammar fs_gram = std::move(*fs_loaded);
+    const taul::grammar ll_gram = std::move(*ll_loaded);
+    const taul::grammar ls_gram = std::move(*ls_loaded);
+    const taul::grammar f_gram = std::move(*f_loaded);
+    const taul::grammar l_gram = std::move(*l_loaded);
+
+
+    auto adv =
+        [](taul::source_pos& cntr, taul::source_pos incr) -> taul::source_pos {
+        const auto result = cntr;
+        cntr += incr;
+        return result;
+        };
+
+
+    // test w/out offset w/ skip token cutting
+
+    {
+        const auto& gram = fl_gram;
+        const auto tkns = taul::tokenize(gram, "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = fs_gram;
+        const auto tkns = taul::tokenize(gram, "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = ll_gram;
+        const auto tkns = taul::tokenize(gram, "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = ls_gram;
+        const auto tkns = taul::tokenize(gram, "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = f_gram;
+        const auto tkns = taul::tokenize(gram, "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = l_gram;
+        const auto tkns = taul::tokenize(gram, "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    // test w/ offset w/ skip token cutting
+
+    {
+        const auto& gram = fl_gram;
+        const auto tkns = taul::tokenize(gram, "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = fs_gram;
+        const auto tkns = taul::tokenize(gram, "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = ll_gram;
+        const auto tkns = taul::tokenize(gram, "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = ls_gram;
+        const auto tkns = taul::tokenize(gram, "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = f_gram;
+        const auto tkns = taul::tokenize(gram, "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = l_gram;
+        const auto tkns = taul::tokenize(gram, "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 18) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 1);
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            adv(cntr, 2);
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    // test w/out offset w/out skip token cutting
+
+    {
+        const auto& gram = fl_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = fs_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = ll_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = ls_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = f_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = l_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "abcabc abcabcabc abc  abcabcabc", lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    // test w/ offset w/out skip token cutting
+
+    {
+        const auto& gram = fl_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = fs_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("bc1"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = ll_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("ab2"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = ls_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = f_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("ab1"), "ab", adv(cntr, 2)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("c"), "c", adv(cntr, 1)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+
+    {
+        const auto& gram = l_gram;
+        const auto tkns = taul::tokenize(gram.full_lexer(false), "+-=abcabc abcabcabc abc  abcabcabc", 3, lgr);
+        if (tkns.size() == 22) {
+            taul::source_pos cntr = 0;
+            adv(cntr, 3);
+            EXPECT_EQ(tkns[0], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[1], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[2], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[3], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[4], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[5], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[6], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[7], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[8], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[9], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[10], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[11], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[12], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[13], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[14], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[15], taul::token(gram.lpr("ws"), " ", adv(cntr, 1)));
+            EXPECT_EQ(tkns[16], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[17], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[18], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[19], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+            EXPECT_EQ(tkns[20], taul::token(gram.lpr("a"), "a", adv(cntr, 1)));
+            EXPECT_EQ(tkns[21], taul::token(gram.lpr("bc2"), "bc", adv(cntr, 2)));
+        }
+        else ADD_FAILURE() << std::format("tkns.size()=={}", tkns.size());
+    }
+}
+
+
 TEST_F(GrammarUsage, lexerExpr_toplevel) {
 
     const auto spec =

@@ -12,6 +12,7 @@
 
 #include "bias.h"
 #include "polarity.h"
+#include "qualifier.h"
 
 #include "spec_error.h"
 #include "spec_opcode.h"

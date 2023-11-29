@@ -3,6 +3,7 @@
 #include "tokenize.h"
 
 #include "asserts.h"
+#include "grammar.h"
 
 
 void taul::tokenize_into(std::vector<token>& target, const lexer& f, std::string_view txt, const std::shared_ptr<logger>& lgr) {
@@ -12,12 +13,19 @@ void taul::tokenize_into(std::vector<token>& target, const lexer& f, std::string
 void taul::tokenize_into(std::vector<token>& target, const lexer& f, std::string_view txt, source_pos offset, const std::shared_ptr<logger>& lgr) {
     TAUL_ASSERT(offset <= txt.length());
     TAUL_LOG(lgr, "tokenizing \"{}\" (offset=={})...", (std::string)txt, offset);
+    const bool cut_skip_tokens = internal::get_lexer_f(f) == internal::grammar_wide_lexer_function_cut_skip_tokens;
     bool backIsFail = false;
     do {
         const auto tkn = f(txt, offset, lgr);
         TAUL_LOG(lgr, "tokenized {}", tkn);
         if ((bool)tkn) {
-            target.push_back(tkn);
+            // special check made to account for cutting skip tokens for grammar-wide lexers
+            if (!cut_skip_tokens || tkn.lpr().qualifer != qualifier::skip) {
+                target.push_back(tkn);
+            }
+            else {
+                TAUL_LOG(lgr, "token discarded; skip token cut");
+            }
             if (tkn.str().length() > 0) {
                 offset += (source_pos)tkn.str().length();
                 backIsFail = false;
@@ -48,7 +56,13 @@ void taul::tokenize_into(std::vector<token>& target, const lexer& f, std::string
     const auto tkn = f(txt, offset, lgr);
     TAUL_LOG(lgr, "tokenized {}", tkn);
     if ((bool)tkn) {
-        target.push_back(tkn);
+        // special check made to account for cutting skip tokens for grammar-wide lexers
+        if (!cut_skip_tokens || tkn.lpr().qualifer != qualifier::skip) {
+            target.push_back(tkn);
+        }
+        else {
+            TAUL_LOG(lgr, "token discarded; skip token cut");
+        }
     }
     else {
         TAUL_LOG(lgr, "token discarded; no final token output");

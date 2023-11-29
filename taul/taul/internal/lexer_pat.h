@@ -169,13 +169,13 @@ namespace taul {
                 const std::shared_ptr<taul::logger>& lgr) override final;
         };
         
-        class name_ofLPR_forLPR_lexer_pat final : public lexer_pat {
+        class name_lexer_pat final : public lexer_pat {
         public:
 
             std::size_t lprIndOfRef = std::size_t(-1);
 
 
-            name_ofLPR_forLPR_lexer_pat(std::size_t lprIndOfRef);
+            name_lexer_pat(std::size_t lprIndOfRef);
 
 
             match eval(

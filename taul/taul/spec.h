@@ -9,6 +9,7 @@
 
 #include "bias.h"
 #include "polarity.h"
+#include "qualifier.h"
 #include "spec_opcode.h"
 
 
@@ -41,7 +42,7 @@ namespace taul {
         spec_writer& close();
         spec_writer& lpr_decl(std::string_view name);
         spec_writer& ppr_decl(std::string_view name);
-        spec_writer& lpr(std::string_view name);
+        spec_writer& lpr(std::string_view name, qualifier qualifier = qualifier::none);
         spec_writer& ppr(std::string_view name);
 
         spec_writer& begin();
@@ -52,7 +53,7 @@ namespace taul {
         spec_writer& name(std::string_view name);
         spec_writer& sequence();
         spec_writer& set(bias b = bias::first_longest);
-        spec_writer& modifier(std::uint16_t min, std::uint16_t max = 0);
+        spec_writer& modifier(std::uint16_t min, std::uint16_t max);
         spec_writer& assertion(polarity p = polarity::positive);
         spec_writer& constraint(polarity p = polarity::positive);
         spec_writer& junction();
@@ -101,7 +102,7 @@ namespace taul {
         virtual void on_close() {}
         virtual void on_lpr_decl(std::string_view name) {}
         virtual void on_ppr_decl(std::string_view name) {}
-        virtual void on_lpr(std::string_view name) {}
+        virtual void on_lpr(std::string_view name, qualifier qualifier) {}
         virtual void on_ppr(std::string_view name) {}
 
         virtual void on_begin() {}
@@ -134,6 +135,7 @@ namespace taul {
         void spec_write_opcode(spec& s, spec_opcode opcode) noexcept;
         void spec_write_bias(spec& s, bias b) noexcept;
         void spec_write_polarity(spec& s, polarity p) noexcept;
+        void spec_write_qualifier(spec& s, qualifier q) noexcept;
         void spec_write_str(spec& s, std::string_view x) noexcept;
 
         std::uint8_t spec_read_u8(const spec& s, std::size_t offset, std::size_t& len) noexcept;
@@ -142,6 +144,7 @@ namespace taul {
         taul::spec_opcode spec_read_opcode(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         taul::bias spec_read_bias(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         taul::polarity spec_read_polarity(const spec& s, std::size_t offset, std::size_t& len) noexcept;
+        taul::qualifier spec_read_qualifier(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         std::string_view spec_read_str(const spec& s, std::size_t offset, std::size_t& len) noexcept;
     }
 }

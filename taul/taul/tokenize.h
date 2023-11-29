@@ -11,6 +11,9 @@ namespace taul {
 
     // TODO: be sure to incorporate the below into our *official* documentation later
 
+    // TODO: in our *official* documentation, be sure to include details about how tokenize(_into)
+    //       functions have special behaviour regarding cutting 'skip tokens' for grammar-wide lexers
+
     // if a token during tokenization produced has length 0, then to avoid an infinite loop
     // (since the lexer will otherwise deterministically resolve the same token over-and-over)
     // the function will insert a failure token matching the next character into the output

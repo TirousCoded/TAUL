@@ -50,8 +50,8 @@ protected:
         output += std::format("ppr-decl \"{}\"\n", name);
     }
 
-    inline void on_lpr(std::string_view name) override final {
-        output += std::format("lpr \"{}\"\n", name);
+    inline void on_lpr(std::string_view name, taul::qualifier qualifier) override final {
+        output += std::format("lpr \"{}\" {}\n", name, qualifier);
     }
 
     inline void on_ppr(std::string_view name) override final {
@@ -147,6 +147,15 @@ TEST(spec_tests, tests) {
 
     const auto spec1 = sw
         .grammar_bias(taul::bias::last_shortest)
+        .lpr_decl("test_none_qualifier")
+        .lpr_decl("test_skip_qualifier")
+        .lpr_decl("test_exclude_qualifier")
+        .lpr("test_none_qualifier", taul::qualifier::none)
+        .close()
+        .lpr("test_skip_qualifier", taul::qualifier::skip)
+        .close()
+        .lpr("test_exclude_qualifier", taul::qualifier::exclude)
+        .close()
         .lpr_decl("lpr0")
         .ppr_decl("ppr0")
         .lpr("lpr0")
@@ -190,7 +199,7 @@ TEST(spec_tests, tests) {
         .close()
         .close()
         .assertion()
-        .modifier(3)
+        .modifier(3, 0)
         .any()
         .close()
         .close()
@@ -240,9 +249,18 @@ TEST(spec_tests, tests) {
 
     expected = "startup\n";
     expected += "grammar-bias last-shortest\n";
+    expected += "lpr-decl \"test_none_qualifier\"\n";
+    expected += "lpr-decl \"test_skip_qualifier\"\n";
+    expected += "lpr-decl \"test_exclude_qualifier\"\n";
+    expected += "lpr \"test_none_qualifier\" none\n";
+    expected += "close\n";
+    expected += "lpr \"test_skip_qualifier\" skip\n";
+    expected += "close\n";
+    expected += "lpr \"test_exclude_qualifier\" exclude\n";
+    expected += "close\n";
     expected += "lpr-decl \"lpr0\"\n";
     expected += "ppr-decl \"ppr0\"\n";
-    expected += "lpr \"lpr0\"\n";
+    expected += "lpr \"lpr0\" none\n";
     expected += "begin\n";
     expected += "end\n";
     expected += "any\n";

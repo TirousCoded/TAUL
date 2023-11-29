@@ -29,6 +29,16 @@ TEST(load_tests, success) {
     const auto s =
         taul::spec_writer()
         .grammar_bias(taul::bias::last_longest)
+        // gonna test successful usage of qualifiers here
+        .lpr_decl("with_none_qualifier")
+        .lpr_decl("with_skip_qualifier")
+        .lpr_decl("with_exclude_qualifier")
+        .lpr("with_none_qualifier", taul::qualifier::none)
+        .close()
+        .lpr("with_skip_qualifier", taul::qualifier::skip)
+        .close()
+        .lpr("with_exclude_qualifier", taul::qualifier::exclude)
+        .close()
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
@@ -393,14 +403,34 @@ TEST(load_tests, success) {
 
         EXPECT_EQ(gram->bias(), taul::bias::last_longest);
 
+        if (gram->contains_lpr("with_none_qualifier")) {
+            EXPECT_EQ(gram->lpr("with_none_qualifier").name, "with_none_qualifier");
+            EXPECT_EQ(gram->lpr("with_none_qualifier").index, 0);
+            EXPECT_EQ(gram->lpr("with_none_qualifier").qualifer, taul::qualifier::none);
+        }
+        else ADD_FAILURE();
+        if (gram->contains_lpr("with_skip_qualifier")) {
+            EXPECT_EQ(gram->lpr("with_skip_qualifier").name, "with_skip_qualifier");
+            EXPECT_EQ(gram->lpr("with_skip_qualifier").index, 1);
+            EXPECT_EQ(gram->lpr("with_skip_qualifier").qualifer, taul::qualifier::skip);
+        }
+        else ADD_FAILURE();
+        if (gram->contains_lpr("with_exclude_qualifier")) {
+            EXPECT_EQ(gram->lpr("with_exclude_qualifier").name, "with_exclude_qualifier");
+            EXPECT_EQ(gram->lpr("with_exclude_qualifier").index, 2);
+            EXPECT_EQ(gram->lpr("with_exclude_qualifier").qualifer, taul::qualifier::exclude);
+        }
+        else ADD_FAILURE();
         if (gram->contains_lpr("lpr0")) {
             EXPECT_EQ(gram->lpr("lpr0").name, "lpr0");
-            EXPECT_EQ(gram->lpr("lpr0").index, 0);
+            EXPECT_EQ(gram->lpr("lpr0").index, 3);
+            EXPECT_EQ(gram->lpr("lpr0").qualifer, taul::qualifier::none);
         }
         else ADD_FAILURE();
         if (gram->contains_lpr("lpr1")) {
             EXPECT_EQ(gram->lpr("lpr1").name, "lpr1");
-            EXPECT_EQ(gram->lpr("lpr1").index, 1);
+            EXPECT_EQ(gram->lpr("lpr1").index, 4);
+            EXPECT_EQ(gram->lpr("lpr1").qualifer, taul::qualifier::none);
         }
         else ADD_FAILURE();
         if (gram->contains_ppr("ppr0")) {
@@ -503,11 +533,13 @@ TEST(load_tests, success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage) {
         if (gram->contains_lpr("lpr0")) {
             EXPECT_EQ(gram->lpr("lpr0").name, "lpr0");
             EXPECT_EQ(gram->lpr("lpr0").index, 0);
+            EXPECT_EQ(gram->lpr("lpr0").qualifer, taul::qualifier::none);
         }
         else ADD_FAILURE();
         if (gram->contains_lpr("lpr1")) {
             EXPECT_EQ(gram->lpr("lpr1").name, "lpr1");
             EXPECT_EQ(gram->lpr("lpr1").index, 1);
+            EXPECT_EQ(gram->lpr("lpr1").qualifer, taul::qualifier::none);
         }
         else ADD_FAILURE();
         if (gram->contains_ppr("ppr0")) {
@@ -1380,7 +1412,7 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooFewSubExprs) {
         taul::spec_writer()
         .lpr_decl("f")
         .lpr("f")
-        .modifier(0)
+        .modifier(0, 0)
         // no subexprs, illegal!
         .close()
         .close()
@@ -1401,7 +1433,7 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooManySubExprs) {
         taul::spec_writer()
         .lpr_decl("f")
         .lpr("f")
-        .modifier(0)
+        .modifier(0, 0)
         // two subexprs, illegal!
         .any()
         .any()

@@ -36,6 +36,7 @@ std::optional<taul::grammar> taul::load(const taul::spec& s, taul::spec_error_co
             }(),
             });
         data->build_lookup();
+        data->build_gwls();
         // for each lpr we gotta do two things right at the end:
         //      1) hook up the gramdat ptr of the toplevel_lexer_pat of the lpr
         //      2) hook up its fnobj
@@ -46,9 +47,7 @@ std::optional<taul::grammar> taul::load(const taul::spec& s, taul::spec_error_co
         }
         return std::make_optional<taul::grammar>(internal::for_internal_use_tag{}, std::move(data));
     }
-    else {
-        return std::nullopt;
-    }
+    else return std::nullopt;
 }
 
 void taul::internal::load_spec_interpreter::check_not_in_lpr_scope(spec_opcode opcode) {
@@ -235,11 +234,11 @@ void taul::internal::load_spec_interpreter::on_ppr_decl(std::string_view name) {
     add_ppr_decl(name);
 }
 
-void taul::internal::load_spec_interpreter::on_lpr(std::string_view name) {
+void taul::internal::load_spec_interpreter::on_lpr(std::string_view name, qualifier qualifier) {
     check_lpr_was_declared(name);
     check_lpr_not_already_defined(name);
     check_not_in_lpr_nor_ppr_scope(spec_opcode::lpr);
-    add_lpr_def(name);
+    add_lpr_def(name, qualifier);
     ess_entry entry{ spec_opcode::lpr, ets_type::lexer, name, true };
     if (lprs.contains(name)) {
         entry.index = lprs.at(name).index;
@@ -294,13 +293,11 @@ void taul::internal::load_spec_interpreter::on_name(std::string_view name) {
     check_not_in_ppr_scope(spec_opcode::name);
     check_in_lpr_or_ppr_scope(spec_opcode::name);
     check_lpr_or_ppr_exists_with_name(name);
-    // if name can't be found, we'll pass this *dummy* value
-    std::size_t lprIndOfRef = std::size_t(-1);
-    if (lprs.contains(name)) {
-        const auto& lpr = lprs.at(name);
-        lprIndOfRef = lpr.index;
-    }
-    bind_lexer_pat<name_ofLPR_forLPR_lexer_pat>(lprIndOfRef);
+    const auto lprIndOfRef =
+        lprs.contains(name)
+        ? lprs.at(name).index
+        : std::size_t(-1); // if name can't be found, pass *dummy* value
+    bind_lexer_pat<name_lexer_pat>(lprIndOfRef);
 }
 
 void taul::internal::load_spec_interpreter::on_sequence() {

@@ -5,6 +5,10 @@
 #include "asserts.h"
 
 
+taul::lexer_function taul::internal::get_lexer_f(const lexer& x) noexcept {
+    return x._f;
+}
+
 taul::lexer::lexer(lexer_function f, const std::shared_ptr<lexer_state>& state) 
     : _f(f), 
     _state(state) {

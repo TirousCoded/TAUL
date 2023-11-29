@@ -87,8 +87,9 @@ namespace taul {
             inline bool has_lpr_decl_nodef(std::string_view name) const noexcept { return has_lpr_decl(name) && !defined.contains(name); }
             inline bool has_ppr_decl_nodef(std::string_view name) const noexcept { return has_ppr_decl(name) && !defined.contains(name); }
 
-            inline void add_lpr_def(std::string_view name) {
+            inline void add_lpr_def(std::string_view name, qualifier q) {
                 if (!has_lpr_decl_nodef(name)) return;
+                lprs.at(name).qualifer = q;
                 defined.emplace(name);
             }
             
@@ -285,7 +286,7 @@ namespace taul {
             void on_close() override final;
             void on_lpr_decl(std::string_view name) override final;
             void on_ppr_decl(std::string_view name) override final;
-            void on_lpr(std::string_view name) override final;
+            void on_lpr(std::string_view name, qualifier qualifier) override final;
             void on_ppr(std::string_view name) override final;
 
             void on_begin() override final;

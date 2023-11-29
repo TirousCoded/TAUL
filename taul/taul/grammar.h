@@ -25,6 +25,7 @@ namespace taul {
         struct for_internal_use_tag final {};
 
         struct grammar_data;
+        class grammar_wide_lexer_state;
     }
 
 
@@ -68,6 +69,14 @@ namespace taul {
         const parser_rule& ppr(const char* name) const;
 
 
+        // this returns a "grammar-wide lexer" which evaluates w/ all LPRs
+        // in the grammar
+
+        taul::lexer full_lexer(bool cut_skip_tokens = true) const;
+
+        operator taul::lexer() const;
+
+
         // these are used to get lexers/parsers associated w/ LPRs/PPRs
 
         // the below throw std::out_of_range if there is no LPR/PPR w/ name
@@ -100,40 +109,6 @@ namespace taul {
 
         std::shared_ptr<internal::grammar_data> _data;
     };
-
-
-    namespace internal {
-
-
-        struct grammar_data final {
-            // please notice that the use of std::string_view below for maps
-            // means that we need to be careful to consider how SSO may cause
-            // string address changes during _lprs/_pprs reallocs
-            //
-            // this isn't something to worry about really, due to how we're 
-            // building grammar objects, but in case we ever change it, do 
-            // keep this in mind
-
-            taul::bias _bias;
-
-            std::vector<lexer_rule> _lprs;
-            std::vector<parser_rule> _pprs;
-
-            struct entry final {
-                bool        lpr;    // if index is for lpr (and if not, for ppr)
-                std::size_t index;
-            };
-
-            // using a clever trick here where using an std::string_view to
-            // the _lprs/_pprs entry 'name' field memory lets us use string
-            // views to perform lookups w/out alloc
-
-            std::unordered_map<std::string_view, entry> _lookup;
-
-
-            void build_lookup();
-        };
-    }
 }
 
 
@@ -147,6 +122,86 @@ struct std::formatter<taul::grammar> final : std::formatter<std::string> {
 namespace std {
     inline std::ostream& operator<<(std::ostream& stream, const taul::grammar& x) {
         return stream << x.fmt();
+    }
+}
+
+
+namespace taul::internal {
+
+
+    struct grammar_data final {
+
+        // please notice that the use of std::string_view below for maps
+        // means that we need to be careful to consider how SSO may cause
+        // string address changes during _lprs/_pprs reallocs
+        //
+        // this isn't something to worry about really, due to how we're 
+        // building grammar objects, but in case we ever change it, do 
+        // keep this in mind
+
+        taul::bias _bias;
+
+        std::vector<lexer_rule> _lprs;
+        std::vector<parser_rule> _pprs;
+
+        struct entry final {
+            bool        lpr;    // if index is for lpr (and if not, for ppr)
+            std::size_t index;
+        };
+
+        // using a clever trick here where using an std::string_view to
+        // the _lprs/_pprs entry 'name' field memory lets us use string
+        // views to perform lookups w/out alloc
+
+        std::unordered_map<std::string_view, entry> _lookup;
+
+
+        // this is stored here so we can access it quickly when full_lexer
+        // is called, to help avoid heap alloc
+
+        std::shared_ptr<grammar_wide_lexer_state> _gwls;
+
+
+        void build_lookup();
+        void build_gwls();
+    };
+
+
+    // IMPORTANT: do NOT give grammar_wide_lexer_state a strong reference to 
+    //            taul::internal::grammar_data, as doing so will result in
+    //            a strong reference cycle!!!
+
+    class grammar_wide_lexer_state final : public taul::lexer_state {
+    public:
+
+        taul::bias _bias;
+        std::span<const lexer_rule> _lprs;
+
+
+        grammar_wide_lexer_state(const grammar_data& gd);
+    };
+
+    token base_grammar_wide_lexer_function(
+        const std::shared_ptr<lexer_state>& state,
+        std::string_view txt,
+        source_pos offset,
+        const std::shared_ptr<logger>& lgr,
+        bool cut_skip_tokens);
+
+    inline token grammar_wide_lexer_function_cut_skip_tokens(
+        const std::shared_ptr<lexer_state>& state,
+        std::string_view txt,
+        source_pos offset,
+        const std::shared_ptr<logger>& lgr) {
+        return base_grammar_wide_lexer_function(state, txt, offset, lgr, true);
+    }
+
+    inline token grammar_wide_lexer_function_dont_cut_skip_tokens(
+        const std::shared_ptr<lexer_state>& state,
+        std::string_view txt,
+        source_pos offset,
+        const std::shared_ptr<logger>& lgr) {
+        return base_grammar_wide_lexer_function(state, txt, offset, lgr, false);
     }
 }
 

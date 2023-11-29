@@ -90,6 +90,21 @@ const taul::parser_rule& taul::grammar::ppr(const char* name) const {
     return ppr(std::string_view(name));
 }
 
+taul::lexer taul::grammar::full_lexer(bool cut_skip_tokens) const {
+    // if we're a default ctor grammar, return default ctor lexer as dummy
+    if (!_data) {
+        return taul::lexer();
+    }
+    return
+        cut_skip_tokens
+        ? taul::lexer(taul::internal::grammar_wide_lexer_function_cut_skip_tokens, _data->_gwls)
+        : taul::lexer(taul::internal::grammar_wide_lexer_function_dont_cut_skip_tokens, _data->_gwls);
+}
+
+taul::grammar::operator taul::lexer() const {
+    return full_lexer();
+}
+
 taul::lexer taul::grammar::lexer(const std::string& name) const {
     return lexer(std::string_view(name));
 }
@@ -152,29 +167,94 @@ bool taul::grammar::contains_ppr(const char* name) const noexcept {
 }
 
 std::string taul::grammar::fmt(std::string_view tab) const {
-    std::string result{};
-    result += "taul::grammar (details)";
-    result += std::format("\n{}bias: {}", tab, bias());
-    result += std::format("\n{}lprs ({}):", tab, lprs().size());
-    for (const auto& I : lprs()) {
-        result += std::format("\n{0}{0}[{1}] {2}", tab, I.index, I.name);
-    }
-    result += std::format("\n{}pprs ({}):", tab, pprs().size());
-    for (const auto& I : pprs()) {
-        result += std::format("\n{0}{0}[{1}] {2}", tab, I.index, I.name);
-    }
-    return result;
+    return std::format(
+        "taul::grammar (details)"
+        "\n{0}bias: {1}"
+        "\n{0}lprs ({2}):"
+        "{4}"
+        "\n{0}pprs ({3}):"
+        "{5}",
+        tab, bias(),
+        lprs().size(), 
+        pprs().size(),
+        [&]() -> auto {
+            std::string result{};
+            for (const auto& I : lprs()) {
+                result += std::format("\n{0}{0}[{1}] {2}", tab, I.index, I.name);
+            }
+            return result;
+        }(),
+        [&]() -> auto {
+            std::string result{};
+            for (const auto& I : pprs()) {
+                result += std::format("\n{0}{0}[{1}] {2}", tab, I.index, I.name);
+            }
+            return result;
+        }());
 }
 
 void taul::internal::grammar_data::build_lookup() {
     TAUL_ASSERT(_lookup.empty());
     _lookup.reserve(_lprs.size() + _pprs.size());
-    for (const auto& I : _lprs) {
-        _lookup[I.name] = entry{ true, I.index };
-    }
-    for (const auto& I : _pprs) {
-        _lookup[I.name] = entry{ false, I.index };
-    }
+    for (const auto& I : _lprs) { _lookup[I.name] = entry{ true, I.index }; }
+    for (const auto& I : _pprs) { _lookup[I.name] = entry{ false, I.index }; }
     // ensure no lprs/pprs shared names
     TAUL_ASSERT(_lookup.size() == _lprs.size() + _pprs.size());
+}
+
+void taul::internal::grammar_data::build_gwls() {
+    TAUL_ASSERT(_gwls == nullptr);
+    _gwls = std::make_shared<grammar_wide_lexer_state>(*this);
+}
+
+taul::internal::grammar_wide_lexer_state::grammar_wide_lexer_state(const grammar_data& gd)
+    : lexer_state(),
+    _bias(gd._bias),
+    _lprs(std::span{ gd._lprs.begin(), gd._lprs.size() }) {}
+
+taul::token taul::internal::base_grammar_wide_lexer_function(
+    const std::shared_ptr<lexer_state>& state, 
+    std::string_view txt, 
+    source_pos offset, 
+    const std::shared_ptr<logger>& lgr, 
+    bool cut_skip_tokens) {
+    TAUL_ASSERT(state != nullptr);
+    const auto _state = std::static_pointer_cast<grammar_wide_lexer_state>(state);
+    token selection = token::failure("", offset);
+    bool has_selection = false;
+    // TODO: could we make bias::last run *faster* by iterating backwards? or would increase be too small?
+    for (const auto& I : _state->_lprs) {
+        // skip if excluded
+        if (I.qualifer == qualifier::exclude) {
+            continue;
+        }
+        const auto tkn = I.lexer()(txt, offset, lgr);
+        // skip if fails
+        if (!(bool)tkn) {
+            continue;
+        }
+        // select first successful match no matter what
+        bool select = !(bool)selection;
+        // otherwise, select if new match is preferrable
+        if (!select) {
+            switch (_state->_bias) {
+            case bias::first_longest:   select = tkn.str().length() > selection.str().length();     break;
+            case bias::first_shortest:  select = tkn.str().length() < selection.str().length();     break;
+            case bias::last_longest:    select = tkn.str().length() >= selection.str().length();    break;
+            case bias::last_shortest:   select = tkn.str().length() <= selection.str().length();    break;
+            case bias::first:           select = false;                                             break;
+            case bias::last:            select = true;                                              break;
+            default:                    TAUL_DEADEND;                                               break;
+            }
+        }
+        // if above two make select == true, select tkn
+        if (select) {
+            selection = tkn;
+        }
+        // if our bias is 'first', then we may exit early
+        if (select && _state->_bias == bias::first) {
+            break;
+        }
+    }
+    return selection;
 }

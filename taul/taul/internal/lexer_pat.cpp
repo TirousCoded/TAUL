@@ -148,6 +148,7 @@ taul::internal::set_lexer_pat::set_lexer_pat(bias b)
 
 taul::internal::match taul::internal::set_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     match selection = make_match(false, "", offset);
+    // TODO: could we make bias::last run *faster* by iterating backwards? or would increase be too small?
     for (const auto& I : children) {
         TAUL_ASSERT(I);
         const auto matched = I->eval(gramdat, txt, offset, localend_offset, lgr);
@@ -258,11 +259,11 @@ taul::internal::match taul::internal::localend_lexer_pat::eval(const grammar_dat
     return make_match(offset == localend_offset, "", offset);
 }
 
-taul::internal::name_ofLPR_forLPR_lexer_pat::name_ofLPR_forLPR_lexer_pat(std::size_t lprIndOfRef)
+taul::internal::name_lexer_pat::name_lexer_pat(std::size_t lprIndOfRef)
     : lexer_pat(), 
     lprIndOfRef(lprIndOfRef) {}
 
-taul::internal::match taul::internal::name_ofLPR_forLPR_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::match taul::internal::name_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(lprIndOfRef < gramdat._lprs.size());
     const auto tkn = gramdat._lprs[lprIndOfRef].lexer()(txt, offset, lgr);
     return

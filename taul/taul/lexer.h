@@ -16,6 +16,8 @@ namespace taul {
 
     class lexer_state;
 
+    class lexer;
+
 
     // the behaviour of lexer function objects is defined by two pieces 
     // of information:
@@ -47,8 +49,18 @@ namespace taul {
     }
 
 
+    namespace internal {
+
+
+        lexer_function get_lexer_f(const lexer& x) noexcept;
+    }
+
+
     class lexer final {
     public:
+
+        friend lexer_function internal::get_lexer_f(const lexer&) noexcept;
+
 
         // behaviour is undefined if f == nullptr
 
