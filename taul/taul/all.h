@@ -24,6 +24,10 @@
 #include "load.h"
 
 #include "token.h"
+#include "token_seq.h"
 #include "lexer.h"
 #include "tokenize.h"
+
+#include "node.h"
+#include "parser.h"
 

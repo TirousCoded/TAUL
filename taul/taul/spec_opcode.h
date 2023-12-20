@@ -21,26 +21,55 @@ namespace taul {
         lpr,
         ppr,
 
-        begin,          // lexer-only   TODO: add parser
-        end,            // lexer-only   TODO: add parser
-        any,            // lexer-only   TODO: add parser
-        string,         // lexer-only   TODO: add parser
-        charset,        // lexer-only   TODO: add parser
+        begin,          // lexer/parser
+        end,            // lexer/parser
+        any,            // lexer/parser
 
-        // TODO: when we add parser stuff, update "success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage"
+        // within lprs, string/charset match against the target character sequence
+        
+        // within pprs, string/charset match against single non-failure tokens w/ matched strings which 
+        // conform to their rule:
+        //      - for string, this means the token's matched string must equal its string
+        //      - for charset, this means the token's matched string must be a single character
+        //        which is present in the charset's string
 
-        name,           // lexer-only   TODO: add parser
-        sequence,       // lexer-only   TODO: add parser
-        set,            // lexer-only   TODO: add parser
-        modifier,       // lexer-only   TODO: add parser TODO: in docs, mention max==0 disables max
-        assertion,      // lexer-only   TODO: add parser
-        constraint,     // lexer-only   TODO: add parser
+        string,         // lexer/parser
+        charset,        // lexer/parser
+
+        // token matches any single non-failure token
+
+        token,          // parser-only
+
+        // failure matches any single failure token
+
+        failure,        // parser-only
+
+        // within lprs, name can refer only to lprs
+
+        // within pprs, name can refer both to lprs and pprs
+
+        name,           // lexer/parser
+
+        sequence,       // lexer/parser
+        set,            // lexer/parser
+
+        // TODO: in docs, mention max == 0 disables max
+
+        modifier,       // lexer/parser
+
+        assertion,      // lexer/parser
+        constraint,     // lexer/parser
         junction,       // the *junction* between 'constrained' and 'constraining' exprs; this is not an expr
 
         // TODO: when we add parser stuff, we'll need semantics to make it illegal for a localend
-        //       in an embedded lexer expr within a parser expr to be for a parser constraint
+        //       in an embedded lexer subexpr within a parser expr to be for a parser constraint
 
-        localend,       // lexer-only   TODO: add parser
+        localend,       // lexer/parser
+
+        // lexer subexprs accept only a single nested expr, so a sequence is expected to be generated
+        // by the compiler in order to enable TAUL syntax to treat them as allowing a sequence of subexprs
+
+        //lsubexpr,       // parser-only
 
         num,            // this is not a valid spec opcode
     };

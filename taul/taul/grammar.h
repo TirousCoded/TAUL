@@ -14,6 +14,9 @@
 #include "bias.h"
 #include "rules.h"
 #include "lexer.h"
+#include "parser.h"
+
+#include "internal/util.h"
 
 
 namespace taul {
@@ -21,8 +24,6 @@ namespace taul {
 
     namespace internal {
 
-
-        struct for_internal_use_tag final {};
 
         struct grammar_data;
         class grammar_wide_lexer_state;
@@ -84,6 +85,10 @@ namespace taul {
         taul::lexer lexer(const std::string& name) const;
         taul::lexer lexer(std::string_view name) const;
         taul::lexer lexer(const char* name) const;
+
+        taul::parser parser(const std::string& name) const;
+        taul::parser parser(std::string_view name) const;
+        taul::parser parser(const char* name) const;
 
 
         // contains returns if *either* and LPR or a PPR exists w/ name, w/

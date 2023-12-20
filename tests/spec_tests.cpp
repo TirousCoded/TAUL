@@ -32,7 +32,7 @@ protected:
         output += "shutdown\n";
     }
 
-    static_assert(taul::spec_opcodes == 19);
+    static_assert(taul::spec_opcodes == 21);
 
     inline void on_grammar_bias(taul::bias b) override final {
         output += std::format("grammar-bias {}\n", b);
@@ -76,6 +76,14 @@ protected:
 
     inline void on_charset(std::string_view s) override final {
         output += std::format("charset \"{}\"\n", s);
+    }
+
+    inline void on_token() override final {
+        output += std::format("token\n");
+    }
+
+    inline void on_failure() override final {
+        output += std::format("failure\n");
     }
     
     inline void on_name(std::string_view name) override final {
@@ -143,7 +151,7 @@ TEST(spec_tests, tests) {
 
     // test done w/ main usage
 
-    static_assert(taul::spec_opcodes == 19);
+    static_assert(taul::spec_opcodes == 21);
 
     const auto spec1 = sw
         .grammar_bias(taul::bias::last_shortest)
@@ -191,6 +199,8 @@ TEST(spec_tests, tests) {
         .any()
         .string("abc")
         .charset("abc")
+        .token()
+        .failure()
         .sequence()
         .set()
         .any()
@@ -293,6 +303,8 @@ TEST(spec_tests, tests) {
     expected += "any\n";
     expected += "string \"abc\"\n";
     expected += "charset \"abc\"\n";
+    expected += "token\n";
+    expected += "failure\n";
     expected += "sequence\n";
     expected += "set first-longest\n";
     expected += "any\n";

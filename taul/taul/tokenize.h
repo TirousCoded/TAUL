@@ -3,6 +3,7 @@
 #pragma once
 
 
+#include "token_seq.h"
 #include "lexer.h"
 
 
@@ -31,7 +32,7 @@ namespace taul {
 
 
     void tokenize_into(
-        std::vector<token>& target,
+        token_seq& target,
         const lexer& f,
         std::string_view txt,
         const std::shared_ptr<logger>& lgr = nullptr);
@@ -41,13 +42,13 @@ namespace taul {
     // behaviour is undefined if offset > txt.length()
 
     void tokenize_into(
-        std::vector<token>& target,
+        token_seq& target,
         const lexer& f,
         std::string_view txt,
         source_pos offset,
         const std::shared_ptr<logger>& lgr = nullptr);
 
-    std::vector<token> tokenize(
+    token_seq tokenize(
         const lexer& f,
         std::string_view txt,
         const std::shared_ptr<logger>& lgr = nullptr);
@@ -56,7 +57,7 @@ namespace taul {
 
     // behaviour is undefined if offset > txt.length()
 
-    std::vector<token> tokenize(
+    token_seq tokenize(
         const lexer& f,
         std::string_view txt,
         source_pos offset,

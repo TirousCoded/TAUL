@@ -28,7 +28,7 @@ taul::token text_lexer_fn(
     TAUL_LOG(lgr, "test_lexer_fn called w/ \"{}\" w/ offset {}", (std::string)txt, offset);
     assert(state);
     static_cast<test_lexer_state*>(state.get())->last = txt;
-    TAUL_IN_BOUNDS(offset, 0, txt.length() + 1); // the '+ 1' is due to allowing offset == txt.length
+    TAUL_IN_BOUNDS(offset, 0, txt.length() + 1); // the '+ 1' is due to allowing offset == txt.length()
     return taul::token::failure(txt.substr(offset), offset);
 }
 

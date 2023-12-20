@@ -19,17 +19,17 @@ namespace taul {
     namespace internal {
 
 
-        struct match final {
+        struct lexer_match final {
             bool success;
             std::string_view txt;
             source_pos offset;
         };
 
-        inline match make_match(
+        inline lexer_match make_lexer_match(
             bool success,
             std::string_view txt,
             source_pos offset) noexcept {
-            return match{ success, txt, offset };
+            return lexer_match{ success, txt, offset };
         }
 
 
@@ -63,7 +63,7 @@ namespace taul {
             virtual ~lexer_pat() noexcept = default;
 
 
-            virtual match eval(
+            virtual lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -85,7 +85,7 @@ namespace taul {
             toplevel_lexer_pat(std::size_t lprInd);
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -99,7 +99,7 @@ namespace taul {
             begin_lexer_pat();
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -113,7 +113,7 @@ namespace taul {
             end_lexer_pat();
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -127,7 +127,7 @@ namespace taul {
             any_lexer_pat();
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -144,7 +144,7 @@ namespace taul {
             string_lexer_pat(std::string s);
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -161,7 +161,7 @@ namespace taul {
             charset_lexer_pat(std::string s);
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -178,7 +178,7 @@ namespace taul {
             name_lexer_pat(std::size_t lprIndOfRef);
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -192,7 +192,7 @@ namespace taul {
             sequence_lexer_pat();
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -209,7 +209,7 @@ namespace taul {
             set_lexer_pat(bias b);
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -226,7 +226,7 @@ namespace taul {
             modifier_lexer_pat(std::uint16_t min, std::uint16_t max);
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -243,7 +243,7 @@ namespace taul {
             assertion_lexer_pat(taul::polarity p);
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -260,7 +260,7 @@ namespace taul {
             constraint_lexer_pat(taul::polarity p);
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,
@@ -274,7 +274,7 @@ namespace taul {
             localend_lexer_pat();
 
 
-            match eval(
+            lexer_match eval(
                 const grammar_data& gramdat,
                 std::string_view txt,
                 source_pos offset,

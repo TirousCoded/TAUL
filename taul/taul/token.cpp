@@ -52,7 +52,7 @@ const taul::lexer_rule& taul::token::lpr() const {
     }
     else {
         TAUL_ASSERT(is_failure());
-        throw taul::failure_token_error("failure token has no associated lpr!");
+        throw taul::lpr_association_error("failure token has no associated lpr!");
     }
 }
 
@@ -74,8 +74,8 @@ bool taul::token::equal(const token& other) const noexcept {
 std::string taul::token::fmt() const {
     return
         is_failure() 
-        ? std::format("[({}) <failure-token> \"{}\"]", pos(), (std::string)str()) 
-        : std::format("[({}) {} \"{}\"]", pos(), lpr().name, (std::string)str());
+        ? std::format("[(lpr) ({}) <failure-token> \"{}\"]", pos(), (std::string)str()) 
+        : std::format("[(lpr) ({}) {} \"{}\"]", pos(), lpr().name, (std::string)str());
 }
 
 taul::token taul::token::failure(std::string_view str, source_pos pos) noexcept {

@@ -44,7 +44,7 @@ TEST_F(TokenTests, defaultCtor) {
     EXPECT_TRUE(tkn.is_failure());
     EXPECT_FALSE((bool)tkn);
 
-    EXPECT_THROW(tkn.lpr(), taul::failure_token_error);
+    EXPECT_THROW(tkn.lpr(), taul::lpr_association_error);
 
     EXPECT_EQ(tkn.str(), "");
     EXPECT_EQ(tkn.pos(), 0);
@@ -82,8 +82,8 @@ TEST_F(TokenTests, initFailureToken) {
     EXPECT_FALSE((bool)tkn0);
     EXPECT_FALSE((bool)tkn1);
 
-    EXPECT_THROW(tkn0.lpr(), taul::failure_token_error);
-    EXPECT_THROW(tkn1.lpr(), taul::failure_token_error);
+    EXPECT_THROW(tkn0.lpr(), taul::lpr_association_error);
+    EXPECT_THROW(tkn1.lpr(), taul::lpr_association_error);
 
     EXPECT_EQ(tkn0.str(), "abc");
     EXPECT_EQ(tkn1.str(), "def");
@@ -110,8 +110,8 @@ TEST_F(TokenTests, copyCtor) {
     EXPECT_TRUE((bool)tkn1);
     EXPECT_FALSE((bool)tkn2);
 
-    EXPECT_THROW(tkn0.lpr(), taul::failure_token_error);
-    EXPECT_THROW(tkn2.lpr(), taul::failure_token_error);
+    EXPECT_THROW(tkn0.lpr(), taul::lpr_association_error);
+    EXPECT_THROW(tkn2.lpr(), taul::lpr_association_error);
 
     EXPECT_EQ(&(tkn1.lpr()), &(gram.lpr("lpr0")));
 
@@ -142,8 +142,8 @@ TEST_F(TokenTests, moveCtor) {
     EXPECT_TRUE((bool)tkn1);
     EXPECT_FALSE((bool)tkn2);
 
-    EXPECT_THROW(tkn0.lpr(), taul::failure_token_error);
-    EXPECT_THROW(tkn2.lpr(), taul::failure_token_error);
+    EXPECT_THROW(tkn0.lpr(), taul::lpr_association_error);
+    EXPECT_THROW(tkn2.lpr(), taul::lpr_association_error);
 
     EXPECT_EQ(&(tkn1.lpr()), &(gram.lpr("lpr0")));
 
@@ -178,8 +178,8 @@ TEST_F(TokenTests, copyAssign) {
     EXPECT_TRUE((bool)tkn1);
     EXPECT_FALSE((bool)tkn2);
 
-    EXPECT_THROW(tkn0.lpr(), taul::failure_token_error);
-    EXPECT_THROW(tkn2.lpr(), taul::failure_token_error);
+    EXPECT_THROW(tkn0.lpr(), taul::lpr_association_error);
+    EXPECT_THROW(tkn2.lpr(), taul::lpr_association_error);
 
     EXPECT_EQ(&(tkn1.lpr()), &(gram.lpr("lpr0")));
 
@@ -214,8 +214,8 @@ TEST_F(TokenTests, moveAssign) {
     EXPECT_TRUE((bool)tkn1);
     EXPECT_FALSE((bool)tkn2);
 
-    EXPECT_THROW(tkn0.lpr(), taul::failure_token_error);
-    EXPECT_THROW(tkn2.lpr(), taul::failure_token_error);
+    EXPECT_THROW(tkn0.lpr(), taul::lpr_association_error);
+    EXPECT_THROW(tkn2.lpr(), taul::lpr_association_error);
 
     EXPECT_EQ(&(tkn1.lpr()), &(gram.lpr("lpr0")));
 
@@ -246,8 +246,8 @@ TEST_F(TokenTests, moveAssign_ontoSelf) {
     EXPECT_TRUE((bool)tkn1);
     EXPECT_FALSE((bool)tkn2);
 
-    EXPECT_THROW(tkn0.lpr(), taul::failure_token_error);
-    EXPECT_THROW(tkn2.lpr(), taul::failure_token_error);
+    EXPECT_THROW(tkn0.lpr(), taul::lpr_association_error);
+    EXPECT_THROW(tkn2.lpr(), taul::lpr_association_error);
 
     EXPECT_EQ(&(tkn1.lpr()), &(gram.lpr("lpr0")));
 

@@ -20,7 +20,7 @@
 //       to improve the below tests, of some sort, but for now these will suffice
 
 
-class GrammarUsage : public testing::Test {
+class GrammarUsageTests : public testing::Test {
 protected:
 
     std::shared_ptr<taul::logger> lgr;
@@ -33,7 +33,7 @@ protected:
 };
 
 
-TEST_F(GrammarUsage, grammarWideLexer) {
+TEST_F(GrammarUsageTests, grammarWideLexer) {
 
     auto spec_fn =
         [](taul::bias b) -> taul::spec {
@@ -867,7 +867,7 @@ TEST_F(GrammarUsage, grammarWideLexer) {
 }
 
 
-TEST_F(GrammarUsage, lexerExpr_toplevel) {
+TEST_F(GrammarUsageTests, lexerExpr_toplevel) {
 
     const auto spec =
         taul::spec_writer()
@@ -944,7 +944,239 @@ TEST_F(GrammarUsage, lexerExpr_toplevel) {
     EXPECT_EQ(lex1("abc\r\n", 3, lgr), taul::token::failure("", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_begin) {
+TEST_F(GrammarUsageTests, parserExpr_toplevel) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .ppr_decl("f1")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        // test w/ 0 subexprs
+        .ppr("f0")
+        .close()
+        // test w/ 3 subexprs
+        .ppr("f1")
+        .any()
+        .any()
+        .any()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto& f1 = gram.ppr("f1");
+    const auto psr0 = gram.parser("f0");
+    const auto psr1 = gram.parser("f1");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        // test w/ no tokens
+
+        std::string src = "   ";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "", 0);
+
+        auto f0_result0 = psr0(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        // test w/ skip tokens cut after non-cut token(s)
+
+        std::string src = "a   ";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "", 0);
+
+        auto f0_expect1 = nc->create(f0, "", 1);
+
+        auto f0_result0 = psr0(*nc, tkns, 0, lgr);
+        auto f0_result1 = psr0(*nc, tkns, 1, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src = "abc  123 45  6";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        std::string_view view = src;
+
+        auto f0_expect0 = nc->create(f0, "", 0);
+
+        auto f0_expect1 = nc->create(f0, "", 2);
+        
+        auto f0_expect2 = nc->create(f0, "", 9);
+        
+        auto f0_expect3 = nc->create(f0, "", 14);
+
+        auto f1_expect0 = nc->create(f1, view.substr(0, 3), 0);
+        f1_expect0.attach(nc->create(chr, "a", 0));
+        f1_expect0.attach(nc->create(chr, "b", 1));
+        f1_expect0.attach(nc->create(chr, "c", 2));
+
+        auto f1_expect1 = nc->create(f1, view.substr(2, 5), 2);
+        f1_expect1.attach(nc->create(chr, "c", 2));
+        f1_expect1.attach(nc->create(chr, "1", 5));
+        f1_expect1.attach(nc->create(chr, "2", 6));
+
+        auto f1_expect2 = nc->create(f1, view.substr(9, 5), 9);
+        f1_expect2.attach(nc->create(chr, "4", 9));
+        f1_expect2.attach(nc->create(chr, "5", 10));
+        f1_expect2.attach(nc->create(chr, "6", 13));
+
+        auto f0_result0 = psr0(*nc, tkns, 0, lgr);
+        auto f0_result1 = psr0(*nc, tkns, 2, lgr);
+        auto f0_result2 = psr0(*nc, tkns, 6, lgr);
+        auto f0_result3 = psr0(*nc, tkns, 9, lgr);
+
+        auto f1_result0 = psr1(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 2, lgr);
+        auto f1_result2 = psr1(*nc, tkns, 6, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect2.fmt_tree());
+        if ((bool)f0_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result2->fmt_tree());
+            EXPECT_TRUE(f0_expect2.equiv(*f0_result2));
+            EXPECT_EQ(f0_expect2.str(), f0_result2->str());
+        }
+        else ADD_FAILURE();
+        
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect3.fmt_tree());
+        if ((bool)f0_result3) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result3->fmt_tree());
+            EXPECT_TRUE(f0_expect3.equiv(*f0_result3));
+            EXPECT_EQ(f0_expect3.str(), f0_result3->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect2.fmt_tree());
+        if ((bool)f1_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result2->fmt_tree());
+            EXPECT_TRUE(f1_expect2.equiv(*f1_result2));
+            EXPECT_EQ(f1_expect2.str(), f1_result2->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src = "abc  123 45  6";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        auto tkns0 = tkns;
+        auto tkns1 = tkns;
+        auto tkns2 = tkns;
+        tkns0.pop(tkns0.size() - 0);
+        tkns1.pop(tkns1.size() - 1);
+        tkns2.pop(tkns2.size() - 2);
+
+        EXPECT_FALSE((bool)psr1(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns1, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns2, lgr));
+
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 7, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 8, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 9, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_begin) {
 
     const auto spec =
         taul::spec_writer()
@@ -995,7 +1227,90 @@ TEST_F(GrammarUsage, lexerExpr_begin) {
     EXPECT_EQ(lex("abc\r\n", 3, lgr), taul::token::failure("", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_end) {
+TEST_F(GrammarUsageTests, parserExpr_begin) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0")
+        .begin()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto psr0 = gram.parser("f0");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        std::string src = "abc  123 45  6";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "", 0);
+
+        auto f0_result0 = psr0(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src = "abc  123 45  6";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 1, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 6, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 9, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_end) {
 
     const auto spec =
         taul::spec_writer()
@@ -1050,7 +1365,102 @@ TEST_F(GrammarUsage, lexerExpr_end) {
     EXPECT_EQ(lex("abc\r\n", 3, lgr), taul::token::failure("", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_any) {
+TEST_F(GrammarUsageTests, parserExpr_end) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0")
+        .end()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto psr0 = gram.parser("f0");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        std::string src = "abc  123 45  6";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        taul::token_seq tkns0("");
+
+        auto f0_expect0 = nc->create(f0, "");
+        auto f0_expect1 = nc->create(f0, "", 14);
+
+        auto f0_result0 = psr0(*nc, tkns0, lgr);
+        auto f0_result1 = psr0(*nc, tkns, 9, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src = "abc  123 45  6";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 6, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 8, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_any) {
 
     const auto spec =
         taul::spec_writer()
@@ -1105,7 +1515,203 @@ TEST_F(GrammarUsage, lexerExpr_any) {
     EXPECT_EQ(lex("abc", 3, lgr), taul::token::failure("", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_string) {
+TEST_F(GrammarUsageTests, parserExpr_any) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0")
+        .any()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto psr0 = gram.parser("f0");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        // just gonna *hack together* a token sequence w/ a
+        // failure token for us to test w/
+
+        std::string src = "!!!";
+        taul::token_seq tkns(src);
+        tkns.push_failure(3);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, src);
+        f0_expect0.attach(nc->create(taul::token::failure(src)));
+
+        auto f0_result0 = psr0(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src = "abc  123 45  6";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "a", 0);
+        f0_expect0.attach(nc->create(chr, "a", 0));
+        auto f0_expect1 = nc->create(f0, "b", 1);
+        f0_expect1.attach(nc->create(chr, "b", 1));
+        auto f0_expect2 = nc->create(f0, "c", 2);
+        f0_expect2.attach(nc->create(chr, "c", 2));
+        auto f0_expect3 = nc->create(f0, "1", 5);
+        f0_expect3.attach(nc->create(chr, "1", 5));
+        auto f0_expect4 = nc->create(f0, "2", 6);
+        f0_expect4.attach(nc->create(chr, "2", 6));
+        auto f0_expect5 = nc->create(f0, "3", 7);
+        f0_expect5.attach(nc->create(chr, "3", 7));
+        auto f0_expect6 = nc->create(f0, "4", 9);
+        f0_expect6.attach(nc->create(chr, "4", 9));
+        auto f0_expect7 = nc->create(f0, "5", 10);
+        f0_expect7.attach(nc->create(chr, "5", 10));
+        auto f0_expect8 = nc->create(f0, "6", 13);
+        f0_expect8.attach(nc->create(chr, "6", 13));
+
+        auto f0_result0 = psr0(*nc, tkns, 0, lgr);
+        auto f0_result1 = psr0(*nc, tkns, 1, lgr);
+        auto f0_result2 = psr0(*nc, tkns, 2, lgr);
+        auto f0_result3 = psr0(*nc, tkns, 3, lgr);
+        auto f0_result4 = psr0(*nc, tkns, 4, lgr);
+        auto f0_result5 = psr0(*nc, tkns, 5, lgr);
+        auto f0_result6 = psr0(*nc, tkns, 6, lgr);
+        auto f0_result7 = psr0(*nc, tkns, 7, lgr);
+        auto f0_result8 = psr0(*nc, tkns, 8, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect2.fmt_tree());
+        if ((bool)f0_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result2->fmt_tree());
+            EXPECT_TRUE(f0_expect2.equiv(*f0_result2));
+            EXPECT_EQ(f0_expect2.str(), f0_result2->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect3.fmt_tree());
+        if ((bool)f0_result3) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result3->fmt_tree());
+            EXPECT_TRUE(f0_expect3.equiv(*f0_result3));
+            EXPECT_EQ(f0_expect3.str(), f0_result3->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect4.fmt_tree());
+        if ((bool)f0_result4) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result4->fmt_tree());
+            EXPECT_TRUE(f0_expect4.equiv(*f0_result4));
+            EXPECT_EQ(f0_expect4.str(), f0_result4->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect5.fmt_tree());
+        if ((bool)f0_result5) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result5->fmt_tree());
+            EXPECT_TRUE(f0_expect5.equiv(*f0_result5));
+            EXPECT_EQ(f0_expect5.str(), f0_result5->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect6.fmt_tree());
+        if ((bool)f0_result6) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result6->fmt_tree());
+            EXPECT_TRUE(f0_expect6.equiv(*f0_result6));
+            EXPECT_EQ(f0_expect6.str(), f0_result6->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect7.fmt_tree());
+        if ((bool)f0_result7) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result7->fmt_tree());
+            EXPECT_TRUE(f0_expect7.equiv(*f0_result7));
+            EXPECT_EQ(f0_expect7.str(), f0_result7->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect8.fmt_tree());
+        if ((bool)f0_result8) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result8->fmt_tree());
+            EXPECT_TRUE(f0_expect8.equiv(*f0_result8));
+            EXPECT_EQ(f0_expect8.str(), f0_result8->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src = "abc  123 45  6";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        taul::token_seq tkns0("");
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 9, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_string) {
 
     const auto spec =
         taul::spec_writer()
@@ -1164,7 +1770,126 @@ TEST_F(GrammarUsage, lexerExpr_string) {
     EXPECT_EQ(lex("abc abc", 3, lgr), taul::token::failure("", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_charset) {
+TEST_F(GrammarUsageTests, parserExpr_string) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0")
+        .string("a")
+        .any()
+        .string("c")
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto psr0 = gram.parser("f0");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        // just gonna *hack together* a token sequence w/ a
+        // failure token for us to test w/
+
+        std::string src = "abc";
+        taul::token_seq tkns(src);
+        tkns.push_failure(1);
+        tkns.push(gram.lpr("chr"), 1);
+        tkns.push_failure(1);
+        _log(src, tkns);
+
+        EXPECT_FALSE(psr0(*nc, tkns, lgr));
+    }
+
+    {
+        std::string src = "ab c a 1c";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab c", 0);
+        f0_expect0.attach(nc->create(chr, "a", 0));
+        f0_expect0.attach(nc->create(chr, "b", 1));
+        f0_expect0.attach(nc->create(chr, "c", 3));
+
+        auto f0_expect1 = nc->create(f0, "a 1c", 5);
+        f0_expect1.attach(nc->create(chr, "a", 5));
+        f0_expect1.attach(nc->create(chr, "1", 7));
+        f0_expect1.attach(nc->create(chr, "c", 8));
+
+        auto f0_result0 = psr0(*nc, tkns, 0, lgr);
+        auto f0_result1 = psr0(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src = "bbc abb a c";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        taul::token_seq tkns0("");
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 6, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_charset) {
 
     const auto spec =
         taul::spec_writer()
@@ -1233,7 +1958,372 @@ TEST_F(GrammarUsage, lexerExpr_charset) {
     EXPECT_EQ(lex("abc c", 3, lgr), taul::token::failure("", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_name) {
+TEST_F(GrammarUsageTests, parserExpr_charset) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0")
+        .charset("abc")
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto psr0 = gram.parser("f0");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        // just gonna *hack together* a token sequence w/ a
+        // failure token for us to test w/
+
+        std::string src = "abc";
+        taul::token_seq tkns(src);
+        tkns.push_failure(1);
+        tkns.push(gram.lpr("chr"), 1);
+        tkns.push_failure(1);
+        _log(src, tkns);
+
+        EXPECT_FALSE(psr0(*nc, tkns, lgr));
+    }
+
+    {
+        std::string src = "a b c";
+        taul::token_seq tkns(src);
+        tkns.push(gram.lpr("chr"), 1);
+        tkns.skip(1);
+        tkns.push(gram.lpr("chr"), 1);
+        tkns.skip(1);
+        tkns.push(gram.lpr("chr"), 1);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "a", 0);
+        f0_expect0.attach(nc->create(chr, "a", 0));
+        
+        auto f0_expect1 = nc->create(f0, "b", 2);
+        f0_expect1.attach(nc->create(chr, "b", 2));
+        
+        auto f0_expect2 = nc->create(f0, "c", 4);
+        f0_expect2.attach(nc->create(chr, "c", 4));
+
+        auto f0_result0 = psr0(*nc, tkns, 0, lgr);
+        auto f0_result1 = psr0(*nc, tkns, 1, lgr);
+        auto f0_result2 = psr0(*nc, tkns, 2, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect2.fmt_tree());
+        if ((bool)f0_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result2->fmt_tree());
+            EXPECT_TRUE(f0_expect2.equiv(*f0_result2));
+            EXPECT_EQ(f0_expect2.str(), f0_result2->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src = "d 1 3 A _ &";
+        auto tkns = taul::tokenize(gram, src, lgr);
+        _log(src, tkns);
+
+        taul::token_seq tkns0("");
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 1, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 2, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 4, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 5, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, parserExpr_token) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0")
+        .token()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto psr0 = gram.parser("f0");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        std::string src = "abc 123 !@#";
+        taul::token_seq tkns(src);
+        tkns.push(gram.lpr("chr"), 3);
+        tkns.skip(1);
+        tkns.push(gram.lpr("chr"), 3);
+        tkns.skip(1);
+        tkns.push(gram.lpr("chr"), 3);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "abc", 0);
+        f0_expect0.attach(nc->create(chr, "abc", 0));
+        
+        auto f0_expect1 = nc->create(f0, "123", 4);
+        f0_expect1.attach(nc->create(chr, "123", 4));
+        
+        auto f0_expect2 = nc->create(f0, "!@#", 8);
+        f0_expect2.attach(nc->create(chr, "!@#", 8));
+
+        auto f0_result0 = psr0(*nc, tkns, 0, lgr);
+        auto f0_result1 = psr0(*nc, tkns, 1, lgr);
+        auto f0_result2 = psr0(*nc, tkns, 2, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect2.fmt_tree());
+        if ((bool)f0_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result2->fmt_tree());
+            EXPECT_TRUE(f0_expect2.equiv(*f0_result2));
+            EXPECT_EQ(f0_expect2.str(), f0_result2->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src = "!";
+        taul::token_seq tkns0(src);
+        taul::token_seq tkns1(src);
+        tkns1.push_failure(1);
+        _log(src, tkns0);
+        _log(src, tkns1);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 1, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, parserExpr_failure) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0")
+        .failure()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto psr0 = gram.parser("f0");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        std::string src = "abc 123 !@#";
+        taul::token_seq tkns(src);
+        tkns.push_failure(3);
+        tkns.skip(1);
+        tkns.push_failure(3);
+        tkns.skip(1);
+        tkns.push_failure(3);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "abc", 0);
+        f0_expect0.attach(nc->create(taul::token::failure("abc", 0)));
+        
+        auto f0_expect1 = nc->create(f0, "123", 4);
+        f0_expect1.attach(nc->create(taul::token::failure("123", 4)));
+        
+        auto f0_expect2 = nc->create(f0, "!@#", 8);
+        f0_expect2.attach(nc->create(taul::token::failure("!@#", 8)));
+
+        auto f0_result0 = psr0(*nc, tkns, 0, lgr);
+        auto f0_result1 = psr0(*nc, tkns, 1, lgr);
+        auto f0_result2 = psr0(*nc, tkns, 2, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect2.fmt_tree());
+        if ((bool)f0_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result2->fmt_tree());
+            EXPECT_TRUE(f0_expect2.equiv(*f0_result2));
+            EXPECT_EQ(f0_expect2.str(), f0_result2->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src = "!";
+        taul::token_seq tkns0(src);
+        taul::token_seq tkns1(src);
+        tkns1.push(chr, 1);
+        _log(src, tkns0);
+        _log(src, tkns1);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 1, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_name) {
 
 
     const auto spec =
@@ -1337,7 +2427,154 @@ TEST_F(GrammarUsage, lexerExpr_name) {
     EXPECT_EQ(lex("+-=\r\n\t", 3, lgr), taul::token::failure("", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_sequence) {
+TEST_F(GrammarUsageTests, parserExpr_name) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("a0")
+        .lpr_decl("b0")
+        .lpr_decl("c0")
+        .lpr_decl("misc")
+        .ppr_decl("abc0")
+        .ppr_decl("f0")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("a0")
+        .string("a")
+        .close()
+        .lpr("b0")
+        .string("b")
+        .close()
+        .lpr("c0")
+        .string("c")
+        .close()
+        .lpr("misc")
+        .any()
+        .close()
+        .ppr("abc0")
+        .name("a0")
+        .name("b0")
+        .name("c0")
+        .close()
+        .ppr("f0")
+        .name("abc0")
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& a0 = gram.lpr("a0");
+    const auto& b0 = gram.lpr("b0");
+    const auto& c0 = gram.lpr("c0");
+    const auto& misc = gram.lpr("misc");
+    const auto& abc0 = gram.ppr("abc0");
+    const auto& f0 = gram.ppr("f0");
+    const auto psr0 = gram.parser("f0");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        std::string src = "a b c abc";
+        taul::token_seq tkns(src);
+        tkns.push(a0, 1);
+        tkns.skip(1);
+        tkns.push(b0, 1);
+        tkns.skip(1);
+        tkns.push(c0, 1);
+        tkns.skip(1);
+        tkns.push(a0, 1);
+        tkns.push(b0, 1);
+        tkns.push(c0, 1);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "a b c", 0);
+        auto _temp0 = nc->create(abc0, "a b c", 0);
+        _temp0.attach(nc->create(a0, "a", 0));
+        _temp0.attach(nc->create(b0, "b", 2));
+        _temp0.attach(nc->create(c0, "c", 4));
+        f0_expect0.attach(std::move(_temp0));
+
+        auto f0_expect1 = nc->create(f0, "abc", 6);
+        auto _temp1 = nc->create(abc0, "abc", 6);
+        _temp1.attach(nc->create(a0, "a", 6));
+        _temp1.attach(nc->create(b0, "b", 7));
+        _temp1.attach(nc->create(c0, "c", 8));
+        f0_expect1.attach(std::move(_temp1));
+
+        auto f0_result0 = psr0(*nc, tkns, 0, lgr);
+        auto f0_result1 = psr0(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src = "abd ab";
+        taul::token_seq tkns0(src);
+        taul::token_seq tkns1(src);
+        tkns1.push(a0, 1);
+        tkns1.push(b0, 1);
+        tkns1.push(misc, 1);
+        tkns1.skip(1);
+        tkns1.push(a0, 1);
+        tkns1.push(b0, 1);
+        _log(src, tkns0);
+        _log(src, tkns1);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 1, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 2, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 4, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 5, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_sequence) {
 
     const auto spec =
         taul::spec_writer()
@@ -1460,7 +2697,251 @@ TEST_F(GrammarUsage, lexerExpr_sequence) {
     EXPECT_EQ(lex1("+-=\n \r\t", 3, lgr), taul::token::failure("", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_set) {
+TEST_F(GrammarUsageTests, parserExpr_sequence) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .ppr_decl("f1")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0") // test empty sequence
+        .sequence()
+        .close()
+        .close()
+        .ppr("f1") // test non-empty sequence
+        // w/out this 'set' expr, pre-impl tests would ALWAYS succeed, so
+        // I'm using the set expr to *ensure* that it fails, lol
+        // in truth tho, the below is actually a good thing to explicitly test,
+        // that being that a sequence in a set is treated as a unit regarding
+        // the behaviour of said set
+        .set()
+        .sequence() // <- dummy
+        .string("*")
+        .string("*")
+        .string("*")
+        .string("*")
+        .string("*")
+        .close() // <- (end) dummy
+        .sequence()
+        .string("a")
+        .sequence()
+        .any()
+        .string("c")
+        .close()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto& f1 = gram.ppr("f1");
+    const auto psr0 = gram.parser("f0");
+    const auto psr1 = gram.parser("f1");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        std::string src0 = "";
+        std::string src1 = "a bc d abc  d";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+
+        auto f0_expect0 = nc->create(f0, "", 0);
+        auto f0_expect1 = nc->create(f0, "", 0);
+        auto f0_expect2 = nc->create(f0, "", 2);
+        auto f0_expect3 = nc->create(f0, "", 3);
+        auto f0_expect4 = nc->create(f0, "", 5);
+        auto f0_expect5 = nc->create(f0, "", 7);
+        auto f0_expect6 = nc->create(f0, "", 8);
+        auto f0_expect7 = nc->create(f0, "", 9);
+        auto f0_expect8 = nc->create(f0, "", 12);
+        auto f0_expect9 = nc->create(f0, "", 13);
+
+        auto f1_expect0 = nc->create(f1, "a bc d", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 2)));
+        f1_expect0.attach(nc->create(taul::token(chr, "c", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "d", 5)));
+        auto f1_expect1 = nc->create(f1, "abc  d", 7);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 7)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 8)));
+        f1_expect1.attach(nc->create(taul::token(chr, "c", 9)));
+        f1_expect1.attach(nc->create(taul::token(chr, "d", 12)));
+
+        auto f0_result0 = psr0(*nc, tkns0, 0, lgr);
+        auto f0_result1 = psr0(*nc, tkns1, 0, lgr);
+        auto f0_result2 = psr0(*nc, tkns1, 1, lgr);
+        auto f0_result3 = psr0(*nc, tkns1, 2, lgr);
+        auto f0_result4 = psr0(*nc, tkns1, 3, lgr);
+        auto f0_result5 = psr0(*nc, tkns1, 4, lgr);
+        auto f0_result6 = psr0(*nc, tkns1, 5, lgr);
+        auto f0_result7 = psr0(*nc, tkns1, 6, lgr);
+        auto f0_result8 = psr0(*nc, tkns1, 7, lgr);
+        auto f0_result9 = psr0(*nc, tkns1, 8, lgr);
+
+        auto f1_result0 = psr1(*nc, tkns1, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns1, 4, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect2.fmt_tree());
+        if ((bool)f0_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result2->fmt_tree());
+            EXPECT_TRUE(f0_expect2.equiv(*f0_result2));
+            EXPECT_EQ(f0_expect2.str(), f0_result2->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect3.fmt_tree());
+        if ((bool)f0_result3) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result3->fmt_tree());
+            EXPECT_TRUE(f0_expect3.equiv(*f0_result3));
+            EXPECT_EQ(f0_expect3.str(), f0_result3->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect4.fmt_tree());
+        if ((bool)f0_result4) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result4->fmt_tree());
+            EXPECT_TRUE(f0_expect4.equiv(*f0_result4));
+            EXPECT_EQ(f0_expect4.str(), f0_result4->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect5.fmt_tree());
+        if ((bool)f0_result5) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result5->fmt_tree());
+            EXPECT_TRUE(f0_expect5.equiv(*f0_result5));
+            EXPECT_EQ(f0_expect5.str(), f0_result5->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect6.fmt_tree());
+        if ((bool)f0_result6) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result6->fmt_tree());
+            EXPECT_TRUE(f0_expect6.equiv(*f0_result6));
+            EXPECT_EQ(f0_expect6.str(), f0_result6->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect7.fmt_tree());
+        if ((bool)f0_result7) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result7->fmt_tree());
+            EXPECT_TRUE(f0_expect7.equiv(*f0_result7));
+            EXPECT_EQ(f0_expect7.str(), f0_result7->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect8.fmt_tree());
+        if ((bool)f0_result8) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result8->fmt_tree());
+            EXPECT_TRUE(f0_expect8.equiv(*f0_result8));
+            EXPECT_EQ(f0_expect8.str(), f0_result8->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect9.fmt_tree());
+        if ((bool)f0_result9) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result9->fmt_tree());
+            EXPECT_TRUE(f0_expect9.equiv(*f0_result9));
+            EXPECT_EQ(f0_expect9.str(), f0_result9->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src = "abd abCd Abcd";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        EXPECT_FALSE((bool)psr1(*nc, tkns, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 0, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 1, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 2, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 3, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 4, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 5, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 6, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 7, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 8, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 9, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 10, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 11, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_set) {
 
     const auto spec =
         taul::spec_writer()
@@ -1704,7 +3185,1169 @@ TEST_F(GrammarUsage, lexerExpr_set) {
     EXPECT_EQ(lex6("+-= ", 3, lgr), taul::token::failure("", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_modifier) {
+TEST_F(GrammarUsageTests, parserExpr_set) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .ppr_decl("f1")
+        .ppr_decl("f2")
+        .ppr_decl("f3")
+        .ppr_decl("f4")
+        .ppr_decl("f5")
+        .ppr_decl("f6")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0") // test empty set <- should ALWAYS fail!
+        .set()
+        .close()
+        .close()
+        .ppr("f1") // test non-empty set w/ first-longest
+        .set(taul::bias::first_longest)
+        .sequence()
+        .string("1")
+        .string("2")
+        .string("3")
+        .close()
+        .sequence()
+        .string("a")
+        .close()
+        .sequence()
+        .string("1")
+        .string("2")
+        .close()
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .close()
+        .close()
+        .ppr("f2") // test non-empty set w/ first-shortest
+        .set(taul::bias::first_shortest)
+        .sequence()
+        .string("1")
+        .string("2")
+        .string("3")
+        .close()
+        .sequence()
+        .string("a")
+        .close()
+        .sequence()
+        .string("1")
+        .string("2")
+        .close()
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .close()
+        .close()
+        .ppr("f3") // test non-empty set w/ last-longest
+        .set(taul::bias::last_longest)
+        .sequence()
+        .string("1")
+        .string("2")
+        .string("3")
+        .close()
+        .sequence()
+        .string("a")
+        .close()
+        .sequence()
+        .string("1")
+        .string("2")
+        .close()
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .close()
+        .close()
+        .ppr("f4") // test non-empty set w/ last-shortest
+        .set(taul::bias::last_shortest)
+        .sequence()
+        .string("1")
+        .string("2")
+        .string("3")
+        .close()
+        .sequence()
+        .string("a")
+        .close()
+        .sequence()
+        .string("1")
+        .string("2")
+        .close()
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .close()
+        .close()
+        .ppr("f5") // test non-empty set w/ first
+        .set(taul::bias::first)
+        .sequence()
+        .string("1")
+        .string("2")
+        .string("3")
+        .close()
+        .sequence()
+        .string("a")
+        .close()
+        .sequence()
+        .string("1")
+        .string("2")
+        .close()
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .close()
+        .close()
+        .ppr("f6") // test non-empty set w/ last
+        .set(taul::bias::last)
+        .sequence()
+        .string("1")
+        .string("2")
+        .string("3")
+        .close()
+        .sequence()
+        .string("a")
+        .close()
+        .sequence()
+        .string("1")
+        .string("2")
+        .close()
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .close()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto& f1 = gram.ppr("f1");
+    const auto& f2 = gram.ppr("f2");
+    const auto& f3 = gram.ppr("f3");
+    const auto& f4 = gram.ppr("f4");
+    const auto& f5 = gram.ppr("f5");
+    const auto& f6 = gram.ppr("f6");
+    const auto psr0 = gram.parser("f0");
+    const auto psr1 = gram.parser("f1");
+    const auto psr2 = gram.parser("f2");
+    const auto psr3 = gram.parser("f3");
+    const auto psr4 = gram.parser("f4");
+    const auto psr5 = gram.parser("f5");
+    const auto psr6 = gram.parser("f6");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        std::string src = "123";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "123", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+        f1_expect0.attach(nc->create(taul::token(chr, "3", 2)));
+        auto f2_expect0 = nc->create(f2, "12", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f3_expect0 = nc->create(f3, "123", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+        f3_expect0.attach(nc->create(taul::token(chr, "3", 2)));
+        auto f4_expect0 = nc->create(f4, "12", 0);
+        f4_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f4_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f5_expect0 = nc->create(f5, "123", 0);
+        f5_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f5_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+        f5_expect0.attach(nc->create(taul::token(chr, "3", 2)));
+        auto f6_expect0 = nc->create(f6, "12", 0);
+        f6_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f6_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+
+        auto f1_expect1 = nc->create(f1, "123", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+        f1_expect1.attach(nc->create(taul::token(chr, "3", 2)));
+        auto f2_expect1 = nc->create(f2, "12", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f3_expect1 = nc->create(f3, "123", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+        f3_expect1.attach(nc->create(taul::token(chr, "3", 2)));
+        auto f4_expect1 = nc->create(f4, "12", 0);
+        f4_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f4_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f5_expect1 = nc->create(f5, "123", 0);
+        f5_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f5_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+        f5_expect1.attach(nc->create(taul::token(chr, "3", 2)));
+        auto f6_expect1 = nc->create(f6, "12", 0);
+        f6_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f6_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect1.fmt_tree());
+        if ((bool)f4_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result1->fmt_tree());
+            EXPECT_TRUE(f4_expect1.equiv(*f4_result1));
+            EXPECT_EQ(f4_expect1.str(), f4_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect1.fmt_tree());
+        if ((bool)f5_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result1->fmt_tree());
+            EXPECT_TRUE(f5_expect1.equiv(*f5_result1));
+            EXPECT_EQ(f5_expect1.str(), f5_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect1.fmt_tree());
+        if ((bool)f6_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result1->fmt_tree());
+            EXPECT_TRUE(f6_expect1.equiv(*f6_result1));
+            EXPECT_EQ(f6_expect1.str(), f6_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src = "a";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "a", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f2_expect0 = nc->create(f2, "a", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f3_expect0 = nc->create(f3, "a", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f4_expect0 = nc->create(f4, "a", 0);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f5_expect0 = nc->create(f5, "a", 0);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f6_expect0 = nc->create(f6, "a", 0);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+
+        auto f1_expect1 = nc->create(f1, "a", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f2_expect1 = nc->create(f2, "a", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f3_expect1 = nc->create(f3, "a", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f4_expect1 = nc->create(f4, "a", 0);
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f5_expect1 = nc->create(f5, "a", 0);
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f6_expect1 = nc->create(f6, "a", 0);
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect1.fmt_tree());
+        if ((bool)f4_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result1->fmt_tree());
+            EXPECT_TRUE(f4_expect1.equiv(*f4_result1));
+            EXPECT_EQ(f4_expect1.str(), f4_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect1.fmt_tree());
+        if ((bool)f5_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result1->fmt_tree());
+            EXPECT_TRUE(f5_expect1.equiv(*f5_result1));
+            EXPECT_EQ(f5_expect1.str(), f5_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect1.fmt_tree());
+        if ((bool)f6_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result1->fmt_tree());
+            EXPECT_TRUE(f6_expect1.equiv(*f6_result1));
+            EXPECT_EQ(f6_expect1.str(), f6_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src = "12";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "12", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f2_expect0 = nc->create(f2, "12", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f3_expect0 = nc->create(f3, "12", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f4_expect0 = nc->create(f4, "12", 0);
+        f4_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f4_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f5_expect0 = nc->create(f5, "12", 0);
+        f5_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f5_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f6_expect0 = nc->create(f6, "12", 0);
+        f6_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f6_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+
+        auto f1_expect1 = nc->create(f1, "12", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f2_expect1 = nc->create(f2, "12", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f3_expect1 = nc->create(f3, "12", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f4_expect1 = nc->create(f4, "12", 0);
+        f4_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f4_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f5_expect1 = nc->create(f5, "12", 0);
+        f5_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f5_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+        auto f6_expect1 = nc->create(f6, "12", 0);
+        f6_expect1.attach(nc->create(taul::token(chr, "1", 0)));
+        f6_expect1.attach(nc->create(taul::token(chr, "2", 1)));
+
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect1.fmt_tree());
+        if ((bool)f4_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result1->fmt_tree());
+            EXPECT_TRUE(f4_expect1.equiv(*f4_result1));
+            EXPECT_EQ(f4_expect1.str(), f4_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect1.fmt_tree());
+        if ((bool)f5_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result1->fmt_tree());
+            EXPECT_TRUE(f5_expect1.equiv(*f5_result1));
+            EXPECT_EQ(f5_expect1.str(), f5_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect1.fmt_tree());
+        if ((bool)f6_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result1->fmt_tree());
+            EXPECT_TRUE(f6_expect1.equiv(*f6_result1));
+            EXPECT_EQ(f6_expect1.str(), f6_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src = "abc";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "abc", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect0.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f2_expect0 = nc->create(f2, "a", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f3_expect0 = nc->create(f3, "abc", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect0.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f4_expect0 = nc->create(f4, "a", 0);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f5_expect0 = nc->create(f5, "a", 0);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f6_expect0 = nc->create(f6, "abc", 0);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect0.attach(nc->create(taul::token(chr, "c", 2)));
+
+        auto f1_expect1 = nc->create(f1, "abc", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect1.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f2_expect1 = nc->create(f2, "a", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f3_expect1 = nc->create(f3, "abc", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect1.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f4_expect1 = nc->create(f4, "a", 0);
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f5_expect1 = nc->create(f5, "a", 0);
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f6_expect1 = nc->create(f6, "abc", 0);
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect1.attach(nc->create(taul::token(chr, "c", 2)));
+
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect1.fmt_tree());
+        if ((bool)f4_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result1->fmt_tree());
+            EXPECT_TRUE(f4_expect1.equiv(*f4_result1));
+            EXPECT_EQ(f4_expect1.str(), f4_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect1.fmt_tree());
+        if ((bool)f5_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result1->fmt_tree());
+            EXPECT_TRUE(f5_expect1.equiv(*f5_result1));
+            EXPECT_EQ(f5_expect1.str(), f5_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect1.fmt_tree());
+        if ((bool)f6_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result1->fmt_tree());
+            EXPECT_TRUE(f6_expect1.equiv(*f6_result1));
+            EXPECT_EQ(f6_expect1.str(), f6_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src = "___123";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "123", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+        f1_expect0.attach(nc->create(taul::token(chr, "3", 5)));
+        auto f2_expect0 = nc->create(f2, "12", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+        auto f3_expect0 = nc->create(f3, "123", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "3", 5)));
+        auto f4_expect0 = nc->create(f4, "12", 3);
+        f4_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f4_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+        auto f5_expect0 = nc->create(f5, "123", 3);
+        f5_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "3", 5)));
+        auto f6_expect0 = nc->create(f6, "12", 3);
+        f6_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src = "___a";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "a", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        auto f2_expect0 = nc->create(f2, "a", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        auto f3_expect0 = nc->create(f3, "a", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        auto f4_expect0 = nc->create(f4, "a", 3);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        auto f5_expect0 = nc->create(f5, "a", 3);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        auto f6_expect0 = nc->create(f6, "a", 3);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src = "___12";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "12", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+        auto f2_expect0 = nc->create(f2, "12", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+        auto f3_expect0 = nc->create(f3, "12", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+        auto f4_expect0 = nc->create(f4, "12", 3);
+        f4_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f4_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+        auto f5_expect0 = nc->create(f5, "12", 3);
+        f5_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+        auto f6_expect0 = nc->create(f6, "12", 3);
+        f6_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src = "___abc";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "abc", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f1_expect0.attach(nc->create(taul::token(chr, "c", 5)));
+        auto f2_expect0 = nc->create(f2, "a", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        auto f3_expect0 = nc->create(f3, "abc", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "c", 5)));
+        auto f4_expect0 = nc->create(f4, "a", 3);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        auto f5_expect0 = nc->create(f5, "a", 3);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        auto f6_expect0 = nc->create(f6, "abc", 3);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "c", 5)));
+
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE(); std::list<int>{}.end();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src = "&*(!@#";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, lgr));
+        EXPECT_FALSE((bool)psr2(*nc, tkns, lgr));
+        EXPECT_FALSE((bool)psr3(*nc, tkns, lgr));
+        EXPECT_FALSE((bool)psr4(*nc, tkns, lgr));
+        EXPECT_FALSE((bool)psr5(*nc, tkns, lgr));
+        EXPECT_FALSE((bool)psr6(*nc, tkns, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 0, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 0, lgr));
+        EXPECT_FALSE((bool)psr2(*nc, tkns, 0, lgr));
+        EXPECT_FALSE((bool)psr3(*nc, tkns, 0, lgr));
+        EXPECT_FALSE((bool)psr4(*nc, tkns, 0, lgr));
+        EXPECT_FALSE((bool)psr5(*nc, tkns, 0, lgr));
+        EXPECT_FALSE((bool)psr6(*nc, tkns, 0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 3, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 3, lgr));
+        EXPECT_FALSE((bool)psr2(*nc, tkns, 3, lgr));
+        EXPECT_FALSE((bool)psr3(*nc, tkns, 3, lgr));
+        EXPECT_FALSE((bool)psr4(*nc, tkns, 3, lgr));
+        EXPECT_FALSE((bool)psr5(*nc, tkns, 3, lgr));
+        EXPECT_FALSE((bool)psr6(*nc, tkns, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns, 6, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 6, lgr));
+        EXPECT_FALSE((bool)psr2(*nc, tkns, 6, lgr));
+        EXPECT_FALSE((bool)psr3(*nc, tkns, 6, lgr));
+        EXPECT_FALSE((bool)psr4(*nc, tkns, 6, lgr));
+        EXPECT_FALSE((bool)psr5(*nc, tkns, 6, lgr));
+        EXPECT_FALSE((bool)psr6(*nc, tkns, 6, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_modifier) {
 
     const auto spec =
         taul::spec_writer()
@@ -1975,7 +4618,3722 @@ TEST_F(GrammarUsage, lexerExpr_modifier) {
     EXPECT_EQ(lex7("+-=ababababab", 3, lgr), taul::token(lpr7, "abababab", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_assertion) {
+TEST_F(GrammarUsageTests, parserExpr_modifier) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .ppr_decl("f1")
+        .ppr_decl("f2")
+        .ppr_decl("f3")
+        .ppr_decl("f4")
+        .ppr_decl("f5")
+        .ppr_decl("f6")
+        .ppr_decl("f7")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0")
+        .modifier(1, 1) // *control*
+        .sequence()
+        .string("a")
+        .string("b")
+        .close()
+        .close()
+        .close()
+        .ppr("f1")
+        .modifier(0, 1) // "optional" or ?
+        .sequence()
+        .string("a")
+        .string("b")
+        .close()
+        .close()
+        .close()
+        .ppr("f2")
+        .modifier(0, 0) // "kleene-star" or *
+        .sequence()
+        .string("a")
+        .string("b")
+        .close()
+        .close()
+        .close()
+        .ppr("f3")
+        .modifier(1, 0) // "kleene-plus" or +
+        .sequence()
+        .string("a")
+        .string("b")
+        .close()
+        .close()
+        .close()
+        .ppr("f4")
+        .modifier(2, 2) // "manual A" or {n}
+        .sequence()
+        .string("a")
+        .string("b")
+        .close()
+        .close()
+        .close()
+        .ppr("f5")
+        .modifier(2, 0) // "manual B" or {n,}
+        .sequence()
+        .string("a")
+        .string("b")
+        .close()
+        .close()
+        .close()
+        .ppr("f6")
+        .modifier(2, 4) // "manual C" or {n,m} (#1)
+        .sequence()
+        .string("a")
+        .string("b")
+        .close()
+        .close()
+        .close()
+        .ppr("f7")
+        .modifier(0, 4) // "manual C" or {n,m} (#2)
+        .sequence()
+        .string("a")
+        .string("b")
+        .close()
+        .close()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto& f1 = gram.ppr("f1");
+    const auto& f2 = gram.ppr("f2");
+    const auto& f3 = gram.ppr("f3");
+    const auto& f4 = gram.ppr("f4");
+    const auto& f5 = gram.ppr("f5");
+    const auto& f6 = gram.ppr("f6");
+    const auto& f7 = gram.ppr("f7");
+    const auto psr0 = gram.parser("f0");
+    const auto psr1 = gram.parser("f1");
+    const auto psr2 = gram.parser("f2");
+    const auto psr3 = gram.parser("f3");
+    const auto psr4 = gram.parser("f4");
+    const auto psr5 = gram.parser("f5");
+    const auto psr6 = gram.parser("f6");
+    const auto psr7 = gram.parser("f7");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/out offset
+
+    // success/failure
+
+    //EXPECT_EQ(lex0("", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex1("", lgr), taul::token(lpr1, ""));
+    //EXPECT_EQ(lex2("", lgr), taul::token(lpr2, ""));
+    //EXPECT_EQ(lex3("", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex4("", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex5("", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex6("", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex7("", lgr), taul::token(lpr7, ""));
+
+    {
+        std::string src = "";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "", 0);
+        auto f2_expect0 = nc->create(f2, "", 0);
+        auto f7_expect0 = nc->create(f7, "", 0);
+        
+        auto f1_expect1 = nc->create(f1, "", 0);
+        auto f2_expect1 = nc->create(f2, "", 0);
+        auto f7_expect1 = nc->create(f7, "", 0);
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+        auto f7_result0 = psr7(*nc, tkns, lgr);
+
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+        auto f7_result1 = psr7(*nc, tkns, 0, lgr);
+
+        EXPECT_FALSE(f0_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+        
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f3_result0);
+        EXPECT_FALSE(f4_result0);
+        EXPECT_FALSE(f5_result0);
+        EXPECT_FALSE(f6_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f0_result1);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+        
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f3_result1);
+        EXPECT_FALSE(f4_result1);
+        EXPECT_FALSE(f5_result1);
+        EXPECT_FALSE(f6_result1);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect1.fmt_tree());
+        if ((bool)f7_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result1->fmt_tree());
+            EXPECT_TRUE(f7_expect1.equiv(*f7_result1));
+            EXPECT_EQ(f7_expect1.str(), f7_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("a", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex1("a", lgr), taul::token(lpr1, ""));
+    //EXPECT_EQ(lex2("a", lgr), taul::token(lpr2, ""));
+    //EXPECT_EQ(lex3("a", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex4("a", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex5("a", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex6("a", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex7("a", lgr), taul::token(lpr7, ""));
+
+    {
+        std::string src = "a";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "", 0);
+        auto f2_expect0 = nc->create(f2, "", 0);
+        auto f7_expect0 = nc->create(f7, "", 0);
+
+        auto f1_expect1 = nc->create(f1, "", 0);
+        auto f2_expect1 = nc->create(f2, "", 0);
+        auto f7_expect1 = nc->create(f7, "", 0);
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+        auto f7_result0 = psr7(*nc, tkns, lgr);
+
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+        auto f7_result1 = psr7(*nc, tkns, 0, lgr);
+
+        EXPECT_FALSE(f0_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f3_result0);
+        EXPECT_FALSE(f4_result0);
+        EXPECT_FALSE(f5_result0);
+        EXPECT_FALSE(f6_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f0_result1);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f3_result1);
+        EXPECT_FALSE(f4_result1);
+        EXPECT_FALSE(f5_result1);
+        EXPECT_FALSE(f6_result1);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect1.fmt_tree());
+        if ((bool)f7_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result1->fmt_tree());
+            EXPECT_TRUE(f7_expect1.equiv(*f7_result1));
+            EXPECT_EQ(f7_expect1.str(), f7_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+    
+    //EXPECT_EQ(lex0("ab", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("ab", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("ab", lgr), taul::token(lpr2, "ab"));
+    //EXPECT_EQ(lex3("ab", lgr), taul::token(lpr3, "ab"));
+    //EXPECT_EQ(lex4("ab", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex5("ab", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex6("ab", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex7("ab", lgr), taul::token(lpr7, "ab"));
+
+    {
+        std::string src = "ab";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect0 = nc->create(f1, "ab", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect0 = nc->create(f2, "ab", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f3_expect0 = nc->create(f3, "ab", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f7_expect0 = nc->create(f7, "ab", 0);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+
+        auto f0_expect1 = nc->create(f0, "ab", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect1 = nc->create(f1, "ab", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect1 = nc->create(f2, "ab", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f3_expect1 = nc->create(f3, "ab", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f7_expect1 = nc->create(f7, "ab", 0);
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+        auto f7_result0 = psr7(*nc, tkns, lgr);
+
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+        auto f7_result1 = psr7(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f4_result0);
+        EXPECT_FALSE(f5_result0);
+        EXPECT_FALSE(f6_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f4_result1);
+        EXPECT_FALSE(f5_result1);
+        EXPECT_FALSE(f6_result1);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect1.fmt_tree());
+        if ((bool)f7_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result1->fmt_tree());
+            EXPECT_TRUE(f7_expect1.equiv(*f7_result1));
+            EXPECT_EQ(f7_expect1.str(), f7_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("aba", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("aba", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("aba", lgr), taul::token(lpr2, "ab"));
+    //EXPECT_EQ(lex3("aba", lgr), taul::token(lpr3, "ab"));
+    //EXPECT_EQ(lex4("aba", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex5("aba", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex6("aba", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex7("aba", lgr), taul::token(lpr7, "ab"));
+
+    {
+        std::string src = "aba";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect0 = nc->create(f1, "ab", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect0 = nc->create(f2, "ab", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f3_expect0 = nc->create(f3, "ab", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f7_expect0 = nc->create(f7, "ab", 0);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+
+        auto f0_expect1 = nc->create(f0, "ab", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect1 = nc->create(f1, "ab", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect1 = nc->create(f2, "ab", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f3_expect1 = nc->create(f3, "ab", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f7_expect1 = nc->create(f7, "ab", 0);
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+        auto f7_result0 = psr7(*nc, tkns, lgr);
+
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+        auto f7_result1 = psr7(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f4_result0);
+        EXPECT_FALSE(f5_result0);
+        EXPECT_FALSE(f6_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f4_result1);
+        EXPECT_FALSE(f5_result1);
+        EXPECT_FALSE(f6_result1);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect1.fmt_tree());
+        if ((bool)f7_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result1->fmt_tree());
+            EXPECT_TRUE(f7_expect1.equiv(*f7_result1));
+            EXPECT_EQ(f7_expect1.str(), f7_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("abab", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("abab", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("abab", lgr), taul::token(lpr2, "abab"));
+    //EXPECT_EQ(lex3("abab", lgr), taul::token(lpr3, "abab"));
+    //EXPECT_EQ(lex4("abab", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("abab", lgr), taul::token(lpr5, "abab"));
+    //EXPECT_EQ(lex6("abab", lgr), taul::token(lpr6, "abab"));
+    //EXPECT_EQ(lex7("abab", lgr), taul::token(lpr7, "abab"));
+
+    {
+        std::string src = "abab";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect0 = nc->create(f1, "ab", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect0 = nc->create(f2, "abab", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f3_expect0 = nc->create(f3, "abab", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f4_expect0 = nc->create(f4, "abab", 0);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect0 = nc->create(f5, "abab", 0);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f6_expect0 = nc->create(f6, "abab", 0);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f7_expect0 = nc->create(f7, "abab", 0);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+
+        auto f0_expect1 = nc->create(f0, "ab", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect1 = nc->create(f1, "ab", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect1 = nc->create(f2, "abab", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f3_expect1 = nc->create(f3, "abab", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f4_expect1 = nc->create(f4, "abab", 0);
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect1 = nc->create(f5, "abab", 0);
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f6_expect1 = nc->create(f6, "abab", 0);
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f7_expect1 = nc->create(f7, "abab", 0);
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+        auto f7_result0 = psr7(*nc, tkns, lgr);
+
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+        auto f7_result1 = psr7(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+        
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+        
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+        
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect1.fmt_tree());
+        if ((bool)f4_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result1->fmt_tree());
+            EXPECT_TRUE(f4_expect1.equiv(*f4_result1));
+            EXPECT_EQ(f4_expect1.str(), f4_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect1.fmt_tree());
+        if ((bool)f5_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result1->fmt_tree());
+            EXPECT_TRUE(f5_expect1.equiv(*f5_result1));
+            EXPECT_EQ(f5_expect1.str(), f5_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect1.fmt_tree());
+        if ((bool)f6_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result1->fmt_tree());
+            EXPECT_TRUE(f6_expect1.equiv(*f6_result1));
+            EXPECT_EQ(f6_expect1.str(), f6_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect1.fmt_tree());
+        if ((bool)f7_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result1->fmt_tree());
+            EXPECT_TRUE(f7_expect1.equiv(*f7_result1));
+            EXPECT_EQ(f7_expect1.str(), f7_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("ababa", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("ababa", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("ababa", lgr), taul::token(lpr2, "abab"));
+    //EXPECT_EQ(lex3("ababa", lgr), taul::token(lpr3, "abab"));
+    //EXPECT_EQ(lex4("ababa", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("ababa", lgr), taul::token(lpr5, "abab"));
+    //EXPECT_EQ(lex6("ababa", lgr), taul::token(lpr6, "abab"));
+    //EXPECT_EQ(lex7("ababa", lgr), taul::token(lpr7, "abab"));
+
+    {
+        std::string src = "ababa";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect0 = nc->create(f1, "ab", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect0 = nc->create(f2, "abab", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f3_expect0 = nc->create(f3, "abab", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f4_expect0 = nc->create(f4, "abab", 0);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect0 = nc->create(f5, "abab", 0);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f6_expect0 = nc->create(f6, "abab", 0);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f7_expect0 = nc->create(f7, "abab", 0);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+
+        auto f0_expect1 = nc->create(f0, "ab", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect1 = nc->create(f1, "ab", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect1 = nc->create(f2, "abab", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f3_expect1 = nc->create(f3, "abab", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f4_expect1 = nc->create(f4, "abab", 0);
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect1 = nc->create(f5, "abab", 0);
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f6_expect1 = nc->create(f6, "abab", 0);
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f7_expect1 = nc->create(f7, "abab", 0);
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+        auto f7_result0 = psr7(*nc, tkns, lgr);
+
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+        auto f7_result1 = psr7(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect1.fmt_tree());
+        if ((bool)f4_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result1->fmt_tree());
+            EXPECT_TRUE(f4_expect1.equiv(*f4_result1));
+            EXPECT_EQ(f4_expect1.str(), f4_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect1.fmt_tree());
+        if ((bool)f5_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result1->fmt_tree());
+            EXPECT_TRUE(f5_expect1.equiv(*f5_result1));
+            EXPECT_EQ(f5_expect1.str(), f5_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect1.fmt_tree());
+        if ((bool)f6_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result1->fmt_tree());
+            EXPECT_TRUE(f6_expect1.equiv(*f6_result1));
+            EXPECT_EQ(f6_expect1.str(), f6_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect1.fmt_tree());
+        if ((bool)f7_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result1->fmt_tree());
+            EXPECT_TRUE(f7_expect1.equiv(*f7_result1));
+            EXPECT_EQ(f7_expect1.str(), f7_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("ababab", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("ababab", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("ababab", lgr), taul::token(lpr2, "ababab"));
+    //EXPECT_EQ(lex3("ababab", lgr), taul::token(lpr3, "ababab"));
+    //EXPECT_EQ(lex4("ababab", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("ababab", lgr), taul::token(lpr5, "ababab"));
+    //EXPECT_EQ(lex6("ababab", lgr), taul::token(lpr6, "ababab"));
+    //EXPECT_EQ(lex7("ababab", lgr), taul::token(lpr7, "ababab"));
+
+    {
+        std::string src = "ababab";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect0 = nc->create(f1, "ab", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect0 = nc->create(f2, "ababab", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f3_expect0 = nc->create(f3, "ababab", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f4_expect0 = nc->create(f4, "abab", 0);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect0 = nc->create(f5, "ababab", 0);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f6_expect0 = nc->create(f6, "ababab", 0);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f7_expect0 = nc->create(f7, "ababab", 0);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+
+        auto f0_expect1 = nc->create(f0, "ab", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect1 = nc->create(f1, "ab", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect1 = nc->create(f2, "ababab", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f3_expect1 = nc->create(f3, "ababab", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f4_expect1 = nc->create(f4, "abab", 0);
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect1 = nc->create(f5, "ababab", 0);
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f6_expect1 = nc->create(f6, "ababab", 0);
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f7_expect1 = nc->create(f7, "ababab", 0);
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+        auto f7_result0 = psr7(*nc, tkns, lgr);
+
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+        auto f7_result1 = psr7(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect1.fmt_tree());
+        if ((bool)f4_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result1->fmt_tree());
+            EXPECT_TRUE(f4_expect1.equiv(*f4_result1));
+            EXPECT_EQ(f4_expect1.str(), f4_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect1.fmt_tree());
+        if ((bool)f5_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result1->fmt_tree());
+            EXPECT_TRUE(f5_expect1.equiv(*f5_result1));
+            EXPECT_EQ(f5_expect1.str(), f5_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect1.fmt_tree());
+        if ((bool)f6_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result1->fmt_tree());
+            EXPECT_TRUE(f6_expect1.equiv(*f6_result1));
+            EXPECT_EQ(f6_expect1.str(), f6_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect1.fmt_tree());
+        if ((bool)f7_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result1->fmt_tree());
+            EXPECT_TRUE(f7_expect1.equiv(*f7_result1));
+            EXPECT_EQ(f7_expect1.str(), f7_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("abababa", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("abababa", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("abababa", lgr), taul::token(lpr2, "ababab"));
+    //EXPECT_EQ(lex3("abababa", lgr), taul::token(lpr3, "ababab"));
+    //EXPECT_EQ(lex4("abababa", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("abababa", lgr), taul::token(lpr5, "ababab"));
+    //EXPECT_EQ(lex6("abababa", lgr), taul::token(lpr6, "ababab"));
+    //EXPECT_EQ(lex7("abababa", lgr), taul::token(lpr7, "ababab"));
+
+    {
+        std::string src = "abababa";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect0 = nc->create(f1, "ab", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect0 = nc->create(f2, "ababab", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f3_expect0 = nc->create(f3, "ababab", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f4_expect0 = nc->create(f4, "abab", 0);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect0 = nc->create(f5, "ababab", 0);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f6_expect0 = nc->create(f6, "ababab", 0);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f7_expect0 = nc->create(f7, "ababab", 0);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+
+        auto f0_expect1 = nc->create(f0, "ab", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect1 = nc->create(f1, "ab", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect1 = nc->create(f2, "ababab", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f3_expect1 = nc->create(f3, "ababab", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f4_expect1 = nc->create(f4, "abab", 0);
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect1 = nc->create(f5, "ababab", 0);
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f6_expect1 = nc->create(f6, "ababab", 0);
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        auto f7_expect1 = nc->create(f7, "ababab", 0);
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+        auto f7_result0 = psr7(*nc, tkns, lgr);
+
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+        auto f7_result1 = psr7(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect1.fmt_tree());
+        if ((bool)f4_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result1->fmt_tree());
+            EXPECT_TRUE(f4_expect1.equiv(*f4_result1));
+            EXPECT_EQ(f4_expect1.str(), f4_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect1.fmt_tree());
+        if ((bool)f5_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result1->fmt_tree());
+            EXPECT_TRUE(f5_expect1.equiv(*f5_result1));
+            EXPECT_EQ(f5_expect1.str(), f5_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect1.fmt_tree());
+        if ((bool)f6_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result1->fmt_tree());
+            EXPECT_TRUE(f6_expect1.equiv(*f6_result1));
+            EXPECT_EQ(f6_expect1.str(), f6_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect1.fmt_tree());
+        if ((bool)f7_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result1->fmt_tree());
+            EXPECT_TRUE(f7_expect1.equiv(*f7_result1));
+            EXPECT_EQ(f7_expect1.str(), f7_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("abababab", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("abababab", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("abababab", lgr), taul::token(lpr2, "abababab"));
+    //EXPECT_EQ(lex3("abababab", lgr), taul::token(lpr3, "abababab"));
+    //EXPECT_EQ(lex4("abababab", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("abababab", lgr), taul::token(lpr5, "abababab"));
+    //EXPECT_EQ(lex6("abababab", lgr), taul::token(lpr6, "abababab"));
+    //EXPECT_EQ(lex7("abababab", lgr), taul::token(lpr7, "abababab"));
+
+    {
+        std::string src = "abababab";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect0 = nc->create(f1, "ab", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect0 = nc->create(f2, "abababab", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f3_expect0 = nc->create(f3, "abababab", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f4_expect0 = nc->create(f4, "abab", 0);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect0 = nc->create(f5, "abababab", 0);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f6_expect0 = nc->create(f6, "abababab", 0);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f7_expect0 = nc->create(f7, "abababab", 0);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+
+        auto f0_expect1 = nc->create(f0, "ab", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect1 = nc->create(f1, "ab", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect1 = nc->create(f2, "abababab", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f3_expect1 = nc->create(f3, "abababab", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f4_expect1 = nc->create(f4, "abab", 0);
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect1 = nc->create(f5, "abababab", 0);
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f6_expect1 = nc->create(f6, "abababab", 0);
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f7_expect1 = nc->create(f7, "abababab", 0);
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+        auto f7_result0 = psr7(*nc, tkns, lgr);
+
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+        auto f7_result1 = psr7(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect1.fmt_tree());
+        if ((bool)f4_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result1->fmt_tree());
+            EXPECT_TRUE(f4_expect1.equiv(*f4_result1));
+            EXPECT_EQ(f4_expect1.str(), f4_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect1.fmt_tree());
+        if ((bool)f5_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result1->fmt_tree());
+            EXPECT_TRUE(f5_expect1.equiv(*f5_result1));
+            EXPECT_EQ(f5_expect1.str(), f5_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect1.fmt_tree());
+        if ((bool)f6_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result1->fmt_tree());
+            EXPECT_TRUE(f6_expect1.equiv(*f6_result1));
+            EXPECT_EQ(f6_expect1.str(), f6_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect1.fmt_tree());
+        if ((bool)f7_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result1->fmt_tree());
+            EXPECT_TRUE(f7_expect1.equiv(*f7_result1));
+            EXPECT_EQ(f7_expect1.str(), f7_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("ababababa", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("ababababa", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("ababababa", lgr), taul::token(lpr2, "abababab"));
+    //EXPECT_EQ(lex3("ababababa", lgr), taul::token(lpr3, "abababab"));
+    //EXPECT_EQ(lex4("ababababa", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("ababababa", lgr), taul::token(lpr5, "abababab"));
+    //EXPECT_EQ(lex6("ababababa", lgr), taul::token(lpr6, "abababab"));
+    //EXPECT_EQ(lex7("ababababa", lgr), taul::token(lpr7, "abababab"));
+
+    {
+        std::string src = "ababababa";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect0 = nc->create(f1, "ab", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect0 = nc->create(f2, "abababab", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f3_expect0 = nc->create(f3, "abababab", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f4_expect0 = nc->create(f4, "abab", 0);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect0 = nc->create(f5, "abababab", 0);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f6_expect0 = nc->create(f6, "abababab", 0);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f7_expect0 = nc->create(f7, "abababab", 0);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+
+        auto f0_expect1 = nc->create(f0, "ab", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect1 = nc->create(f1, "ab", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect1 = nc->create(f2, "abababab", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f3_expect1 = nc->create(f3, "abababab", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f4_expect1 = nc->create(f4, "abab", 0);
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect1 = nc->create(f5, "abababab", 0);
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f6_expect1 = nc->create(f6, "abababab", 0);
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f7_expect1 = nc->create(f7, "abababab", 0);
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+        auto f7_result0 = psr7(*nc, tkns, lgr);
+
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+        auto f7_result1 = psr7(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect1.fmt_tree());
+        if ((bool)f4_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result1->fmt_tree());
+            EXPECT_TRUE(f4_expect1.equiv(*f4_result1));
+            EXPECT_EQ(f4_expect1.str(), f4_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect1.fmt_tree());
+        if ((bool)f5_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result1->fmt_tree());
+            EXPECT_TRUE(f5_expect1.equiv(*f5_result1));
+            EXPECT_EQ(f5_expect1.str(), f5_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect1.fmt_tree());
+        if ((bool)f6_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result1->fmt_tree());
+            EXPECT_TRUE(f6_expect1.equiv(*f6_result1));
+            EXPECT_EQ(f6_expect1.str(), f6_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect1.fmt_tree());
+        if ((bool)f7_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result1->fmt_tree());
+            EXPECT_TRUE(f7_expect1.equiv(*f7_result1));
+            EXPECT_EQ(f7_expect1.str(), f7_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("ababababab", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("ababababab", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("ababababab", lgr), taul::token(lpr2, "ababababab"));
+    //EXPECT_EQ(lex3("ababababab", lgr), taul::token(lpr3, "ababababab"));
+    //EXPECT_EQ(lex4("ababababab", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("ababababab", lgr), taul::token(lpr5, "ababababab"));
+    //EXPECT_EQ(lex6("ababababab", lgr), taul::token(lpr6, "abababab"));
+    //EXPECT_EQ(lex7("ababababab", lgr), taul::token(lpr7, "abababab"));
+
+    {
+        std::string src = "ababababab";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect0 = nc->create(f1, "ab", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect0 = nc->create(f2, "ababababab", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 8)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 9)));
+        auto f3_expect0 = nc->create(f3, "ababababab", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 8)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 9)));
+        auto f4_expect0 = nc->create(f4, "abab", 0);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect0 = nc->create(f5, "ababababab", 0);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 8)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 9)));
+        auto f6_expect0 = nc->create(f6, "abababab", 0);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f7_expect0 = nc->create(f7, "abababab", 0);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 5)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 6)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 7)));
+
+        auto f0_expect1 = nc->create(f0, "ab", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect1 = nc->create(f1, "ab", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f2_expect1 = nc->create(f2, "ababababab", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 8)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 9)));
+        auto f3_expect1 = nc->create(f3, "ababababab", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 8)));
+        f3_expect1.attach(nc->create(taul::token(chr, "b", 9)));
+        auto f4_expect1 = nc->create(f4, "abab", 0);
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f4_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f4_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        auto f5_expect1 = nc->create(f5, "ababababab", 0);
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        f5_expect1.attach(nc->create(taul::token(chr, "a", 8)));
+        f5_expect1.attach(nc->create(taul::token(chr, "b", 9)));
+        auto f6_expect1 = nc->create(f6, "abababab", 0);
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f6_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f6_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+        auto f7_expect1 = nc->create(f7, "abababab", 0);
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 2)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 3)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 4)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 5)));
+        f7_expect1.attach(nc->create(taul::token(chr, "a", 6)));
+        f7_expect1.attach(nc->create(taul::token(chr, "b", 7)));
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f1_result0 = psr1(*nc, tkns, lgr);
+        auto f2_result0 = psr2(*nc, tkns, lgr);
+        auto f3_result0 = psr3(*nc, tkns, lgr);
+        auto f4_result0 = psr4(*nc, tkns, lgr);
+        auto f5_result0 = psr5(*nc, tkns, lgr);
+        auto f6_result0 = psr6(*nc, tkns, lgr);
+        auto f7_result0 = psr7(*nc, tkns, lgr);
+
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+        auto f1_result1 = psr1(*nc, tkns, 0, lgr);
+        auto f2_result1 = psr2(*nc, tkns, 0, lgr);
+        auto f3_result1 = psr3(*nc, tkns, 0, lgr);
+        auto f4_result1 = psr4(*nc, tkns, 0, lgr);
+        auto f5_result1 = psr5(*nc, tkns, 0, lgr);
+        auto f6_result1 = psr6(*nc, tkns, 0, lgr);
+        auto f7_result1 = psr7(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect1.fmt_tree());
+        if ((bool)f4_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result1->fmt_tree());
+            EXPECT_TRUE(f4_expect1.equiv(*f4_result1));
+            EXPECT_EQ(f4_expect1.str(), f4_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect1.fmt_tree());
+        if ((bool)f5_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result1->fmt_tree());
+            EXPECT_TRUE(f5_expect1.equiv(*f5_result1));
+            EXPECT_EQ(f5_expect1.str(), f5_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect1.fmt_tree());
+        if ((bool)f6_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result1->fmt_tree());
+            EXPECT_TRUE(f6_expect1.equiv(*f6_result1));
+            EXPECT_EQ(f6_expect1.str(), f6_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect1.fmt_tree());
+        if ((bool)f7_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result1->fmt_tree());
+            EXPECT_TRUE(f7_expect1.equiv(*f7_result1));
+            EXPECT_EQ(f7_expect1.str(), f7_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // test w/ offset
+
+    // success/failure
+
+    //EXPECT_EQ(lex0("", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex1("", lgr), taul::token(lpr1, ""));
+    //EXPECT_EQ(lex2("", lgr), taul::token(lpr2, ""));
+    //EXPECT_EQ(lex3("", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex4("", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex5("", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex6("", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex7("", lgr), taul::token(lpr7, ""));
+
+    {
+        std::string src = "___";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "", 3);
+        auto f2_expect0 = nc->create(f2, "", 3);
+        auto f7_expect0 = nc->create(f7, "", 3);
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+        auto f7_result0 = psr7(*nc, tkns, 3, lgr);
+
+        EXPECT_FALSE(f0_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f3_result0);
+        EXPECT_FALSE(f4_result0);
+        EXPECT_FALSE(f5_result0);
+        EXPECT_FALSE(f6_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("a", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex1("a", lgr), taul::token(lpr1, ""));
+    //EXPECT_EQ(lex2("a", lgr), taul::token(lpr2, ""));
+    //EXPECT_EQ(lex3("a", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex4("a", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex5("a", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex6("a", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex7("a", lgr), taul::token(lpr7, ""));
+
+    {
+        std::string src = "___a";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f1_expect0 = nc->create(f1, "", 3);
+        auto f2_expect0 = nc->create(f2, "", 3);
+        auto f7_expect0 = nc->create(f7, "", 3);
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+        auto f7_result0 = psr7(*nc, tkns, 3, lgr);
+
+        EXPECT_FALSE(f0_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f3_result0);
+        EXPECT_FALSE(f4_result0);
+        EXPECT_FALSE(f5_result0);
+        EXPECT_FALSE(f6_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("ab", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("ab", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("ab", lgr), taul::token(lpr2, "ab"));
+    //EXPECT_EQ(lex3("ab", lgr), taul::token(lpr3, "ab"));
+    //EXPECT_EQ(lex4("ab", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex5("ab", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex6("ab", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex7("ab", lgr), taul::token(lpr7, "ab"));
+
+    {
+        std::string src = "___ab";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f1_expect0 = nc->create(f1, "ab", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f2_expect0 = nc->create(f2, "ab", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f3_expect0 = nc->create(f3, "ab", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f7_expect0 = nc->create(f7, "ab", 3);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+        auto f7_result0 = psr7(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f4_result0);
+        EXPECT_FALSE(f5_result0);
+        EXPECT_FALSE(f6_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("aba", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("aba", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("aba", lgr), taul::token(lpr2, "ab"));
+    //EXPECT_EQ(lex3("aba", lgr), taul::token(lpr3, "ab"));
+    //EXPECT_EQ(lex4("aba", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex5("aba", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex6("aba", lgr), taul::token::failure(""));
+    //EXPECT_EQ(lex7("aba", lgr), taul::token(lpr7, "ab"));
+
+    {
+        std::string src = "___aba";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f1_expect0 = nc->create(f1, "ab", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f2_expect0 = nc->create(f2, "ab", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f3_expect0 = nc->create(f3, "ab", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f7_expect0 = nc->create(f7, "ab", 3);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+        auto f7_result0 = psr7(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        EXPECT_FALSE(f4_result0);
+        EXPECT_FALSE(f5_result0);
+        EXPECT_FALSE(f6_result0);
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("abab", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("abab", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("abab", lgr), taul::token(lpr2, "abab"));
+    //EXPECT_EQ(lex3("abab", lgr), taul::token(lpr3, "abab"));
+    //EXPECT_EQ(lex4("abab", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("abab", lgr), taul::token(lpr5, "abab"));
+    //EXPECT_EQ(lex6("abab", lgr), taul::token(lpr6, "abab"));
+    //EXPECT_EQ(lex7("abab", lgr), taul::token(lpr7, "abab"));
+
+    {
+        std::string src = "___abab";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f1_expect0 = nc->create(f1, "ab", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f2_expect0 = nc->create(f2, "abab", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f3_expect0 = nc->create(f3, "abab", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f4_expect0 = nc->create(f4, "abab", 3);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f5_expect0 = nc->create(f5, "abab", 3);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f6_expect0 = nc->create(f6, "abab", 3);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f7_expect0 = nc->create(f7, "abab", 3);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+        auto f7_result0 = psr7(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("ababa", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("ababa", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("ababa", lgr), taul::token(lpr2, "abab"));
+    //EXPECT_EQ(lex3("ababa", lgr), taul::token(lpr3, "abab"));
+    //EXPECT_EQ(lex4("ababa", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("ababa", lgr), taul::token(lpr5, "abab"));
+    //EXPECT_EQ(lex6("ababa", lgr), taul::token(lpr6, "abab"));
+    //EXPECT_EQ(lex7("ababa", lgr), taul::token(lpr7, "abab"));
+
+    {
+        std::string src = "___ababa";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f1_expect0 = nc->create(f1, "ab", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f2_expect0 = nc->create(f2, "abab", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f3_expect0 = nc->create(f3, "abab", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f4_expect0 = nc->create(f4, "abab", 3);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f5_expect0 = nc->create(f5, "abab", 3);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f6_expect0 = nc->create(f6, "abab", 3);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f7_expect0 = nc->create(f7, "abab", 3);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+        auto f7_result0 = psr7(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("ababab", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("ababab", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("ababab", lgr), taul::token(lpr2, "ababab"));
+    //EXPECT_EQ(lex3("ababab", lgr), taul::token(lpr3, "ababab"));
+    //EXPECT_EQ(lex4("ababab", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("ababab", lgr), taul::token(lpr5, "ababab"));
+    //EXPECT_EQ(lex6("ababab", lgr), taul::token(lpr6, "ababab"));
+    //EXPECT_EQ(lex7("ababab", lgr), taul::token(lpr7, "ababab"));
+
+    {
+        std::string src = "___ababab";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f1_expect0 = nc->create(f1, "ab", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f2_expect0 = nc->create(f2, "ababab", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        auto f3_expect0 = nc->create(f3, "ababab", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        auto f4_expect0 = nc->create(f4, "abab", 3);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f5_expect0 = nc->create(f5, "ababab", 3);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        auto f6_expect0 = nc->create(f6, "ababab", 3);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        auto f7_expect0 = nc->create(f7, "ababab", 3);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+        auto f7_result0 = psr7(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("abababa", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("abababa", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("abababa", lgr), taul::token(lpr2, "ababab"));
+    //EXPECT_EQ(lex3("abababa", lgr), taul::token(lpr3, "ababab"));
+    //EXPECT_EQ(lex4("abababa", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("abababa", lgr), taul::token(lpr5, "ababab"));
+    //EXPECT_EQ(lex6("abababa", lgr), taul::token(lpr6, "ababab"));
+    //EXPECT_EQ(lex7("abababa", lgr), taul::token(lpr7, "ababab"));
+
+    {
+        std::string src = "___abababa";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f1_expect0 = nc->create(f1, "ab", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f2_expect0 = nc->create(f2, "ababab", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        auto f3_expect0 = nc->create(f3, "ababab", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        auto f4_expect0 = nc->create(f4, "abab", 3);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f5_expect0 = nc->create(f5, "ababab", 3);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        auto f6_expect0 = nc->create(f6, "ababab", 3);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        auto f7_expect0 = nc->create(f7, "ababab", 3);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+        auto f7_result0 = psr7(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("abababab", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("abababab", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("abababab", lgr), taul::token(lpr2, "abababab"));
+    //EXPECT_EQ(lex3("abababab", lgr), taul::token(lpr3, "abababab"));
+    //EXPECT_EQ(lex4("abababab", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("abababab", lgr), taul::token(lpr5, "abababab"));
+    //EXPECT_EQ(lex6("abababab", lgr), taul::token(lpr6, "abababab"));
+    //EXPECT_EQ(lex7("abababab", lgr), taul::token(lpr7, "abababab"));
+
+    {
+        std::string src = "___abababab";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f1_expect0 = nc->create(f1, "ab", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f2_expect0 = nc->create(f2, "abababab", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        auto f3_expect0 = nc->create(f3, "abababab", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        auto f4_expect0 = nc->create(f4, "abab", 3);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f5_expect0 = nc->create(f5, "abababab", 3);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        auto f6_expect0 = nc->create(f6, "abababab", 3);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        auto f7_expect0 = nc->create(f7, "abababab", 3);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+        auto f7_result0 = psr7(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("ababababa", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("ababababa", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("ababababa", lgr), taul::token(lpr2, "abababab"));
+    //EXPECT_EQ(lex3("ababababa", lgr), taul::token(lpr3, "abababab"));
+    //EXPECT_EQ(lex4("ababababa", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("ababababa", lgr), taul::token(lpr5, "abababab"));
+    //EXPECT_EQ(lex6("ababababa", lgr), taul::token(lpr6, "abababab"));
+    //EXPECT_EQ(lex7("ababababa", lgr), taul::token(lpr7, "abababab"));
+
+    {
+        std::string src = "___ababababa";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f1_expect0 = nc->create(f1, "ab", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f2_expect0 = nc->create(f2, "abababab", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        auto f3_expect0 = nc->create(f3, "abababab", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        auto f4_expect0 = nc->create(f4, "abab", 3);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f5_expect0 = nc->create(f5, "abababab", 3);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        auto f6_expect0 = nc->create(f6, "abababab", 3);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        auto f7_expect0 = nc->create(f7, "abababab", 3);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+        auto f7_result0 = psr7(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    //EXPECT_EQ(lex0("ababababab", lgr), taul::token(lpr0, "ab"));
+    //EXPECT_EQ(lex1("ababababab", lgr), taul::token(lpr1, "ab"));
+    //EXPECT_EQ(lex2("ababababab", lgr), taul::token(lpr2, "ababababab"));
+    //EXPECT_EQ(lex3("ababababab", lgr), taul::token(lpr3, "ababababab"));
+    //EXPECT_EQ(lex4("ababababab", lgr), taul::token(lpr4, "abab"));
+    //EXPECT_EQ(lex5("ababababab", lgr), taul::token(lpr5, "ababababab"));
+    //EXPECT_EQ(lex6("ababababab", lgr), taul::token(lpr6, "abababab"));
+    //EXPECT_EQ(lex7("ababababab", lgr), taul::token(lpr7, "abababab"));
+
+    {
+        std::string src = "___ababababab";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "ab", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f1_expect0 = nc->create(f1, "ab", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f2_expect0 = nc->create(f2, "ababababab", 3);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 11)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 12)));
+        auto f3_expect0 = nc->create(f3, "ababababab", 3);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 11)));
+        f3_expect0.attach(nc->create(taul::token(chr, "b", 12)));
+        auto f4_expect0 = nc->create(f4, "abab", 3);
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f4_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f4_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        auto f5_expect0 = nc->create(f5, "ababababab", 3);
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        f5_expect0.attach(nc->create(taul::token(chr, "a", 11)));
+        f5_expect0.attach(nc->create(taul::token(chr, "b", 12)));
+        auto f6_expect0 = nc->create(f6, "abababab", 3);
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f6_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f6_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+        auto f7_expect0 = nc->create(f7, "abababab", 3);
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 5)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 6)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 7)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 8)));
+        f7_expect0.attach(nc->create(taul::token(chr, "a", 9)));
+        f7_expect0.attach(nc->create(taul::token(chr, "b", 10)));
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+        auto f1_result0 = psr1(*nc, tkns, 3, lgr);
+        auto f2_result0 = psr2(*nc, tkns, 3, lgr);
+        auto f3_result0 = psr3(*nc, tkns, 3, lgr);
+        auto f4_result0 = psr4(*nc, tkns, 3, lgr);
+        auto f5_result0 = psr5(*nc, tkns, 3, lgr);
+        auto f6_result0 = psr6(*nc, tkns, 3, lgr);
+        auto f7_result0 = psr7(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f4_expect0.fmt_tree());
+        if ((bool)f4_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f4_result0->fmt_tree());
+            EXPECT_TRUE(f4_expect0.equiv(*f4_result0));
+            EXPECT_EQ(f4_expect0.str(), f4_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f5_expect0.fmt_tree());
+        if ((bool)f5_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f5_result0->fmt_tree());
+            EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
+            EXPECT_EQ(f5_expect0.str(), f5_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
+        if ((bool)f6_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f6_result0->fmt_tree());
+            EXPECT_TRUE(f6_expect0.equiv(*f6_result0));
+            EXPECT_EQ(f6_expect0.str(), f6_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f7_expect0.fmt_tree());
+        if ((bool)f7_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f7_result0->fmt_tree());
+            EXPECT_TRUE(f7_expect0.equiv(*f7_result0));
+            EXPECT_EQ(f7_expect0.str(), f7_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_assertion) {
 
     const auto spec =
         taul::spec_writer()
@@ -2058,7 +8416,434 @@ TEST_F(GrammarUsage, lexerExpr_assertion) {
     EXPECT_EQ(lex1("+-=abc\r\n\t", 3, lgr), taul::token(lpr1, "abc", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_constraint) {
+TEST_F(GrammarUsageTests, parserExpr_assertion) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .ppr_decl("f1")
+        .ppr_decl("f2")
+        .ppr_decl("f3")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0") // test w/ positive assertion
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .assertion()
+        .sequence()
+        .string("d")
+        .string("e")
+        .string("f")
+        .close()
+        .close()
+        .close()
+        .ppr("f1") // test w/ negative assertion
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .assertion(taul::polarity::negative)
+        .sequence()
+        .string("d")
+        .string("e")
+        .string("f")
+        .close()
+        .close()
+        .close()
+        // test that assertion impl works as expected within sequences
+        .ppr("f2")
+        .sequence()
+        .string("a")
+        .assertion()
+        .string("b")
+        .close()
+        .string("b")
+        .string("c")
+        .close()
+        .close()
+        // test assertions again, w/ assertion as last one in sequence
+        .ppr("f3")
+        .sequence()
+        .string("a")
+        .assertion()
+        .string("b")
+        .close()
+        .close()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto& f1 = gram.ppr("f1");
+    const auto& f2 = gram.ppr("f2");
+    const auto& f3 = gram.ppr("f3");
+    const auto psr0 = gram.parser("f0");
+    const auto psr1 = gram.parser("f1");
+    const auto psr2 = gram.parser("f2");
+    const auto psr3 = gram.parser("f3");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        std::string src0 = "abcdef";
+        std::string src1 = "abc";
+        std::string src2 = "abcd";
+        std::string src3 = "abcde";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        taul::token_seq tkns2 = taul::tokenize(gram, src2);
+        taul::token_seq tkns3 = taul::tokenize(gram, src3);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+        _log(src2, tkns2);
+        _log(src3, tkns3);
+
+        auto f0_expect0 = nc->create(f0, "abc", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f0_expect0.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f0_expect1 = nc->create(f0, "abc", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f0_expect1.attach(nc->create(taul::token(chr, "c", 2)));
+        
+        auto f1_expect0 = nc->create(f1, "abc", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect0.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f1_expect1 = nc->create(f1, "abc", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect1.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f1_expect2 = nc->create(f1, "abc", 0);
+        f1_expect2.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect2.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect2.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f1_expect3 = nc->create(f1, "abc", 0);
+        f1_expect3.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect3.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect3.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f1_expect4 = nc->create(f1, "abc", 0);
+        f1_expect4.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect4.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect4.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f1_expect5 = nc->create(f1, "abc", 0);
+        f1_expect5.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect5.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect5.attach(nc->create(taul::token(chr, "c", 2)));
+
+        auto f2_expect0 = nc->create(f2, "abc", 0);
+        f2_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect0.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f2_expect1 = nc->create(f2, "abc", 0);
+        f2_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f2_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f2_expect1.attach(nc->create(taul::token(chr, "c", 2)));
+
+        auto f3_expect0 = nc->create(f3, "a", 0);
+        f3_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f3_expect1 = nc->create(f3, "a", 0);
+        f3_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+
+        auto f0_result0 = psr0(*nc, tkns0, lgr);
+        auto f0_result1 = psr0(*nc, tkns0, 0, lgr);
+
+        auto f1_result0 = psr1(*nc, tkns1, lgr);
+        auto f1_result1 = psr1(*nc, tkns2, lgr);
+        auto f1_result2 = psr1(*nc, tkns3, lgr);
+        auto f1_result3 = psr1(*nc, tkns1, 0, lgr);
+        auto f1_result4 = psr1(*nc, tkns2, 0, lgr);
+        auto f1_result5 = psr1(*nc, tkns3, 0, lgr);
+
+        auto f2_result0 = psr2(*nc, tkns1, lgr);
+        auto f2_result1 = psr2(*nc, tkns1, 0, lgr);
+
+        auto f3_result0 = psr3(*nc, tkns1, lgr);
+        auto f3_result1 = psr3(*nc, tkns1, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect2.fmt_tree());
+        if ((bool)f1_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result2->fmt_tree());
+            EXPECT_TRUE(f1_expect2.equiv(*f1_result2));
+            EXPECT_EQ(f1_expect2.str(), f1_result2->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect3.fmt_tree());
+        if ((bool)f1_result3) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result3->fmt_tree());
+            EXPECT_TRUE(f1_expect3.equiv(*f1_result3));
+            EXPECT_EQ(f1_expect3.str(), f1_result3->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect4.fmt_tree());
+        if ((bool)f1_result4) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result4->fmt_tree());
+            EXPECT_TRUE(f1_expect4.equiv(*f1_result4));
+            EXPECT_EQ(f1_expect4.str(), f1_result4->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect5.fmt_tree());
+        if ((bool)f1_result5) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result5->fmt_tree());
+            EXPECT_TRUE(f1_expect5.equiv(*f1_result5));
+            EXPECT_EQ(f1_expect5.str(), f1_result5->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect0.fmt_tree());
+        if ((bool)f2_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result0->fmt_tree());
+            EXPECT_TRUE(f2_expect0.equiv(*f2_result0));
+            EXPECT_EQ(f2_expect0.str(), f2_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f2_expect1.fmt_tree());
+        if ((bool)f2_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f2_result1->fmt_tree());
+            EXPECT_TRUE(f2_expect1.equiv(*f2_result1));
+            EXPECT_EQ(f2_expect1.str(), f2_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect0.fmt_tree());
+        if ((bool)f3_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result0->fmt_tree());
+            EXPECT_TRUE(f3_expect0.equiv(*f3_result0));
+            EXPECT_EQ(f3_expect0.str(), f3_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f3_expect1.fmt_tree());
+        if ((bool)f3_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f3_result1->fmt_tree());
+            EXPECT_TRUE(f3_expect1.equiv(*f3_result1));
+            EXPECT_EQ(f3_expect1.str(), f3_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src0 = "___abcdef";
+        std::string src1 = "___abc";
+        std::string src2 = "___abcd";
+        std::string src3 = "___abcde";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        taul::token_seq tkns2 = taul::tokenize(gram, src2);
+        taul::token_seq tkns3 = taul::tokenize(gram, src3);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+        _log(src2, tkns2);
+        _log(src3, tkns3);
+
+        auto f0_expect0 = nc->create(f0, "abc", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f0_expect0.attach(nc->create(taul::token(chr, "c", 5)));
+        
+        auto f1_expect0 = nc->create(f1, "abc", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f1_expect0.attach(nc->create(taul::token(chr, "c", 5)));
+        auto f1_expect1 = nc->create(f1, "abc", 3);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect1.attach(nc->create(taul::token(chr, "b", 4)));
+        f1_expect1.attach(nc->create(taul::token(chr, "c", 5)));
+        auto f1_expect2 = nc->create(f1, "abc", 3);
+        f1_expect2.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect2.attach(nc->create(taul::token(chr, "b", 4)));
+        f1_expect2.attach(nc->create(taul::token(chr, "c", 5)));
+
+        auto f0_result0 = psr0(*nc, tkns0, 3, lgr);
+
+        auto f1_result0 = psr1(*nc, tkns1, 3, lgr);
+        auto f1_result1 = psr1(*nc, tkns2, 3, lgr);
+        auto f1_result2 = psr1(*nc, tkns3, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect2.fmt_tree());
+        if ((bool)f1_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result2->fmt_tree());
+            EXPECT_TRUE(f1_expect2.equiv(*f1_result2));
+            EXPECT_EQ(f1_expect2.str(), f1_result2->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src0 = "";
+        std::string src1 = "a";
+        std::string src2 = "ab";
+        std::string src3 = "abc";
+        std::string src4 = "abcd";
+        std::string src5 = "abcde";
+        std::string src6 = "abcdef";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        taul::token_seq tkns2 = taul::tokenize(gram, src2);
+        taul::token_seq tkns3 = taul::tokenize(gram, src3);
+        taul::token_seq tkns4 = taul::tokenize(gram, src4);
+        taul::token_seq tkns5 = taul::tokenize(gram, src5);
+        taul::token_seq tkns6 = taul::tokenize(gram, src6);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+        _log(src2, tkns2);
+        _log(src3, tkns3);
+        _log(src4, tkns4);
+        _log(src5, tkns5);
+        _log(src6, tkns6);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns2, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns4, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns5, lgr));
+
+        EXPECT_FALSE((bool)psr1(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns1, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns2, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns6, lgr));
+    }
+
+    {
+        std::string src0 = "___";
+        std::string src1 = "___a";
+        std::string src2 = "___ab";
+        std::string src3 = "___abc";
+        std::string src4 = "___abcd";
+        std::string src5 = "___abcde";
+        std::string src6 = "___abcdef";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        taul::token_seq tkns2 = taul::tokenize(gram, src2);
+        taul::token_seq tkns3 = taul::tokenize(gram, src3);
+        taul::token_seq tkns4 = taul::tokenize(gram, src4);
+        taul::token_seq tkns5 = taul::tokenize(gram, src5);
+        taul::token_seq tkns6 = taul::tokenize(gram, src6);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+        _log(src2, tkns2);
+        _log(src3, tkns3);
+        _log(src4, tkns4);
+        _log(src5, tkns5);
+        _log(src6, tkns6);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns2, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns3, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns4, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns5, 3, lgr));
+
+        EXPECT_FALSE((bool)psr1(*nc, tkns0, 3, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns1, 3, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns2, 3, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns6, 3, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_constraint) {
 
     const auto spec =
         taul::spec_writer()
@@ -2167,7 +8952,311 @@ TEST_F(GrammarUsage, lexerExpr_constraint) {
     EXPECT_EQ(lex1("+-=abc", 3, lgr), taul::token::failure("", 3));
 }
 
-TEST_F(GrammarUsage, lexerExpr_localend) {
+TEST_F(GrammarUsageTests, parserExpr_constraint) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .ppr_decl("f1")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0") // test w/ positive constraint
+        .constraint()
+        .sequence()
+        .any()
+        .any()
+        .any()
+        .close()
+        .junction()
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .close()
+        .close()
+        .ppr("f1") // test w/ negative constraint
+        .constraint(taul::polarity::negative)
+        .sequence()
+        .any()
+        .any()
+        .any()
+        .close()
+        .junction()
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .close()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto& f1 = gram.ppr("f1");
+    const auto psr0 = gram.parser("f0");
+    const auto psr1 = gram.parser("f1");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        std::string src = "abcdef";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "abc", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f0_expect0.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f0_expect1 = nc->create(f0, "abc", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f0_expect1.attach(nc->create(taul::token(chr, "c", 2)));
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src0 = "123xyz";
+        std::string src1 = "!@#xyz";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+
+        auto f1_expect0 = nc->create(f1, "123", 0);
+        f1_expect0.attach(nc->create(taul::token(chr, "1", 0)));
+        f1_expect0.attach(nc->create(taul::token(chr, "2", 1)));
+        f1_expect0.attach(nc->create(taul::token(chr, "3", 2)));
+        auto f1_expect1 = nc->create(f1, "!@#", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "!", 0)));
+        f1_expect1.attach(nc->create(taul::token(chr, "@", 1)));
+        f1_expect1.attach(nc->create(taul::token(chr, "#", 2)));
+        auto f1_expect2 = nc->create(f1, "123", 0);
+        f1_expect2.attach(nc->create(taul::token(chr, "1", 0)));
+        f1_expect2.attach(nc->create(taul::token(chr, "2", 1)));
+        f1_expect2.attach(nc->create(taul::token(chr, "3", 2)));
+        auto f1_expect3 = nc->create(f1, "!@#", 0);
+        f1_expect3.attach(nc->create(taul::token(chr, "!", 0)));
+        f1_expect3.attach(nc->create(taul::token(chr, "@", 1)));
+        f1_expect3.attach(nc->create(taul::token(chr, "#", 2)));
+
+        auto f1_result0 = psr1(*nc, tkns0, lgr);
+        auto f1_result1 = psr1(*nc, tkns1, lgr);
+        auto f1_result2 = psr1(*nc, tkns0, 0, lgr);
+        auto f1_result3 = psr1(*nc, tkns1, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect2.fmt_tree());
+        if ((bool)f1_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result2->fmt_tree());
+            EXPECT_TRUE(f1_expect2.equiv(*f1_result2));
+            EXPECT_EQ(f1_expect2.str(), f1_result2->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect3.fmt_tree());
+        if ((bool)f1_result3) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result3->fmt_tree());
+            EXPECT_TRUE(f1_expect3.equiv(*f1_result3));
+            EXPECT_EQ(f1_expect3.str(), f1_result3->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src = "___abcdef";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "abc", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f0_expect0.attach(nc->create(taul::token(chr, "c", 5)));
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src0 = "___123xyz";
+        std::string src1 = "___!@#xyz";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+
+        auto f1_expect0 = nc->create(f1, "123", 3);
+        f1_expect0.attach(nc->create(taul::token(chr, "1", 3)));
+        f1_expect0.attach(nc->create(taul::token(chr, "2", 4)));
+        f1_expect0.attach(nc->create(taul::token(chr, "3", 5)));
+        auto f1_expect1 = nc->create(f1, "!@#", 3);
+        f1_expect1.attach(nc->create(taul::token(chr, "!", 3)));
+        f1_expect1.attach(nc->create(taul::token(chr, "@", 4)));
+        f1_expect1.attach(nc->create(taul::token(chr, "#", 5)));
+
+        auto f1_result0 = psr1(*nc, tkns0, 3, lgr);
+        auto f1_result1 = psr1(*nc, tkns1, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src0 = "";
+        std::string src1 = "a";
+        std::string src2 = "ab";
+        std::string src3 = "abc";
+        std::string src4 = "123";
+        std::string src5 = "!@#";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        taul::token_seq tkns2 = taul::tokenize(gram, src2);
+        taul::token_seq tkns3 = taul::tokenize(gram, src3);
+        taul::token_seq tkns4 = taul::tokenize(gram, src4);
+        taul::token_seq tkns5 = taul::tokenize(gram, src5);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+        _log(src2, tkns2);
+        _log(src3, tkns3);
+        _log(src4, tkns4);
+        _log(src5, tkns5);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns2, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns4, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns5, lgr));
+        
+        EXPECT_FALSE((bool)psr1(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns1, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns2, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns3, lgr));
+    }
+
+    {
+        std::string src0 = "___";
+        std::string src1 = "___a";
+        std::string src2 = "___ab";
+        std::string src3 = "___abc";
+        std::string src4 = "___123";
+        std::string src5 = "___!@#";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        taul::token_seq tkns2 = taul::tokenize(gram, src2);
+        taul::token_seq tkns3 = taul::tokenize(gram, src3);
+        taul::token_seq tkns4 = taul::tokenize(gram, src4);
+        taul::token_seq tkns5 = taul::tokenize(gram, src5);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+        _log(src2, tkns2);
+        _log(src3, tkns3);
+        _log(src4, tkns4);
+        _log(src5, tkns5);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns2, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns4, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns5, 3, lgr));
+        
+        EXPECT_FALSE((bool)psr1(*nc, tkns0, 3, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns1, 3, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns2, 3, lgr));
+        EXPECT_FALSE((bool)psr1(*nc, tkns3, 3, lgr));
+    }
+}
+
+TEST_F(GrammarUsageTests, lexerExpr_localend) {
 
     const auto spec =
         taul::spec_writer()
@@ -2282,5 +9371,545 @@ TEST_F(GrammarUsage, lexerExpr_localend) {
     EXPECT_EQ(lex0("+-=\r\n\t \t\n\r", 3, lgr), taul::token::failure("", 3));
 
     EXPECT_EQ(lex1("+-=abc", 3, lgr), taul::token::failure("", 3));
+}
+
+TEST_F(GrammarUsageTests, parserExpr_localend) {
+
+    // remember that all parser expr tests should include testing things like
+    // that the impl can handle token sequences w/ 'skip tokens' cut out
+
+    // testing w/ regards to failure tokens should also be ensured
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("ws")
+        .lpr_decl("chr")
+        .ppr_decl("f0")
+        .ppr_decl("f1")
+        .lpr("ws", taul::qualifier::skip)
+        .string(" ")
+        .close()
+        .lpr("chr")
+        .any()
+        .close()
+        .ppr("f0") // test w/ positive constraint
+        .constraint()
+        .modifier(0, 5)
+        .any()
+        .close()
+        .junction()
+        .sequence()
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .localend()
+        .close()
+        .close()
+        .close()
+        .ppr("f1") // test w/ negative constraint
+        .constraint(taul::polarity::negative)
+        .modifier(0, 5)
+        .any()
+        .close()
+        .junction()
+        .sequence()
+        .sequence()
+        .string("a")
+        .string("b")
+        .string("c")
+        .close()
+        .localend()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& chr = gram.lpr("chr");
+    const auto& f0 = gram.ppr("f0");
+    const auto& f1 = gram.ppr("f1");
+    const auto psr0 = gram.parser("f0");
+    const auto psr1 = gram.parser("f1");
+
+
+    // the below assertions expect the embedded exprs to work as expected
+
+
+    auto _log =
+        [&](const std::string& src, const taul::token_seq& tkns) {
+        TAUL_LOG(lgr, "src==\"{}\"", src);
+        TAUL_LOG(lgr, "tkns ({})", tkns.size());
+        for (const auto& I : tkns) {
+            TAUL_LOG(lgr, "    {}", I);
+        }
+        };
+
+    auto nc = std::make_shared<taul::node_ctx>();
+
+
+    // test w/ and w/out offset
+
+    // success
+
+    {
+        std::string src = "abc";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "abc", 0);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 1)));
+        f0_expect0.attach(nc->create(taul::token(chr, "c", 2)));
+        auto f0_expect1 = nc->create(f0, "abc", 0);
+        f0_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        f0_expect1.attach(nc->create(taul::token(chr, "b", 1)));
+        f0_expect1.attach(nc->create(taul::token(chr, "c", 2)));
+
+        auto f0_result0 = psr0(*nc, tkns, lgr);
+        auto f0_result1 = psr0(*nc, tkns, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect1.fmt_tree());
+        if ((bool)f0_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result1->fmt_tree());
+            EXPECT_TRUE(f0_expect1.equiv(*f0_result1));
+            EXPECT_EQ(f0_expect1.str(), f0_result1->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src0 = "";
+        std::string src1 = "a";
+        std::string src2 = "ab";
+        std::string src3 = "abcd";
+        std::string src4 = "abcde";
+        std::string src5 = "123";
+        std::string src6 = "!@#";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        taul::token_seq tkns2 = taul::tokenize(gram, src2);
+        taul::token_seq tkns3 = taul::tokenize(gram, src3);
+        taul::token_seq tkns4 = taul::tokenize(gram, src4);
+        taul::token_seq tkns5 = taul::tokenize(gram, src5);
+        taul::token_seq tkns6 = taul::tokenize(gram, src6);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+        _log(src2, tkns2);
+        _log(src3, tkns3);
+        _log(src4, tkns4);
+        _log(src5, tkns5);
+        _log(src6, tkns6);
+
+        auto f1_expect0 = nc->create(f1, "", 0);
+        auto f1_expect1 = nc->create(f1, "a", 0);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f1_expect2 = nc->create(f1, "ab", 0);
+        f1_expect2.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect2.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect3 = nc->create(f1, "abcd", 0);
+        f1_expect3.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect3.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect3.attach(nc->create(taul::token(chr, "c", 2)));
+        f1_expect3.attach(nc->create(taul::token(chr, "d", 3)));
+        auto f1_expect4 = nc->create(f1, "abcde", 0);
+        f1_expect4.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect4.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect4.attach(nc->create(taul::token(chr, "c", 2)));
+        f1_expect4.attach(nc->create(taul::token(chr, "d", 3)));
+        f1_expect4.attach(nc->create(taul::token(chr, "e", 4)));
+        auto f1_expect5 = nc->create(f1, "123", 0);
+        f1_expect5.attach(nc->create(taul::token(chr, "1", 0)));
+        f1_expect5.attach(nc->create(taul::token(chr, "2", 1)));
+        f1_expect5.attach(nc->create(taul::token(chr, "3", 2)));
+        auto f1_expect6 = nc->create(f1, "!@#", 0);
+        f1_expect6.attach(nc->create(taul::token(chr, "!", 0)));
+        f1_expect6.attach(nc->create(taul::token(chr, "@", 1)));
+        f1_expect6.attach(nc->create(taul::token(chr, "#", 2)));
+
+        auto f1_expect7 = nc->create(f1, "", 0);
+        auto f1_expect8 = nc->create(f1, "a", 0);
+        f1_expect8.attach(nc->create(taul::token(chr, "a", 0)));
+        auto f1_expect9 = nc->create(f1, "ab", 0);
+        f1_expect9.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect9.attach(nc->create(taul::token(chr, "b", 1)));
+        auto f1_expect10 = nc->create(f1, "abcd", 0);
+        f1_expect10.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect10.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect10.attach(nc->create(taul::token(chr, "c", 2)));
+        f1_expect10.attach(nc->create(taul::token(chr, "d", 3)));
+        auto f1_expect11 = nc->create(f1, "abcde", 0);
+        f1_expect11.attach(nc->create(taul::token(chr, "a", 0)));
+        f1_expect11.attach(nc->create(taul::token(chr, "b", 1)));
+        f1_expect11.attach(nc->create(taul::token(chr, "c", 2)));
+        f1_expect11.attach(nc->create(taul::token(chr, "d", 3)));
+        f1_expect11.attach(nc->create(taul::token(chr, "e", 4)));
+        auto f1_expect12 = nc->create(f1, "123", 0);
+        f1_expect12.attach(nc->create(taul::token(chr, "1", 0)));
+        f1_expect12.attach(nc->create(taul::token(chr, "2", 1)));
+        f1_expect12.attach(nc->create(taul::token(chr, "3", 2)));
+        auto f1_expect13 = nc->create(f1, "!@#", 0);
+        f1_expect13.attach(nc->create(taul::token(chr, "!", 0)));
+        f1_expect13.attach(nc->create(taul::token(chr, "@", 1)));
+        f1_expect13.attach(nc->create(taul::token(chr, "#", 2)));
+
+        auto f1_result0 = psr1(*nc, tkns0, lgr);
+        auto f1_result1 = psr1(*nc, tkns1, lgr);
+        auto f1_result2 = psr1(*nc, tkns2, lgr);
+        auto f1_result3 = psr1(*nc, tkns3, lgr);
+        auto f1_result4 = psr1(*nc, tkns4, lgr);
+        auto f1_result5 = psr1(*nc, tkns5, lgr);
+        auto f1_result6 = psr1(*nc, tkns6, lgr);
+
+        auto f1_result7 = psr1(*nc, tkns0, 0, lgr);
+        auto f1_result8 = psr1(*nc, tkns1, 0, lgr);
+        auto f1_result9 = psr1(*nc, tkns2, 0, lgr);
+        auto f1_result10 = psr1(*nc, tkns3, 0, lgr);
+        auto f1_result11 = psr1(*nc, tkns4, 0, lgr);
+        auto f1_result12 = psr1(*nc, tkns5, 0, lgr);
+        auto f1_result13 = psr1(*nc, tkns6, 0, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect2.fmt_tree());
+        if ((bool)f1_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result2->fmt_tree());
+            EXPECT_TRUE(f1_expect2.equiv(*f1_result2));
+            EXPECT_EQ(f1_expect2.str(), f1_result2->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect3.fmt_tree());
+        if ((bool)f1_result3) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result3->fmt_tree());
+            EXPECT_TRUE(f1_expect3.equiv(*f1_result3));
+            EXPECT_EQ(f1_expect3.str(), f1_result3->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect4.fmt_tree());
+        if ((bool)f1_result4) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result4->fmt_tree());
+            EXPECT_TRUE(f1_expect4.equiv(*f1_result4));
+            EXPECT_EQ(f1_expect4.str(), f1_result4->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect5.fmt_tree());
+        if ((bool)f1_result5) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result5->fmt_tree());
+            EXPECT_TRUE(f1_expect5.equiv(*f1_result5));
+            EXPECT_EQ(f1_expect5.str(), f1_result5->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect6.fmt_tree());
+        if ((bool)f1_result6) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result6->fmt_tree());
+            EXPECT_TRUE(f1_expect6.equiv(*f1_result6));
+            EXPECT_EQ(f1_expect6.str(), f1_result6->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect7.fmt_tree());
+        if ((bool)f1_result7) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result7->fmt_tree());
+            EXPECT_TRUE(f1_expect7.equiv(*f1_result7));
+            EXPECT_EQ(f1_expect7.str(), f1_result7->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect8.fmt_tree());
+        if ((bool)f1_result8) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result8->fmt_tree());
+            EXPECT_TRUE(f1_expect8.equiv(*f1_result8));
+            EXPECT_EQ(f1_expect8.str(), f1_result8->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect9.fmt_tree());
+        if ((bool)f1_result9) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result9->fmt_tree());
+            EXPECT_TRUE(f1_expect9.equiv(*f1_result9));
+            EXPECT_EQ(f1_expect9.str(), f1_result9->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect10.fmt_tree());
+        if ((bool)f1_result10) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result10->fmt_tree());
+            EXPECT_TRUE(f1_expect10.equiv(*f1_result10));
+            EXPECT_EQ(f1_expect10.str(), f1_result10->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect11.fmt_tree());
+        if ((bool)f1_result11) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result11->fmt_tree());
+            EXPECT_TRUE(f1_expect11.equiv(*f1_result11));
+            EXPECT_EQ(f1_expect11.str(), f1_result11->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect12.fmt_tree());
+        if ((bool)f1_result12) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result12->fmt_tree());
+            EXPECT_TRUE(f1_expect12.equiv(*f1_result12));
+            EXPECT_EQ(f1_expect12.str(), f1_result12->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect13.fmt_tree());
+        if ((bool)f1_result13) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result13->fmt_tree());
+            EXPECT_TRUE(f1_expect13.equiv(*f1_result13));
+            EXPECT_EQ(f1_expect13.str(), f1_result13->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src = "___abc";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        auto f0_expect0 = nc->create(f0, "abc", 3);
+        f0_expect0.attach(nc->create(taul::token(chr, "a", 3)));
+        f0_expect0.attach(nc->create(taul::token(chr, "b", 4)));
+        f0_expect0.attach(nc->create(taul::token(chr, "c", 5)));
+
+        auto f0_result0 = psr0(*nc, tkns, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f0_expect0.fmt_tree());
+        if ((bool)f0_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f0_result0->fmt_tree());
+            EXPECT_TRUE(f0_expect0.equiv(*f0_result0));
+            EXPECT_EQ(f0_expect0.str(), f0_result0->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    {
+        std::string src0 = "___";
+        std::string src1 = "___a";
+        std::string src2 = "___ab";
+        std::string src3 = "___abcd";
+        std::string src4 = "___abcde";
+        std::string src5 = "___123";
+        std::string src6 = "___!@#";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        taul::token_seq tkns2 = taul::tokenize(gram, src2);
+        taul::token_seq tkns3 = taul::tokenize(gram, src3);
+        taul::token_seq tkns4 = taul::tokenize(gram, src4);
+        taul::token_seq tkns5 = taul::tokenize(gram, src5);
+        taul::token_seq tkns6 = taul::tokenize(gram, src6);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+        _log(src2, tkns2);
+        _log(src3, tkns3);
+        _log(src4, tkns4);
+        _log(src5, tkns5);
+        _log(src6, tkns6);
+
+        auto f1_expect0 = nc->create(f1, "", 3);
+        auto f1_expect1 = nc->create(f1, "a", 3);
+        f1_expect1.attach(nc->create(taul::token(chr, "a", 3)));
+        auto f1_expect2 = nc->create(f1, "ab", 3);
+        f1_expect2.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect2.attach(nc->create(taul::token(chr, "b", 4)));
+        auto f1_expect3 = nc->create(f1, "abcd", 3);
+        f1_expect3.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect3.attach(nc->create(taul::token(chr, "b", 4)));
+        f1_expect3.attach(nc->create(taul::token(chr, "c", 5)));
+        f1_expect3.attach(nc->create(taul::token(chr, "d", 6)));
+        auto f1_expect4 = nc->create(f1, "abcde", 3);
+        f1_expect4.attach(nc->create(taul::token(chr, "a", 3)));
+        f1_expect4.attach(nc->create(taul::token(chr, "b", 4)));
+        f1_expect4.attach(nc->create(taul::token(chr, "c", 5)));
+        f1_expect4.attach(nc->create(taul::token(chr, "d", 6)));
+        f1_expect4.attach(nc->create(taul::token(chr, "e", 7)));
+        auto f1_expect5 = nc->create(f1, "123", 3);
+        f1_expect5.attach(nc->create(taul::token(chr, "1", 3)));
+        f1_expect5.attach(nc->create(taul::token(chr, "2", 4)));
+        f1_expect5.attach(nc->create(taul::token(chr, "3", 5)));
+        auto f1_expect6 = nc->create(f1, "!@#", 3);
+        f1_expect6.attach(nc->create(taul::token(chr, "!", 3)));
+        f1_expect6.attach(nc->create(taul::token(chr, "@", 4)));
+        f1_expect6.attach(nc->create(taul::token(chr, "#", 5)));
+
+        auto f1_result0 = psr1(*nc, tkns0, 3, lgr);
+        auto f1_result1 = psr1(*nc, tkns1, 3, lgr);
+        auto f1_result2 = psr1(*nc, tkns2, 3, lgr);
+        auto f1_result3 = psr1(*nc, tkns3, 3, lgr);
+        auto f1_result4 = psr1(*nc, tkns4, 3, lgr);
+        auto f1_result5 = psr1(*nc, tkns5, 3, lgr);
+        auto f1_result6 = psr1(*nc, tkns6, 3, lgr);
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect0.fmt_tree());
+        if ((bool)f1_result0) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result0->fmt_tree());
+            EXPECT_TRUE(f1_expect0.equiv(*f1_result0));
+            EXPECT_EQ(f1_expect0.str(), f1_result0->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect1.fmt_tree());
+        if ((bool)f1_result1) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result1->fmt_tree());
+            EXPECT_TRUE(f1_expect1.equiv(*f1_result1));
+            EXPECT_EQ(f1_expect1.str(), f1_result1->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect2.fmt_tree());
+        if ((bool)f1_result2) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result2->fmt_tree());
+            EXPECT_TRUE(f1_expect2.equiv(*f1_result2));
+            EXPECT_EQ(f1_expect2.str(), f1_result2->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect3.fmt_tree());
+        if ((bool)f1_result3) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result3->fmt_tree());
+            EXPECT_TRUE(f1_expect3.equiv(*f1_result3));
+            EXPECT_EQ(f1_expect3.str(), f1_result3->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect4.fmt_tree());
+        if ((bool)f1_result4) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result4->fmt_tree());
+            EXPECT_TRUE(f1_expect4.equiv(*f1_result4));
+            EXPECT_EQ(f1_expect4.str(), f1_result4->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect5.fmt_tree());
+        if ((bool)f1_result5) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result5->fmt_tree());
+            EXPECT_TRUE(f1_expect5.equiv(*f1_result5));
+            EXPECT_EQ(f1_expect5.str(), f1_result5->str());
+        }
+        else ADD_FAILURE();
+
+        TAUL_LOG(lgr, "expected:\n{}", f1_expect6.fmt_tree());
+        if ((bool)f1_result6) {
+            TAUL_LOG(lgr, "result:\n{}", f1_result6->fmt_tree());
+            EXPECT_TRUE(f1_expect6.equiv(*f1_result6));
+            EXPECT_EQ(f1_expect6.str(), f1_result6->str());
+        }
+        else ADD_FAILURE();
+    }
+
+    // failure
+
+    {
+        std::string src0 = "";
+        std::string src1 = "a";
+        std::string src2 = "ab";
+        std::string src3 = "abcd";
+        std::string src4 = "abcde";
+        std::string src5 = "123";
+        std::string src6 = "!@#";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        taul::token_seq tkns2 = taul::tokenize(gram, src2);
+        taul::token_seq tkns3 = taul::tokenize(gram, src3);
+        taul::token_seq tkns4 = taul::tokenize(gram, src4);
+        taul::token_seq tkns5 = taul::tokenize(gram, src5);
+        taul::token_seq tkns6 = taul::tokenize(gram, src6);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+        _log(src2, tkns2);
+        _log(src3, tkns3);
+        _log(src4, tkns4);
+        _log(src5, tkns5);
+        _log(src6, tkns6);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns2, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns4, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns5, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns6, lgr));
+    }
+
+    {
+        std::string src = "abc";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        EXPECT_FALSE((bool)psr1(*nc, tkns, lgr));
+    }
+
+    {
+        std::string src0 = "___";
+        std::string src1 = "___a";
+        std::string src2 = "___ab";
+        std::string src3 = "___abcd";
+        std::string src4 = "___abcde";
+        std::string src5 = "___123";
+        std::string src6 = "___!@#";
+        taul::token_seq tkns0 = taul::tokenize(gram, src0);
+        taul::token_seq tkns1 = taul::tokenize(gram, src1);
+        taul::token_seq tkns2 = taul::tokenize(gram, src2);
+        taul::token_seq tkns3 = taul::tokenize(gram, src3);
+        taul::token_seq tkns4 = taul::tokenize(gram, src4);
+        taul::token_seq tkns5 = taul::tokenize(gram, src5);
+        taul::token_seq tkns6 = taul::tokenize(gram, src6);
+        _log(src0, tkns0);
+        _log(src1, tkns1);
+        _log(src2, tkns2);
+        _log(src3, tkns3);
+        _log(src4, tkns4);
+        _log(src5, tkns5);
+        _log(src6, tkns6);
+
+        EXPECT_FALSE((bool)psr0(*nc, tkns0, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns1, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns2, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns3, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns4, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns5, 3, lgr));
+        EXPECT_FALSE((bool)psr0(*nc, tkns6, 3, lgr));
+    }
+
+    {
+        std::string src = "___abc";
+        taul::token_seq tkns = taul::tokenize(gram, src);
+        _log(src, tkns);
+
+        EXPECT_FALSE((bool)psr1(*nc, tkns, 3, lgr));
+    }
 }
 

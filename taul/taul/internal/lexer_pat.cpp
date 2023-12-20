@@ -35,7 +35,7 @@ taul::internal::toplevel_lexer_pat::toplevel_lexer_pat(std::size_t lprInd)
     lprInd(lprInd),
     gramdat(nullptr) {}
 
-taul::internal::match taul::internal::toplevel_lexer_pat::eval(const grammar_data& gramdat,  std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::lexer_match taul::internal::toplevel_lexer_pat::eval(const grammar_data& gramdat,  std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     TAUL_IN_BOUNDS(lprInd, 0, gramdat._lprs.size());
     std::uint32_t len = 0;
     bool success = true;
@@ -52,56 +52,56 @@ taul::internal::match taul::internal::toplevel_lexer_pat::eval(const grammar_dat
     }
     return
         success
-        ? make_match(true, txt.substr(offset, len), offset)
-        : make_match(false, "", offset);
+        ? make_lexer_match(true, txt.substr(offset, len), offset)
+        : make_lexer_match(false, "", offset);
 }
 
 taul::internal::begin_lexer_pat::begin_lexer_pat()
     : lexer_pat() {}
 
-taul::internal::match taul::internal::begin_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::lexer_match taul::internal::begin_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(children.empty());
-    return make_match(offset == 0, "", offset);
+    return make_lexer_match(offset == 0, "", offset);
 }
 
 taul::internal::end_lexer_pat::end_lexer_pat()
     : lexer_pat() {}
 
-taul::internal::match taul::internal::end_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::lexer_match taul::internal::end_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(children.empty());
-    return make_match(offset == txt.size(), "", offset);
+    return make_lexer_match(offset == txt.size(), "", offset);
 }
 
 taul::internal::any_lexer_pat::any_lexer_pat()
     : lexer_pat() {}
 
-taul::internal::match taul::internal::any_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::lexer_match taul::internal::any_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(children.empty());
     const auto _substr = txt.substr(offset, 1);
     return
         !_substr.empty()
-        ? make_match(true, _substr, offset)
-        : make_match(false, "", offset);
+        ? make_lexer_match(true, _substr, offset)
+        : make_lexer_match(false, "", offset);
 }
 
 taul::internal::string_lexer_pat::string_lexer_pat(std::string s)
     : lexer_pat(), 
     s(std::move(s)) {}
 
-taul::internal::match taul::internal::string_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::lexer_match taul::internal::string_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(children.empty());
     const auto _substr = txt.substr(offset, s.size());
     return
         _substr == std::string_view(s)
-        ? make_match(true, _substr, offset)
-        : make_match(false, "", offset);
+        ? make_lexer_match(true, _substr, offset)
+        : make_lexer_match(false, "", offset);
 }
 
 taul::internal::charset_lexer_pat::charset_lexer_pat(std::string s)
     : lexer_pat(),
     s(std::move(s)) {}
 
-taul::internal::match taul::internal::charset_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::lexer_match taul::internal::charset_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(children.empty());
     const auto _substr = txt.substr(offset, 1);
     bool success = false;
@@ -115,14 +115,14 @@ taul::internal::match taul::internal::charset_lexer_pat::eval(const grammar_data
     }
     return
         success
-        ? make_match(true, _substr, offset)
-        : make_match(false, "", offset);
+        ? make_lexer_match(true, _substr, offset)
+        : make_lexer_match(false, "", offset);
 }
 
 taul::internal::sequence_lexer_pat::sequence_lexer_pat()
     : lexer_pat() {}
 
-taul::internal::match taul::internal::sequence_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::lexer_match taul::internal::sequence_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     std::uint32_t len = 0;
     bool success = true;
     for (const auto& I : children) {
@@ -138,16 +138,16 @@ taul::internal::match taul::internal::sequence_lexer_pat::eval(const grammar_dat
     }
     return
         success
-        ? make_match(true, txt.substr(offset, len), offset)
-        : make_match(false, "", offset);
+        ? make_lexer_match(true, txt.substr(offset, len), offset)
+        : make_lexer_match(false, "", offset);
 }
 
 taul::internal::set_lexer_pat::set_lexer_pat(bias b)
     : lexer_pat(),
     b(b) {}
 
-taul::internal::match taul::internal::set_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
-    match selection = make_match(false, "", offset);
+taul::internal::lexer_match taul::internal::set_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+    lexer_match selection = make_lexer_match(false, "", offset);
     // TODO: could we make bias::last run *faster* by iterating backwards? or would increase be too small?
     for (const auto& I : children) {
         TAUL_ASSERT(I);
@@ -187,7 +187,7 @@ taul::internal::modifier_lexer_pat::modifier_lexer_pat(std::uint16_t min, std::u
     min(min), 
     max(max) {}
 
-taul::internal::match taul::internal::modifier_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::lexer_match taul::internal::modifier_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(children.size() == 1);
     const auto has_max = max > 0;
     std::uint32_t len = 0;
@@ -209,29 +209,29 @@ taul::internal::match taul::internal::modifier_lexer_pat::eval(const grammar_dat
     }
     return
         success
-        ? make_match(true, txt.substr(offset, len), offset)
-        : make_match(false, "", offset);
+        ? make_lexer_match(true, txt.substr(offset, len), offset)
+        : make_lexer_match(false, "", offset);
 }
 
 taul::internal::assertion_lexer_pat::assertion_lexer_pat(taul::polarity p)
     : lexer_pat(),
     p(p) {}
 
-taul::internal::match taul::internal::assertion_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::lexer_match taul::internal::assertion_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(children.size() == 1);
     const auto matched = children.back()->eval(gramdat, txt, offset, localend_offset, lgr);
     const bool success =
         p == polarity::positive 
         ? matched.success
         : !matched.success;
-    return make_match(success, "", offset);
+    return make_lexer_match(success, "", offset);
 }
 
 taul::internal::constraint_lexer_pat::constraint_lexer_pat(taul::polarity p) 
     : lexer_pat(), 
     p(p) {}
 
-taul::internal::match taul::internal::constraint_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::lexer_match taul::internal::constraint_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(children.size() == 2);
     bool success{};
     const auto constrained = children[0]->eval(gramdat, txt, offset, localend_offset, lgr);
@@ -249,25 +249,25 @@ taul::internal::match taul::internal::constraint_lexer_pat::eval(const grammar_d
     return
         success
         ? constrained
-        : make_match(false, "", offset);
+        : make_lexer_match(false, "", offset);
 }
 
 taul::internal::localend_lexer_pat::localend_lexer_pat() 
     : lexer_pat() {}
 
-taul::internal::match taul::internal::localend_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
-    return make_match(offset == localend_offset, "", offset);
+taul::internal::lexer_match taul::internal::localend_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+    return make_lexer_match(offset == localend_offset, "", offset);
 }
 
 taul::internal::name_lexer_pat::name_lexer_pat(std::size_t lprIndOfRef)
     : lexer_pat(), 
     lprIndOfRef(lprIndOfRef) {}
 
-taul::internal::match taul::internal::name_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
+taul::internal::lexer_match taul::internal::name_lexer_pat::eval(const grammar_data& gramdat, std::string_view txt, source_pos offset, const source_pos localend_offset, const std::shared_ptr<taul::logger>& lgr) {
     TAUL_ASSERT(lprIndOfRef < gramdat._lprs.size());
     const auto tkn = gramdat._lprs[lprIndOfRef].lexer()(txt, offset, lgr);
     return
         (bool)tkn
-        ? make_match(true, tkn.str(), offset)
-        : make_match(false, "", offset);
+        ? make_lexer_match(true, tkn.str(), offset)
+        : make_lexer_match(false, "", offset);
 }

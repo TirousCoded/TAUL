@@ -6,7 +6,7 @@
 
 
 std::string taul::fmt_spec_opcode(spec_opcode x) {
-    static_assert(spec_opcodes == 19);
+    static_assert(spec_opcodes == 21);
     std::string result{};
     switch (x) {
     case spec_opcode::grammar_bias:     result = "grammar-bias";    break;
@@ -20,6 +20,8 @@ std::string taul::fmt_spec_opcode(spec_opcode x) {
     case spec_opcode::any:              result = "any";             break;
     case spec_opcode::string:           result = "string";          break;
     case spec_opcode::charset:          result = "charset";         break;
+    case spec_opcode::token:            result = "token";           break;
+    case spec_opcode::failure:          result = "failure";         break;
     case spec_opcode::name:             result = "name";            break;
     case spec_opcode::sequence:         result = "sequence";        break;
     case spec_opcode::set:              result = "set";             break;
@@ -28,6 +30,7 @@ std::string taul::fmt_spec_opcode(spec_opcode x) {
     case spec_opcode::constraint:       result = "constraint";      break;
     case spec_opcode::junction:         result = "junction";        break;
     case spec_opcode::localend:         result = "localend";        break;
+    //case spec_opcode::lsubexpr:         result = "lsubexpr";        break;
     default:                            TAUL_DEADEND;               break;
     }
     return result;

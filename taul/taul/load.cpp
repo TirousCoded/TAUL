@@ -37,6 +37,7 @@ std::optional<taul::grammar> taul::load(const taul::spec& s, taul::spec_error_co
             });
         data->build_lookup();
         data->build_gwls();
+        // TODO: maybe put these into some 'finish_up_lprs' and 'finish_up_pprs' methods
         // for each lpr we gotta do two things right at the end:
         //      1) hook up the gramdat ptr of the toplevel_lexer_pat of the lpr
         //      2) hook up its fnobj
@@ -44,6 +45,14 @@ std::optional<taul::grammar> taul::load(const taul::spec& s, taul::spec_error_co
             TAUL_ASSERT(interp.lexer_pat_map.contains(I.name));
             static_cast<internal::toplevel_lexer_pat*>(interp.lexer_pat_map.at(I.name).get())->gramdat = data.get();
             I.fnobj = taul::lexer(internal::pat_lexer_fn, interp.lexer_pat_map.at(I.name));
+        }
+        // for each ppr we gotta do two things right at the end:
+        //      1) hook up the gramdat ptr of the toplevel_parser_pat of the ppr
+        //      2) hook up its fnobj
+        for (auto& I : data->_pprs) {
+            TAUL_ASSERT(interp.parser_pat_map.contains(I.name));
+            static_cast<internal::toplevel_parser_pat*>(interp.parser_pat_map.at(I.name).get())->gramdat = data.get();
+            I.fnobj = taul::parser(internal::pat_parser_fn, interp.parser_pat_map.at(I.name));
         }
         return std::make_optional<taul::grammar>(internal::for_internal_use_tag{}, std::move(data));
     }
@@ -109,6 +118,14 @@ void taul::internal::load_spec_interpreter::check_ppr_not_already_defined(std::s
     }
 }
 
+void taul::internal::load_spec_interpreter::check_rule_is_not_ppr(std::string_view name) {
+    // if an lpr (illegally) also exists w/ name, we'll not raise an error as that
+    // lpr will be considered the one *selected* for this association
+    if (!has_lpr_decl(name) && has_ppr_decl(name)) {
+        raise(spec_error::rule_may_not_be_ppr, "name {} may not specify parser rule!", std::string(name));
+    }
+}
+
 void taul::internal::load_spec_interpreter::check_lpr_or_ppr_exists_with_name(std::string_view name) {
     if (!has_lpr_decl(name) && !has_ppr_decl(name)) {
         raise(spec_error::rule_not_found, "no lexer/parser rule found with name {}!", (std::string)name);
@@ -145,8 +162,15 @@ void taul::internal::load_spec_interpreter::check_all_lprs_and_pprs_are_defined(
 void taul::internal::load_spec_interpreter::check_subexpr_count_legal(spec_opcode opcode, std::size_t n) {
     if (!in_composite_expr()) return;
     if (ess.back().opcode != opcode) return;
-    TAUL_ASSERT(!lexer_pats.empty());
-    const auto subexprs = lexer_pats.back()->children.size();
+    std::size_t subexprs{};
+    if (in_lpr()) {
+        TAUL_ASSERT(!lexer_pats.empty());
+        subexprs = lexer_pats.back()->children.size();
+    }
+    if (in_ppr()) {
+        TAUL_ASSERT(!parser_pats.empty());
+        subexprs = parser_pats.back()->children.size();
+    }
     if (subexprs != n) {
         raise(spec_error::illegal_subexpr_count, "{} has {} subexprs, but must have exactly {}!", opcode, subexprs, n);
     }
@@ -161,8 +185,15 @@ void taul::internal::load_spec_interpreter::check_junction_in_constraint_scope()
 void taul::internal::load_spec_interpreter::check_junction_not_misplaced() {
     if (!in_composite_expr()) return;
     if (ess.back().opcode != spec_opcode::constraint) return;
-    TAUL_ASSERT(!lexer_pats.empty());
-    const auto subexprs = lexer_pats.back()->children.size();
+    std::size_t subexprs{};
+    if (in_lpr()) {
+        TAUL_ASSERT(!lexer_pats.empty());
+        subexprs = lexer_pats.back()->children.size();
+    }
+    if (in_ppr()) {
+        TAUL_ASSERT(!parser_pats.empty());
+        subexprs = parser_pats.back()->children.size();
+    }
     if (subexprs != 1) {
         raise(spec_error::junction_misplaced, "junction must come after exactly 1 constraint expr subexpr, but came after {}!", subexprs);
     }
@@ -219,6 +250,7 @@ void taul::internal::load_spec_interpreter::on_close() {
     check_subexpr_count_legal(spec_opcode::constraint, 2);
     check_has_junction_if_constraint();
     handle_pop_lexer_pat_for_top_ess();
+    handle_pop_parser_pat_for_top_ess();
     pop_expr();
 }
 
@@ -239,7 +271,7 @@ void taul::internal::load_spec_interpreter::on_lpr(std::string_view name, qualif
     check_lpr_not_already_defined(name);
     check_not_in_lpr_nor_ppr_scope(spec_opcode::lpr);
     add_lpr_def(name, qualifier);
-    ess_entry entry{ spec_opcode::lpr, ets_type::lexer, name, true };
+    ess_entry entry{ spec_opcode::lpr, ets_type::lexer, name, true, false };
     if (lprs.contains(name)) {
         entry.index = lprs.at(name).index;
     }
@@ -252,87 +284,118 @@ void taul::internal::load_spec_interpreter::on_ppr(std::string_view name) {
     check_ppr_not_already_defined(name);
     check_not_in_lpr_nor_ppr_scope(spec_opcode::ppr);
     add_ppr_def(name);
-    ess_entry entry{ spec_opcode::ppr, ets_type::parser, name, false };
+    ess_entry entry{ spec_opcode::ppr, ets_type::parser, name, false, true };
     if (pprs.contains(name)) {
         entry.index = pprs.at(name).index;
     }
     push_expr(std::move(entry));
+    push_parser_pat<toplevel_parser_pat>(entry.index);
 }
 
 void taul::internal::load_spec_interpreter::on_begin() {
-    check_not_in_ppr_scope(spec_opcode::begin);
     check_in_lpr_or_ppr_scope(spec_opcode::begin);
-    bind_lexer_pat<begin_lexer_pat>();
+    if (in_lpr()) bind_lexer_pat<begin_lexer_pat>();
+    if (in_ppr()) bind_parser_pat<begin_parser_pat>();
 }
 
 void taul::internal::load_spec_interpreter::on_end() {
-    check_not_in_ppr_scope(spec_opcode::end);
     check_in_lpr_or_ppr_scope(spec_opcode::end);
-    bind_lexer_pat<end_lexer_pat>();
+    if (in_lpr()) bind_lexer_pat<end_lexer_pat>();
+    if (in_ppr()) bind_parser_pat<end_parser_pat>();
 }
 
 void taul::internal::load_spec_interpreter::on_any() {
-    check_not_in_ppr_scope(spec_opcode::any);
     check_in_lpr_or_ppr_scope(spec_opcode::any);
-    bind_lexer_pat<any_lexer_pat>();
+    if (in_lpr()) bind_lexer_pat<any_lexer_pat>();
+    if (in_ppr()) bind_parser_pat<any_parser_pat>();
 }
 
 void taul::internal::load_spec_interpreter::on_string(std::string_view s) {
-    check_not_in_ppr_scope(spec_opcode::string);
     check_in_lpr_or_ppr_scope(spec_opcode::string);
-    bind_lexer_pat<string_lexer_pat>((std::string)s);
+    if (in_lpr()) bind_lexer_pat<string_lexer_pat>((std::string)s);
+    if (in_ppr()) bind_parser_pat<string_parser_pat>((std::string)s);
 }
 
 void taul::internal::load_spec_interpreter::on_charset(std::string_view s) {
-    check_not_in_ppr_scope(spec_opcode::charset);
     check_in_lpr_or_ppr_scope(spec_opcode::charset);
-    bind_lexer_pat<charset_lexer_pat>((std::string)s);
+    if (in_lpr()) bind_lexer_pat<charset_lexer_pat>((std::string)s);
+    if (in_ppr()) bind_parser_pat<charset_parser_pat>((std::string)s);
+}
+
+void taul::internal::load_spec_interpreter::on_token() {
+    check_not_in_lpr_scope(spec_opcode::token);
+    check_in_lpr_or_ppr_scope(spec_opcode::token);
+    if (in_lpr()) (void)0;
+    if (in_ppr()) bind_parser_pat<token_parser_pat>();
+}
+
+void taul::internal::load_spec_interpreter::on_failure() {
+    check_not_in_lpr_scope(spec_opcode::failure);
+    check_in_lpr_or_ppr_scope(spec_opcode::failure);
+    if (in_lpr()) (void)0;
+    if (in_ppr()) bind_parser_pat<failure_parser_pat>();
 }
 
 void taul::internal::load_spec_interpreter::on_name(std::string_view name) {
-    check_not_in_ppr_scope(spec_opcode::name);
     check_in_lpr_or_ppr_scope(spec_opcode::name);
     check_lpr_or_ppr_exists_with_name(name);
-    const auto lprIndOfRef =
-        lprs.contains(name)
-        ? lprs.at(name).index
-        : std::size_t(-1); // if name can't be found, pass *dummy* value
-    bind_lexer_pat<name_lexer_pat>(lprIndOfRef);
+    if (in_lpr()) {
+        check_rule_is_not_ppr(name);
+        const std::size_t lprIndOfRef =
+            lprs.contains(name)
+            ? lprs.at(name).index
+            : std::size_t(-1); // if name can't be found, pass *dummy* value
+        bind_lexer_pat<name_lexer_pat>(lprIndOfRef);
+    }
+    if (in_ppr()) {
+        bool lpr = lprs.contains(name);
+        std::size_t ruleIndOfRef{};
+        if (lpr) {
+            ruleIndOfRef = lprs.at(name).index;
+        }
+        else {
+            ruleIndOfRef =
+                pprs.contains(name)
+                ? pprs.at(name).index
+                : std::size_t(-1); // if name can't be found, pass *dummy* value
+        }
+        bind_parser_pat<name_parser_pat>(lpr, ruleIndOfRef);
+    }
 }
 
 void taul::internal::load_spec_interpreter::on_sequence() {
-    check_not_in_ppr_scope(spec_opcode::sequence);
     check_in_lpr_or_ppr_scope(spec_opcode::sequence);
-    push_expr(ess_entry{ spec_opcode::sequence, ets_type::none, "", true });
-    push_lexer_pat<sequence_lexer_pat>();
+    push_expr(ess_entry{ spec_opcode::sequence, ets_type::none, "", in_lpr(), in_ppr() });
+    if (in_lpr()) push_lexer_pat<sequence_lexer_pat>();
+    if (in_ppr()) push_parser_pat<sequence_parser_pat>();
 }
 
 void taul::internal::load_spec_interpreter::on_set(bias b) {
-    check_not_in_ppr_scope(spec_opcode::set);
     check_in_lpr_or_ppr_scope(spec_opcode::set);
-    push_expr(ess_entry{ spec_opcode::set, ets_type::none, "", true });
-    push_lexer_pat<set_lexer_pat>(b);
+    push_expr(ess_entry{ spec_opcode::set, ets_type::none, "", in_lpr(), in_ppr() });
+    if (in_lpr()) push_lexer_pat<set_lexer_pat>(b);
+    if (in_ppr()) push_parser_pat<set_parser_pat>(b);
 }
 
 void taul::internal::load_spec_interpreter::on_modifier(std::uint16_t min, std::uint16_t max) {
-    check_not_in_ppr_scope(spec_opcode::modifier);
     check_in_lpr_or_ppr_scope(spec_opcode::modifier);
-    push_expr(ess_entry{ spec_opcode::modifier, ets_type::none, "", true });
-    push_lexer_pat<modifier_lexer_pat>(min, max);
+    push_expr(ess_entry{ spec_opcode::modifier, ets_type::none, "", in_lpr(), in_ppr() });
+    if (in_lpr()) push_lexer_pat<modifier_lexer_pat>(min, max);
+    if (in_ppr()) push_parser_pat<modifier_parser_pat>(min, max);
 }
 
 void taul::internal::load_spec_interpreter::on_assertion(polarity p) {
-    check_not_in_ppr_scope(spec_opcode::assertion);
     check_in_lpr_or_ppr_scope(spec_opcode::assertion);
-    push_expr(ess_entry{ spec_opcode::assertion, ets_type::none, "", true });
-    push_lexer_pat<assertion_lexer_pat>(p);
+    push_expr(ess_entry{ spec_opcode::assertion, ets_type::none, "", in_lpr(), in_ppr() });
+    if (in_lpr()) push_lexer_pat<assertion_lexer_pat>(p);
+    if (in_ppr()) push_parser_pat<assertion_parser_pat>(p);
 }
 
 void taul::internal::load_spec_interpreter::on_constraint(polarity p) {
-    check_not_in_ppr_scope(spec_opcode::constraint);
     check_in_lpr_or_ppr_scope(spec_opcode::constraint);
-    push_expr(ess_entry{ spec_opcode::constraint, ets_type::none, "", true });
-    push_lexer_pat<constraint_lexer_pat>(p);
+    push_expr(ess_entry{ spec_opcode::constraint, ets_type::none, "", in_lpr(), in_ppr() });
+    if (in_lpr()) push_lexer_pat<constraint_lexer_pat>(p);
+    if (in_ppr()) push_parser_pat<constraint_parser_pat>(p);
 }
 
 void taul::internal::load_spec_interpreter::on_junction() {
@@ -344,6 +407,7 @@ void taul::internal::load_spec_interpreter::on_junction() {
 
 void taul::internal::load_spec_interpreter::on_localend() {
     check_localend_in_constraint_scope_and_after_junction();
-    bind_lexer_pat<localend_lexer_pat>();
+    if (in_lpr()) bind_lexer_pat<localend_lexer_pat>();
+    if (in_ppr()) bind_parser_pat<localend_parser_pat>();
 }
 

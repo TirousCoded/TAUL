@@ -119,6 +119,20 @@ taul::lexer taul::grammar::lexer(const char* name) const {
     return lexer(std::string_view(name));
 }
 
+taul::parser taul::grammar::parser(const std::string& name) const {
+    return parser(std::string_view(name));
+}
+
+taul::parser taul::grammar::parser(std::string_view name) const {
+    // ppr will handle throwing
+    return ppr(name).parser();
+}
+
+taul::parser taul::grammar::parser(const char* name) const {
+    TAUL_ASSERT(name != nullptr);
+    return parser(std::string_view(name));
+}
+
 bool taul::grammar::contains(const std::string& name) const noexcept {
     return contains(std::string_view(name));
 }

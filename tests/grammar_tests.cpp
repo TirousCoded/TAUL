@@ -33,6 +33,10 @@ TEST(grammar_tests, defaultCtor) {
     EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
     EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
 
+    EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
+    EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
+    EXPECT_THROW(gram.parser("missing"), std::out_of_range);
+
     EXPECT_FALSE(gram.contains(std::string("missing")));
     EXPECT_FALSE(gram.contains(std::string_view("missing")));
     EXPECT_FALSE(gram.contains("missing"));
@@ -142,12 +146,23 @@ TEST(grammar_tests, copyCtor) {
         EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
         EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
 
+        EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
+        EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
+        EXPECT_THROW(gram.parser("missing"), std::out_of_range);
+
         EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
         EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
         EXPECT_NO_THROW(gram.lexer("lpr0"));
         EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
         EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
         EXPECT_NO_THROW(gram.lexer("lpr1"));
+
+        EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
+        EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
+        EXPECT_NO_THROW(gram.parser("ppr0"));
+        EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
+        EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
+        EXPECT_NO_THROW(gram.parser("ppr1"));
 
         EXPECT_TRUE(gram0->contains(std::string("lpr0")));
         EXPECT_TRUE(gram0->contains(std::string("lpr1")));
@@ -258,12 +273,23 @@ TEST(grammar_tests, copyCtor) {
         EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
         EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
 
+        EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
+        EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
+        EXPECT_THROW(gram.parser("missing"), std::out_of_range);
+
         EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
         EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
         EXPECT_NO_THROW(gram.lexer("lpr0"));
         EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
         EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
         EXPECT_NO_THROW(gram.lexer("lpr1"));
+
+        EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
+        EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
+        EXPECT_NO_THROW(gram.parser("ppr0"));
+        EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
+        EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
+        EXPECT_NO_THROW(gram.parser("ppr1"));
 
         EXPECT_TRUE(gram.contains(std::string("lpr0")));
         EXPECT_TRUE(gram.contains(std::string("lpr1")));
@@ -402,12 +428,23 @@ TEST(grammar_tests, moveCtor) {
     EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
     EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
 
+    EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
+    EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
+    EXPECT_THROW(gram.parser("missing"), std::out_of_range);
+
     EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
     EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
     EXPECT_NO_THROW(gram.lexer("lpr0"));
     EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
     EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
     EXPECT_NO_THROW(gram.lexer("lpr1"));
+
+    EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
+    EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
+    EXPECT_NO_THROW(gram.parser("ppr0"));
+    EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
+    EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
+    EXPECT_NO_THROW(gram.parser("ppr1"));
 
     EXPECT_TRUE(gram.contains(std::string("lpr0")));
     EXPECT_TRUE(gram.contains(std::string("lpr1")));
@@ -550,12 +587,23 @@ TEST(grammar_tests, copyAssign) {
         EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
         EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
 
+        EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
+        EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
+        EXPECT_THROW(gram.parser("missing"), std::out_of_range);
+
         EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
         EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
         EXPECT_NO_THROW(gram.lexer("lpr0"));
         EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
         EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
         EXPECT_NO_THROW(gram.lexer("lpr1"));
+
+        EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
+        EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
+        EXPECT_NO_THROW(gram.parser("ppr0"));
+        EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
+        EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
+        EXPECT_NO_THROW(gram.parser("ppr1"));
 
         EXPECT_TRUE(gram0->contains(std::string("lpr0")));
         EXPECT_TRUE(gram0->contains(std::string("lpr1")));
@@ -666,12 +714,23 @@ TEST(grammar_tests, copyAssign) {
         EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
         EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
 
+        EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
+        EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
+        EXPECT_THROW(gram.parser("missing"), std::out_of_range);
+
         EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
         EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
         EXPECT_NO_THROW(gram.lexer("lpr0"));
         EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
         EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
         EXPECT_NO_THROW(gram.lexer("lpr1"));
+
+        EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
+        EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
+        EXPECT_NO_THROW(gram.parser("ppr0"));
+        EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
+        EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
+        EXPECT_NO_THROW(gram.parser("ppr1"));
 
         EXPECT_TRUE(gram.contains(std::string("lpr0")));
         EXPECT_TRUE(gram.contains(std::string("lpr1")));
@@ -812,12 +871,23 @@ TEST(grammar_tests, moveAssign) {
     EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
     EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
 
+    EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
+    EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
+    EXPECT_THROW(gram.parser("missing"), std::out_of_range);
+
     EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
     EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
     EXPECT_NO_THROW(gram.lexer("lpr0"));
     EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
     EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
     EXPECT_NO_THROW(gram.lexer("lpr1"));
+
+    EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
+    EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
+    EXPECT_NO_THROW(gram.parser("ppr0"));
+    EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
+    EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
+    EXPECT_NO_THROW(gram.parser("ppr1"));
 
     EXPECT_TRUE(gram.contains(std::string("lpr0")));
     EXPECT_TRUE(gram.contains(std::string("lpr1")));
@@ -953,12 +1023,23 @@ TEST(grammar_tests, grammarInitViaSpec) {
     EXPECT_THROW(gram->lexer(std::string_view("missing")), std::out_of_range);
     EXPECT_THROW(gram->lexer("missing"), std::out_of_range);
 
+    EXPECT_THROW(gram->parser(std::string("missing")), std::out_of_range);
+    EXPECT_THROW(gram->parser(std::string_view("missing")), std::out_of_range);
+    EXPECT_THROW(gram->parser("missing"), std::out_of_range);
+
     EXPECT_NO_THROW(gram->lexer(std::string("lpr0")));
     EXPECT_NO_THROW(gram->lexer(std::string_view("lpr0")));
     EXPECT_NO_THROW(gram->lexer("lpr0"));
     EXPECT_NO_THROW(gram->lexer(std::string("lpr1")));
     EXPECT_NO_THROW(gram->lexer(std::string_view("lpr1")));
     EXPECT_NO_THROW(gram->lexer("lpr1"));
+
+    EXPECT_NO_THROW(gram->parser(std::string("ppr0")));
+    EXPECT_NO_THROW(gram->parser(std::string_view("ppr0")));
+    EXPECT_NO_THROW(gram->parser("ppr0"));
+    EXPECT_NO_THROW(gram->parser(std::string("ppr1")));
+    EXPECT_NO_THROW(gram->parser(std::string_view("ppr1")));
+    EXPECT_NO_THROW(gram->parser("ppr1"));
 
     EXPECT_TRUE(gram->contains(std::string("lpr0")));
     EXPECT_TRUE(gram->contains(std::string("lpr1")));

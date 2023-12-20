@@ -6,7 +6,7 @@
 
 
 std::string taul::fmt_spec_error(spec_error x) {
-    static_assert(spec_errors == 17);
+    static_assert(spec_errors == 18);
     std::string result{};
     switch (x) {
     case spec_error::syntax_error:                  result = "syntax-error";                    break;
@@ -17,7 +17,7 @@ std::string taul::fmt_spec_error(spec_error x) {
     case spec_error::rule_never_declared:           result = "rule-never-declared";             break;
     case spec_error::rule_already_defined:          result = "rule-already-defined";            break;
     case spec_error::rule_not_found:                result = "rule-not-found";                  break;
-    //case spec_error::rule_may_not_be_ppr:           result = "rule-may-not-be-ppr";             break;
+    case spec_error::rule_may_not_be_ppr:           result = "rule-may-not-be-ppr";             break;
     case spec_error::illegal_in_lpr_scope:          result = "illegal-in-lpr-scope";            break;
     case spec_error::illegal_in_ppr_scope:          result = "illegal-in-ppr-scope";            break;
     case spec_error::illegal_in_no_scope:           result = "illegal-in-no-scope";             break;

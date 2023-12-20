@@ -20,7 +20,7 @@
 // this test is for general usage of *all* instructions, so be sure to
 // update it as we add new instructions
 
-static_assert(taul::spec_opcodes == 19);
+static_assert(taul::spec_opcodes == 21);
 
 TEST(load_tests, success) {
     const auto lgr = taul::make_stderr_logger();
@@ -217,178 +217,179 @@ TEST(load_tests, success) {
         .lpr("lpr1") // test empty
         .close()
         .ppr("ppr0")
-        //TODO: add the below later
-        //// test simple parser exprs
-        //.begin()
-        //.end()
-        //.any()
-        //.string("abc")
-        //.charset("abc")
-        //.name("lpr0") // legal lpr ref
-        //.name("lpr1") // legal lpr ref
-        //.name("ppr0") // legal ppr ref
-        //.name("ppr1") // legal ppr ref
-        //// test composite parser exprs
-        //// sequence
-        //.sequence() // test empty
-        //.close() // test empty (end)
-        //.sequence() // test w/ nested
-        //.any()
-        //.string("abc")
-        //.sequence() // test w/ nested sequence
-        //.any()
-        //.close() // test w/ nested sequence (end)
-        //.set() // test w/ nested set
-        //.any()
-        //.close() // test w/ nested set (end)
-        //.modifier(1, 3) // test w/ nested modifier
-        //.any()
-        //.close() // test w/ nested modifier (end)
-        //.assertion(taul::polarity::negative) // test w/ nested assertion
-        //.any()
-        //.close() // test w/ nested assertion (end)
-        //.constraint(taul::polarity::negative) // test w/ nested constraint #1
-        //.any()
-        //.junction()
-        //.sequence()
-        //.localend()
-        //.string("a")
-        //.close()
-        //.close() // test w/ nested constraint #1 (end)
-        //.constraint() // test w/ nested constraint #2
-        //.sequence()
-        //.any()
-        //.close()
-        //.junction()
-        //.string("a")
-        //.close() // test w/ nested constraint #2 (end)
-        //.close() // test w/ nested (end)
-        //// set
-        //.set(taul::bias::last_longest) // test empty
-        //.close() // test empty (end)
-        //.set() // test w/ nested
-        //.any()
-        //.string("abc")
-        //.sequence() // test w/ nested sequence
-        //.any()
-        //.close() // test w/ nested sequence (end)
-        //.set() // test w/ nested set
-        //.any()
-        //.close() // test w/ nested set (end)
-        //.modifier(1, 3) // test w/ nested modifier
-        //.any()
-        //.close() // test w/ nested modifier (end)
-        //.assertion(taul::polarity::negative) // test w/ nested assertion
-        //.any()
-        //.close() // test w/ nested assertion (end)
-        //.constraint(taul::polarity::negative) // test w/ nested constraint #1
-        //.any()
-        //.junction()
-        //.sequence()
-        //.localend()
-        //.string("a")
-        //.close()
-        //.close() // test w/ nested constraint #1 (end)
-        //.constraint() // test w/ nested constraint #2
-        //.sequence()
-        //.any()
-        //.close()
-        //.junction()
-        //.string("a")
-        //.close() // test w/ nested constraint #2 (end)
-        //.close() // test w/ nested (end)
-        //// modifier
-        //.modifier(1, 1) // test w/ nested #1
-        //.any()
-        //.close() // test w/ nested #1 (end)
-        //.modifier(1, 1) // test w/ nested #2
-        //.string("abc")
-        //.close() // test w/ nested #2 (end)
-        //.modifier(1, 1) // test w/ nested #3
-        //.sequence() // test w/ nested sequence
-        //.any()
-        //.close() // test w/ nested sequence (end)
-        //.close() // test w/ nested #3 (end)
-        //.modifier(1, 1) // test w/ nested #4
-        //.set() // test w/ nested set
-        //.any()
-        //.close() // test w/ nested set (end)
-        //.close() // test w/ nested #4 (end)
-        //.modifier(1, 1) // test w/ nested #5
-        //.modifier(1, 3) // test w/ nested modifier
-        //.any()
-        //.close() // test w/ nested modifier (end)
-        //.close() // test w/ nested #5 (end)
-        //.modifier(1, 1) // test w/ nested #6
-        //.assertion(taul::polarity::negative) // test w/ nested assertion
-        //.any()
-        //.close() // test w/ nested assertion (end)
-        //.close() // test w/ nested #6 (end)
-        //.modifier(1, 1) // test w/ nested #7
-        //.constraint(taul::polarity::negative) // test w/ nested constraint #1
-        //.any()
-        //.junction()
-        //.sequence()
-        //.localend()
-        //.string("a")
-        //.close()
-        //.close() // test w/ nested constraint #1 (end)
-        //.close() // test w/ nested #7 (end)
-        //.modifier(1, 1) // test w/ nested #8
-        //.constraint() // test w/ nested constraint #2
-        //.sequence()
-        //.any()
-        //.close()
-        //.junction()
-        //.string("a")
-        //.close() // test w/ nested constraint #2 (end)
-        //.close() // test w/ nested #8 (end)
-        //// assertion
-        //.assertion(taul::polarity::positive) // test w/ nested #1
-        //.any()
-        //.close() // test w/ nested #1 (end)
-        //.assertion(taul::polarity::positive) // test w/ nested #2
-        //.string("abc")
-        //.close() // test w/ nested #2 (end)
-        //.assertion(taul::polarity::positive) // test w/ nested #3
-        //.sequence() // test w/ nested sequence
-        //.any()
-        //.close() // test w/ nested sequence (end)
-        //.close() // test w/ nested #3 (end)
-        //.assertion(taul::polarity::positive) // test w/ nested #4
-        //.set() // test w/ nested set
-        //.any()
-        //.close() // test w/ nested set (end)
-        //.close() // test w/ nested #4 (end)
-        //.assertion(taul::polarity::positive) // test w/ nested #5
-        //.modifier(1, 3) // test w/ nested modifier
-        //.any()
-        //.close() // test w/ nested modifier (end)
-        //.close() // test w/ nested #5 (end)
-        //.assertion(taul::polarity::positive) // test w/ nested #6
-        //.assertion(taul::polarity::negative) // test w/ nested assertion
-        //.any()
-        //.close() // test w/ nested assertion (end)
-        //.close() // test w/ nested #6 (end)
-        //.assertion(taul::polarity::positive) // test w/ nested #7
-        //.constraint(taul::polarity::negative) // test w/ nested constraint #1
-        //.any()
-        //.junction()
-        //.sequence()
-        //.localend()
-        //.string("a")
-        //.close()
-        //.close() // test w/ nested constraint #1 (end)
-        //.close() // test w/ nested #7 (end)
-        //.assertion(taul::polarity::positive) // test w/ nested #8
-        //.constraint() // test w/ nested constraint #2
-        //.sequence()
-        //.any()
-        //.close()
-        //.junction()
-        //.string("a")
-        //.close() // test w/ nested constraint #2 (end)
-        //.close() // test w/ nested #8 (end)
+        // test simple parser exprs
+        .begin()
+        .end()
+        .any()
+        .string("abc")
+        .charset("abc")
+        .token()
+        .failure()
+        .name("lpr0") // legal lpr ref
+        .name("lpr1") // legal lpr ref
+        .name("ppr0") // legal ppr ref
+        .name("ppr1") // legal ppr ref
+        // test composite parser exprs
+        // sequence
+        .sequence() // test empty
+        .close() // test empty (end)
+        .sequence() // test w/ nested
+        .any()
+        .string("abc")
+        .sequence() // test w/ nested sequence
+        .any()
+        .close() // test w/ nested sequence (end)
+        .set() // test w/ nested set
+        .any()
+        .close() // test w/ nested set (end)
+        .modifier(1, 3) // test w/ nested modifier
+        .any()
+        .close() // test w/ nested modifier (end)
+        .assertion(taul::polarity::negative) // test w/ nested assertion
+        .any()
+        .close() // test w/ nested assertion (end)
+        .constraint(taul::polarity::negative) // test w/ nested constraint #1
+        .any()
+        .junction()
+        .sequence()
+        .localend()
+        .string("a")
+        .close()
+        .close() // test w/ nested constraint #1 (end)
+        .constraint() // test w/ nested constraint #2
+        .sequence()
+        .any()
+        .close()
+        .junction()
+        .string("a")
+        .close() // test w/ nested constraint #2 (end)
+        .close() // test w/ nested (end)
+        // set
+        .set(taul::bias::last_longest) // test empty
+        .close() // test empty (end)
+        .set() // test w/ nested
+        .any()
+        .string("abc")
+        .sequence() // test w/ nested sequence
+        .any()
+        .close() // test w/ nested sequence (end)
+        .set() // test w/ nested set
+        .any()
+        .close() // test w/ nested set (end)
+        .modifier(1, 3) // test w/ nested modifier
+        .any()
+        .close() // test w/ nested modifier (end)
+        .assertion(taul::polarity::negative) // test w/ nested assertion
+        .any()
+        .close() // test w/ nested assertion (end)
+        .constraint(taul::polarity::negative) // test w/ nested constraint #1
+        .any()
+        .junction()
+        .sequence()
+        .localend()
+        .string("a")
+        .close()
+        .close() // test w/ nested constraint #1 (end)
+        .constraint() // test w/ nested constraint #2
+        .sequence()
+        .any()
+        .close()
+        .junction()
+        .string("a")
+        .close() // test w/ nested constraint #2 (end)
+        .close() // test w/ nested (end)
+        // modifier
+        .modifier(1, 1) // test w/ nested #1
+        .any()
+        .close() // test w/ nested #1 (end)
+        .modifier(1, 1) // test w/ nested #2
+        .string("abc")
+        .close() // test w/ nested #2 (end)
+        .modifier(1, 1) // test w/ nested #3
+        .sequence() // test w/ nested sequence
+        .any()
+        .close() // test w/ nested sequence (end)
+        .close() // test w/ nested #3 (end)
+        .modifier(1, 1) // test w/ nested #4
+        .set() // test w/ nested set
+        .any()
+        .close() // test w/ nested set (end)
+        .close() // test w/ nested #4 (end)
+        .modifier(1, 1) // test w/ nested #5
+        .modifier(1, 3) // test w/ nested modifier
+        .any()
+        .close() // test w/ nested modifier (end)
+        .close() // test w/ nested #5 (end)
+        .modifier(1, 1) // test w/ nested #6
+        .assertion(taul::polarity::negative) // test w/ nested assertion
+        .any()
+        .close() // test w/ nested assertion (end)
+        .close() // test w/ nested #6 (end)
+        .modifier(1, 1) // test w/ nested #7
+        .constraint(taul::polarity::negative) // test w/ nested constraint #1
+        .any()
+        .junction()
+        .sequence()
+        .localend()
+        .string("a")
+        .close()
+        .close() // test w/ nested constraint #1 (end)
+        .close() // test w/ nested #7 (end)
+        .modifier(1, 1) // test w/ nested #8
+        .constraint() // test w/ nested constraint #2
+        .sequence()
+        .any()
+        .close()
+        .junction()
+        .string("a")
+        .close() // test w/ nested constraint #2 (end)
+        .close() // test w/ nested #8 (end)
+        // assertion
+        .assertion(taul::polarity::positive) // test w/ nested #1
+        .any()
+        .close() // test w/ nested #1 (end)
+        .assertion(taul::polarity::positive) // test w/ nested #2
+        .string("abc")
+        .close() // test w/ nested #2 (end)
+        .assertion(taul::polarity::positive) // test w/ nested #3
+        .sequence() // test w/ nested sequence
+        .any()
+        .close() // test w/ nested sequence (end)
+        .close() // test w/ nested #3 (end)
+        .assertion(taul::polarity::positive) // test w/ nested #4
+        .set() // test w/ nested set
+        .any()
+        .close() // test w/ nested set (end)
+        .close() // test w/ nested #4 (end)
+        .assertion(taul::polarity::positive) // test w/ nested #5
+        .modifier(1, 3) // test w/ nested modifier
+        .any()
+        .close() // test w/ nested modifier (end)
+        .close() // test w/ nested #5 (end)
+        .assertion(taul::polarity::positive) // test w/ nested #6
+        .assertion(taul::polarity::negative) // test w/ nested assertion
+        .any()
+        .close() // test w/ nested assertion (end)
+        .close() // test w/ nested #6 (end)
+        .assertion(taul::polarity::positive) // test w/ nested #7
+        .constraint(taul::polarity::negative) // test w/ nested constraint #1
+        .any()
+        .junction()
+        .sequence()
+        .localend()
+        .string("a")
+        .close()
+        .close() // test w/ nested constraint #1 (end)
+        .close() // test w/ nested #7 (end)
+        .assertion(taul::polarity::positive) // test w/ nested #8
+        .constraint() // test w/ nested constraint #2
+        .sequence()
+        .any()
+        .close()
+        .junction()
+        .string("a")
+        .close() // test w/ nested constraint #2 (end)
+        .close() // test w/ nested #8 (end)
         .close()
         .ppr("ppr1") // test empty
         .close()
@@ -513,7 +514,7 @@ TEST(load_tests, success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage) {
         .name("lpr1")
         .close()
         .ppr("ppr0")
-        //.name("ppr1") TODO: add later
+        .name("ppr1")
         .close()
         .lpr("lpr1")
         .close()
@@ -560,7 +561,7 @@ TEST(load_tests, success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage) {
 // the below detail what errors each instruction can raise, and thus which must
 // be unit tested, and being specified *in order*
 
-static_assert(taul::spec_errors == 17);
+static_assert(taul::spec_errors == 18);
 
 // grammar-bias
 //      illegal-in-lpr-scope
@@ -994,27 +995,7 @@ TEST(load_tests, ppr_forErr_illegal_in_ppr_scope) {
 }
 
 // begin
-//      illegal-in-ppr-scope
 //      illegal-in-no-scope
-
-TEST(load_tests, begin_forErr_illegal_in_ppr_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("ppr0")
-        .ppr("ppr0")
-        .begin()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
-    EXPECT_FALSE(gram);
-}
 
 TEST(load_tests, begin_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1033,27 +1014,7 @@ TEST(load_tests, begin_forErr_illegal_in_no_scope) {
 }
 
 // end
-//      illegal-in-ppr-scope
 //      illegal-in-no-scope
-
-TEST(load_tests, end_forErr_illegal_in_ppr_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("ppr0")
-        .ppr("ppr0")
-        .end()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
-    EXPECT_FALSE(gram);
-}
 
 TEST(load_tests, end_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1072,27 +1033,7 @@ TEST(load_tests, end_forErr_illegal_in_no_scope) {
 }
 
 // any
-//      illegal-in-ppr-scope
 //      illegal-in-no-scope
-
-TEST(load_tests, any_forErr_illegal_in_ppr_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("ppr0")
-        .ppr("ppr0")
-        .any()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
-    EXPECT_FALSE(gram);
-}
 
 TEST(load_tests, any_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1111,27 +1052,7 @@ TEST(load_tests, any_forErr_illegal_in_no_scope) {
 }
 
 // string
-//      illegal-in-ppr-scope
 //      illegal-in-no-scope
-
-TEST(load_tests, string_forErr_illegal_in_ppr_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("ppr0")
-        .ppr("ppr0")
-        .string("abc")
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
-    EXPECT_FALSE(gram);
-}
 
 TEST(load_tests, string_seq_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1150,27 +1071,7 @@ TEST(load_tests, string_seq_forErr_illegal_in_no_scope) {
 }
 
 // charset
-//      illegal-in-ppr-scope
 //      illegal-in-no-scope
-
-TEST(load_tests, charset_forErr_illegal_in_ppr_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("ppr0")
-        .ppr("ppr0")
-        .charset("abc")
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
-    EXPECT_FALSE(gram);
-}
 
 TEST(load_tests, charset_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1188,36 +1089,91 @@ TEST(load_tests, charset_forErr_illegal_in_no_scope) {
     EXPECT_FALSE(gram);
 }
 
-// TODO: when we add parsers, we'll need to have different versions of below tests for
-//       name usages in lprs and pprs
-
-// name
-//      illegal-in-ppr-scope
+// token
+//      illegal-in-lpr-scope
 //      illegal-in-no-scope
-//      rule-not-found (rule never declared)
-//      rule-not-found (rule declared after name referencing it) (for lprs)
 
-TEST(load_tests, name_forErr_illegal_in_ppr_scope) {
+TEST(load_tests, token_forErr_illegal_in_lpr_scope) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
     const auto s =
         taul::spec_writer()
-        .lpr_decl("lpr0")
-        .ppr_decl("ppr0")
-        .lpr("lpr0")
-        .close()
-        .ppr("ppr0")
-        .name("lpr0")
+        .lpr_decl("a")
+        .lpr("a")
+        .token() // illegal!
         .close()
         .done();
 
     const auto gram = taul::load(s, ec, lgr);
 
     //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_lpr_scope), 1);
     EXPECT_FALSE(gram);
 }
+
+TEST(load_tests, token_forErr_illegal_in_no_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .token()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+// failure
+//      illegal-in-lpr-scope
+//      illegal-in-no-scope
+
+TEST(load_tests, failure_forErr_illegal_in_lpr_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a")
+        .lpr("a")
+        .failure() // illegal!
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_lpr_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, failure_forErr_illegal_in_no_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .failure()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+// name
+//      illegal-in-no-scope
+//      rule-not-found (rule not yet declared)
+//      rule-not-found (lpr not yet defined) (for lprs)
+//      rule-not-found (lpr not yet defined) (for pprs)
+//      rule-not-found (ppr not yet defined) (for pprs)
+//      rule-may-not-be-ppr (for lprs)
 
 TEST(load_tests, name_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1238,7 +1194,7 @@ TEST(load_tests, name_forErr_illegal_in_no_scope) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, name_forErr_rule_not_found_ruleNeverDeclared) {
+TEST(load_tests, name_forErr_rule_not_found_ruleNotYetDeclared) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1257,7 +1213,7 @@ TEST(load_tests, name_forErr_rule_not_found_ruleNeverDeclared) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, name_forErr_rule_not_found_ruleDeclaredAfterNameReferencingIt_forLPRs) {
+TEST(load_tests, name_forErr_rule_not_found_LPRNotYetDefined_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1279,11 +1235,7 @@ TEST(load_tests, name_forErr_rule_not_found_ruleDeclaredAfterNameReferencingIt_f
     EXPECT_FALSE(gram);
 }
 
-// sequence
-//      illegal-in-ppr-scope
-//      illegal-in-no-scope
-
-TEST(load_tests, sequence_forErr_illegal_in_ppr_scope) {
+TEST(load_tests, name_forErr_rule_not_found_LPRNotYetDefined_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1291,17 +1243,66 @@ TEST(load_tests, sequence_forErr_illegal_in_ppr_scope) {
         taul::spec_writer()
         .ppr_decl("ppr0")
         .ppr("ppr0")
-        .sequence()
+        .name("lpr1")
         .close()
+        .lpr_decl("lpr1")
+        .lpr("lpr1")
         .close()
         .done();
 
     const auto gram = taul::load(s, ec, lgr);
 
     //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
+    EXPECT_EQ(ec.count(taul::spec_error::rule_not_found), 1);
     EXPECT_FALSE(gram);
 }
+
+TEST(load_tests, name_forErr_rule_not_found_PPRNotYetDefined_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr("ppr0")
+        .name("ppr1")
+        .close()
+        .ppr_decl("ppr1")
+        .ppr("ppr1")
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::rule_not_found), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, name_forErr_rule_may_not_be_ppr_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .ppr_decl("ppr0")
+        .lpr("lpr0")
+        .name("ppr0")
+        .close()
+        .ppr("ppr0")
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::rule_may_not_be_ppr), 1);
+    EXPECT_FALSE(gram);
+}
+
+// sequence
+//      illegal-in-no-scope
 
 TEST(load_tests, sequence_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1321,28 +1322,7 @@ TEST(load_tests, sequence_forErr_illegal_in_no_scope) {
 }
 
 // set
-//      illegal-in-ppr-scope
 //      illegal-in-no-scope
-
-TEST(load_tests, set_forErr_illegal_in_ppr_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("ppr0")
-        .ppr("ppr0")
-        .set(taul::bias::last_shortest)
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
-    EXPECT_FALSE(gram);
-}
 
 TEST(load_tests, set_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1362,30 +1342,11 @@ TEST(load_tests, set_forErr_illegal_in_no_scope) {
 }
 
 // modifier
-//      illegal-in-ppr-scope
 //      illegal-in-no-scope
-//      illegal-subexpr-count (due to <1 subexprs)
-//      illegal-subexpr-count (due to >1 subexprs)
-
-TEST(load_tests, modifier_forErr_illegal_in_ppr_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("ppr0")
-        .ppr("ppr0")
-        .modifier(0, 1)
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
-    EXPECT_FALSE(gram);
-}
+//      illegal-subexpr-count (due to <1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to <1 subexprs) (for pprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for pprs)
 
 TEST(load_tests, modifier_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1404,7 +1365,7 @@ TEST(load_tests, modifier_forErr_illegal_in_no_scope) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooFewSubExprs) {
+TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1425,7 +1386,28 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooFewSubExprs) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooManySubExprs) {
+TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .modifier(0, 0)
+        // no subexprs, illegal!
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1448,22 +1430,18 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooManySubExprs) {
     EXPECT_FALSE(gram);
 }
 
-// assertion
-//      illegal-in-ppr-scope
-//      illegal-in-no-scope
-//      illegal-subexpr-count (due to <1 subexprs)
-//      illegal-subexpr-count (due to >1 subexprs)
-
-TEST(load_tests, assertion_forErr_illegal_in_ppr_scope) {
+TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
     const auto s =
         taul::spec_writer()
-        .ppr_decl("ppr0")
-        .ppr("ppr0")
-        .assertion()
-        //.any() <- impl could raise illegal_in_ppr_scope for this, so we'll just exclude it
+        .ppr_decl("f")
+        .ppr("f")
+        .modifier(0, 0)
+        // two subexprs, illegal!
+        .any()
+        .any()
         .close()
         .close()
         .done();
@@ -1471,9 +1449,16 @@ TEST(load_tests, assertion_forErr_illegal_in_ppr_scope) {
     const auto gram = taul::load(s, ec, lgr);
 
     //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
     EXPECT_FALSE(gram);
 }
+
+// assertion
+//      illegal-in-no-scope
+//      illegal-subexpr-count (due to <1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to <1 subexprs) (for pprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for pprs)
 
 TEST(load_tests, assertion_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1493,7 +1478,7 @@ TEST(load_tests, assertion_forErr_illegal_in_no_scope) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooFewSubExprs) {
+TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1514,7 +1499,28 @@ TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooFewSubExprs) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooManySubExprs) {
+TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .assertion(taul::polarity::negative)
+        // no subexprs, illegal!
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1537,25 +1543,18 @@ TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooManySubExprs) {
     EXPECT_FALSE(gram);
 }
 
-// constraint
-//      illegal-in-ppr-scope
-//      illegal-in-no-scope
-//      illegal-subexpr-count (due to <2 subexprs)
-//      illegal-subexpr-count (due to >2 subexprs)
-//      junction-missing
-
-TEST(load_tests, constraint_forErr_illegal_in_ppr_scope) {
+TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
     const auto s =
         taul::spec_writer()
-        .ppr_decl("ppr0")
-        .ppr("ppr0")
-        .constraint()
-        //.any() <- impl could raise illegal_in_ppr_scope for this, so we'll just exclude it
-        //.junction() <- excluded this too
-        //.any() <- impl could raise illegal_in_ppr_scope for this, so we'll just exclude it
+        .ppr_decl("f")
+        .ppr("f")
+        .assertion(taul::polarity::negative)
+        // two subexprs, illegal!
+        .any()
+        .any()
         .close()
         .close()
         .done();
@@ -1563,9 +1562,18 @@ TEST(load_tests, constraint_forErr_illegal_in_ppr_scope) {
     const auto gram = taul::load(s, ec, lgr);
 
     //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
     EXPECT_FALSE(gram);
 }
+
+// constraint
+//      illegal-in-no-scope
+//      illegal-subexpr-count (due to <2 subexprs) (for lprs)
+//      illegal-subexpr-count (due to <2 subexprs) (for pprs)
+//      illegal-subexpr-count (due to >2 subexprs) (for lprs)
+//      illegal-subexpr-count (due to >2 subexprs) (for pprs)
+//      junction-missing (for lprs)
+//      junction-missing (for pprs)
 
 TEST(load_tests, constraint_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1587,7 +1595,7 @@ TEST(load_tests, constraint_forErr_illegal_in_no_scope) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooFewSubExprs) {
+TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1610,7 +1618,30 @@ TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooFewSubExprs) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooManySubExprs) {
+TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .constraint(taul::polarity::negative)
+        // one subexpr, illegal!
+        .any()
+        .junction()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1635,7 +1666,32 @@ TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooManySubExprs) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, constraint_forErr_junction_missing) {
+TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .constraint(taul::polarity::negative)
+        // three subexprs, illegal!
+        .any()
+        .junction()
+        .any()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, constraint_forErr_junction_missing_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1658,13 +1714,39 @@ TEST(load_tests, constraint_forErr_junction_missing) {
     EXPECT_FALSE(gram);
 }
 
-// junction
-//      junction-not-in-constraint (for lprs)
-//      junction-misplaced (due to coming after <1 prior subexprs) (for lprs)
-//      junction-misplaced (due to coming after >1 prior subexprs) (for lprs)
-//      junction-already-established (for lprs)
+TEST(load_tests, constraint_forErr_junction_missing_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
 
-TEST(load_tests, junction_forErr_junction_not_in_constraint_forLPRs) {
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .constraint()
+        // okay, but no junction!
+        .any()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::junction_missing), 1);
+    EXPECT_FALSE(gram);
+}
+
+// junction
+//      junction-not-in-constraint
+//      junction-misplaced (due to coming after <1 prior subexprs) (for lprs)
+//      junction-misplaced (due to coming after <1 prior subexprs) (for pprs)
+//      junction-misplaced (due to coming after >1 prior subexprs) (for lprs)
+//      junction-misplaced (due to coming after >1 prior subexprs) (for pprs)
+//      junction-already-established (for lprs)
+//      junction-already-established (for pprs)
+
+TEST(load_tests, junction_forErr_junction_not_in_constraint) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1703,6 +1785,29 @@ TEST(load_tests, junction_forErr_junction_misplaced_dueToComingAfterTooFewPriorS
     EXPECT_FALSE(gram);
 }
 
+TEST(load_tests, junction_forErr_junction_misplaced_dueToComingAfterTooFewPriorSubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .constraint()
+        .junction()
+        .any()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::junction_misplaced), 1);
+    EXPECT_FALSE(gram);
+}
+
 TEST(load_tests, junction_forErr_junction_misplaced_dueToComingAfterTooManyPriorSubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
@@ -1711,6 +1816,29 @@ TEST(load_tests, junction_forErr_junction_misplaced_dueToComingAfterTooManyPrior
         taul::spec_writer()
         .lpr_decl("f")
         .lpr("f")
+        .constraint()
+        .any()
+        .any()
+        .junction()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::junction_misplaced), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, junction_forErr_junction_misplaced_dueToComingAfterTooManyPriorSubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
         .constraint()
         .any()
         .any()
@@ -1750,8 +1878,33 @@ TEST(load_tests, junction_forErr_junction_already_established_forLPRs) {
     EXPECT_FALSE(gram);
 }
 
+TEST(load_tests, junction_forErr_junction_already_established_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .constraint()
+        .any()
+        .junction()
+        .junction()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::junction_already_established), 1);
+    EXPECT_FALSE(gram);
+}
+
 // localend
 //      illegal-localend (for lprs)
+//      illegal-localend (for pprs)
 
 TEST(load_tests, localend_forErr_illegal_localend_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
@@ -1761,6 +1914,29 @@ TEST(load_tests, localend_forErr_illegal_localend_forLPRs) {
         taul::spec_writer()
         .lpr_decl("f")
         .lpr("f")
+        .constraint()
+        .localend() // the only invalid part of this is that it's not in the constraining expr
+        .junction()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_localend), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, localend_forErr_illegal_localend_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
         .constraint()
         .localend() // the only invalid part of this is that it's not in the constraining expr
         .junction()

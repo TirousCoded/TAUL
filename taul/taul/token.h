@@ -5,7 +5,6 @@
 
 #include <stddef.h>
 #include <ostream>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <format>
@@ -16,15 +15,8 @@
 namespace taul {
 
 
+    class lpr_association_error;
     struct lexer_rule;
-
-
-    class failure_token_error final : public std::logic_error {
-    public:
-
-        inline explicit failure_token_error(const std::string& msg) : logic_error(msg) {}
-        inline explicit failure_token_error(const char* msg) : logic_error(msg) {}
-    };
 
 
     struct token final {
@@ -52,7 +44,7 @@ namespace taul {
         inline explicit operator bool() const noexcept { return !is_failure(); }
 
 
-        // throws taul::failure_token_error if the token is a failure token        
+        // throws taul::lpr_association_error if the token has no lpr association (aka. it's a failure token)     
         
         const lexer_rule& lpr() const;
 

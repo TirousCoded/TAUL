@@ -68,6 +68,16 @@ taul::spec_writer& taul::spec_writer::charset(std::string_view s) {
     return *this;
 }
 
+taul::spec_writer& taul::spec_writer::token() {
+    internal::spec_write_opcode(_temp, spec_opcode::token);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::failure() {
+    internal::spec_write_opcode(_temp, spec_opcode::failure);
+    return *this;
+}
+
 taul::spec_writer& taul::spec_writer::name(std::string_view name) {
     internal::spec_write_opcode(_temp, spec_opcode::name);
     internal::spec_write_str(_temp, name);
@@ -130,7 +140,7 @@ void taul::spec_interpreter::interpret(const spec& x) {
 }
 
 std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
-    static_assert(spec_opcodes == 19);
+    static_assert(spec_opcodes == 21);
     std::size_t len = 0;
     const auto opcode = internal::spec_read_opcode(s, offset, len);
     switch (opcode) {
@@ -195,6 +205,16 @@ std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
     {
         const auto s0 = internal::spec_read_str(s, offset + len, len);
         on_charset(s0);
+    }
+    break;
+    case spec_opcode::token:
+    {
+        on_token();
+    }
+    break;
+    case spec_opcode::failure:
+    {
+        on_failure();
     }
     break;
     case spec_opcode::name:

@@ -36,7 +36,7 @@ namespace taul {
         spec_writer& operator=(spec_writer&&) noexcept = delete;
 
 
-        static_assert(spec_opcodes == 19);
+        static_assert(spec_opcodes == 21);
 
         spec_writer& grammar_bias(bias b);
         spec_writer& close();
@@ -50,6 +50,8 @@ namespace taul {
         spec_writer& any();
         spec_writer& string(std::string_view s);
         spec_writer& charset(std::string_view s);
+        spec_writer& token();
+        spec_writer& failure();
         spec_writer& name(std::string_view name);
         spec_writer& sequence();
         spec_writer& set(bias b = bias::first_longest);
@@ -96,7 +98,7 @@ namespace taul {
         virtual void on_startup() {}
         virtual void on_shutdown() {}
 
-        static_assert(spec_opcodes == 19);
+        static_assert(spec_opcodes == 21);
 
         virtual void on_grammar_bias(bias b) {}
         virtual void on_close() {}
@@ -110,6 +112,8 @@ namespace taul {
         virtual void on_any() {}
         virtual void on_string(std::string_view s) {}
         virtual void on_charset(std::string_view s) {}
+        virtual void on_token() {}
+        virtual void on_failure() {}
         virtual void on_name(std::string_view name) {}
         virtual void on_sequence() {}
         virtual void on_set(bias b) {}

@@ -5,11 +5,21 @@
 #include "asserts.h"
 
 
+taul::token taul::default_lexer_function(
+    const std::shared_ptr<lexer_state>&,
+    std::string_view,
+    source_pos,
+    const std::shared_ptr<logger>&) {
+    return token{};
+}
+
 taul::lexer_function taul::internal::get_lexer_f(const lexer& x) noexcept {
     return x._f;
 }
 
-taul::lexer::lexer(lexer_function f, const std::shared_ptr<lexer_state>& state) 
+taul::lexer::lexer(
+    lexer_function f, 
+    const std::shared_ptr<lexer_state>& state) 
     : _f(f), 
     _state(state) {
     TAUL_ASSERT(f);
@@ -46,14 +56,12 @@ taul::token taul::lexer::operator()(std::string_view txt, const std::shared_ptr<
 }
 
 taul::token taul::lexer::operator()(std::string_view txt, source_pos offset, const std::shared_ptr<logger>& lgr) const {
-    TAUL_ASSERT(offset <= txt.length());
+    TAUL_IN_BOUNDS(offset, 0, txt.length() + 1);
     token result{};
     if (_f) {
         result = _f(_state, txt, offset, lgr);
     }
-    else {
-        TAUL_DEADEND;
-    }
+    else TAUL_DEADEND;
     return result;
 }
 

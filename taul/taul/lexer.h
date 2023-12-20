@@ -3,7 +3,6 @@
 #pragma once
 
 
-#include <cstdint>
 #include <memory>
 #include <string_view>
 
@@ -33,6 +32,11 @@ namespace taul {
         source_pos offset,
         const std::shared_ptr<logger>& lgr);
 
+    // TODO: in our *official* documentation, do be sure to remind the end-user to
+    //       be careful about including grammar shared pointers in lexer state,
+    //       as the lexers themselves will be stored within grammars, so if we're
+    //       not careful, this could create a strong reference cycle
+
     class lexer_state {
     public:
 
@@ -40,13 +44,11 @@ namespace taul {
     };
 
 
-    inline token default_lexer_function(
+    token default_lexer_function(
         const std::shared_ptr<lexer_state>&,
         std::string_view,
         source_pos,
-        const std::shared_ptr<logger>&) {
-        return token{};
-    }
+        const std::shared_ptr<logger>&);
 
 
     namespace internal {
@@ -64,7 +66,9 @@ namespace taul {
 
         // behaviour is undefined if f == nullptr
 
-        lexer(lexer_function f, const std::shared_ptr<lexer_state>& state = nullptr);
+        lexer(
+            lexer_function f, 
+            const std::shared_ptr<lexer_state>& state = nullptr);
 
         // default initialized lexer function objects will be valid, but *trivial*, lexer
         // function object which returns taul::token{}
@@ -86,7 +90,8 @@ namespace taul {
 
         // the 'offset' below refers to where in txt lexical analysis is to begin
 
-        // behaviour is undefined if offset > txt.length()
+        // behaviour is undefined if offset > txt.length() (notice that this allows
+        // for the case where offset == txt.length())
 
         token operator()(
             std::string_view txt,

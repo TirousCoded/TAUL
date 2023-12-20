@@ -93,93 +93,83 @@ TEST_F(TokenizeTests, tokenize_into) {
     // at the end of the below) and tests the merging of contiguous
     // failure tokens that are output
 
-    std::vector<taul::token> tkns0, tkns1, tkns2, tkns3, tkns4, tkns5;
+    taul::token_seq tkns0(""), tkns1(""), tkns2(""), tkns3(""), tkns4(""), tkns5("");
 
     // test w/out offset
 
-    tkns0.push_back(taul::token::failure("abc", 10));
+    tkns0.push_failure(0);
 
     taul::tokenize_into(tkns0, lex1, "aaa00aa", lgr);
 
-    if (tkns0.size() == 7) {
-        EXPECT_EQ(tkns0[0], taul::token::failure("abc", 10));
-        EXPECT_EQ(tkns0[1], taul::token(gram.lpr("lpr0"), "a", 0));
-        EXPECT_EQ(tkns0[2], taul::token(gram.lpr("lpr0"), "a", 1));
-        EXPECT_EQ(tkns0[3], taul::token(gram.lpr("lpr0"), "a", 2));
-        EXPECT_EQ(tkns0[4], taul::token::failure("00", 3));
-        EXPECT_EQ(tkns0[5], taul::token(gram.lpr("lpr0"), "a", 5));
-        EXPECT_EQ(tkns0[6], taul::token(gram.lpr("lpr0"), "a", 6));
+    if (tkns0.size() == 6) {
+        EXPECT_EQ(tkns0[0], taul::token(gram.lpr("lpr0"), "a", 0));
+        EXPECT_EQ(tkns0[1], taul::token(gram.lpr("lpr0"), "a", 1));
+        EXPECT_EQ(tkns0[2], taul::token(gram.lpr("lpr0"), "a", 2));
+        EXPECT_EQ(tkns0[3], taul::token::failure("00", 3));
+        EXPECT_EQ(tkns0[4], taul::token(gram.lpr("lpr0"), "a", 5));
+        EXPECT_EQ(tkns0[5], taul::token(gram.lpr("lpr0"), "a", 6));
     }
     else ADD_FAILURE();
 
     // test w/ offset
 
-    tkns1.push_back(taul::token::failure("abc", 10));
+    tkns1.push_failure(0);
 
     taul::tokenize_into(tkns1, lex1, "00a00aa", 2, lgr);
 
-    if (tkns1.size() == 5) {
-        EXPECT_EQ(tkns1[0], taul::token::failure("abc", 10));
-        EXPECT_EQ(tkns1[1], taul::token(gram.lpr("lpr0"), "a", 2));
-        EXPECT_EQ(tkns1[2], taul::token::failure("00", 3));
-        EXPECT_EQ(tkns1[3], taul::token(gram.lpr("lpr0"), "a", 5));
-        EXPECT_EQ(tkns1[4], taul::token(gram.lpr("lpr0"), "a", 6));
+    if (tkns1.size() == 4) {
+        EXPECT_EQ(tkns1[0], taul::token(gram.lpr("lpr0"), "a", 2));
+        EXPECT_EQ(tkns1[1], taul::token::failure("00", 3));
+        EXPECT_EQ(tkns1[2], taul::token(gram.lpr("lpr0"), "a", 5));
+        EXPECT_EQ(tkns1[3], taul::token(gram.lpr("lpr0"), "a", 6));
     }
     else ADD_FAILURE();
 
     // test 0 length tokens w/out offset
 
-    tkns2.push_back(taul::token::failure("abc", 10));
+    tkns2.push_failure(0);
 
     taul::tokenize_into(tkns2, lex2, "000b", lgr);
 
-    if (tkns2.size() == 8) {
-        EXPECT_EQ(tkns2[0], taul::token::failure("abc", 10));
-        EXPECT_EQ(tkns2[1], taul::token(gram.lpr("lpr1"), "", 0));
-        EXPECT_EQ(tkns2[2], taul::token::failure("0", 0));
-        EXPECT_EQ(tkns2[3], taul::token(gram.lpr("lpr1"), "", 1));
-        EXPECT_EQ(tkns2[4], taul::token::failure("0", 1));
-        EXPECT_EQ(tkns2[5], taul::token(gram.lpr("lpr1"), "", 2));
-        EXPECT_EQ(tkns2[6], taul::token::failure("0b", 2));
-        EXPECT_EQ(tkns2[7], taul::token(gram.lpr("lpr1"), "", 4));
+    if (tkns2.size() == 7) {
+        EXPECT_EQ(tkns2[0], taul::token(gram.lpr("lpr1"), "", 0));
+        EXPECT_EQ(tkns2[1], taul::token::failure("0", 0));
+        EXPECT_EQ(tkns2[2], taul::token(gram.lpr("lpr1"), "", 1));
+        EXPECT_EQ(tkns2[3], taul::token::failure("0", 1));
+        EXPECT_EQ(tkns2[4], taul::token(gram.lpr("lpr1"), "", 2));
+        EXPECT_EQ(tkns2[5], taul::token::failure("0b", 2));
+        EXPECT_EQ(tkns2[6], taul::token(gram.lpr("lpr1"), "", 4));
     }
     else ADD_FAILURE();
 
     // test 0 length tokens w/ offset
 
-    tkns3.push_back(taul::token::failure("abc", 10));
+    tkns3.push_failure(0);
 
     taul::tokenize_into(tkns3, lex2, "000b", 2, lgr);
 
-    if (tkns3.size() == 4) {
-        EXPECT_EQ(tkns3[0], taul::token::failure("abc", 10));
-        EXPECT_EQ(tkns3[1], taul::token(gram.lpr("lpr1"), "", 2));
-        EXPECT_EQ(tkns3[2], taul::token::failure("0b", 2));
-        EXPECT_EQ(tkns3[3], taul::token(gram.lpr("lpr1"), "", 4));
+    if (tkns3.size() == 3) {
+        EXPECT_EQ(tkns3[0], taul::token(gram.lpr("lpr1"), "", 2));
+        EXPECT_EQ(tkns3[1], taul::token::failure("0b", 2));
+        EXPECT_EQ(tkns3[2], taul::token(gram.lpr("lpr1"), "", 4));
     }
     else ADD_FAILURE();
 
     // test empty string w/out token at end w/out offset
 
-    tkns4.push_back(taul::token::failure("abc", 10));
+    tkns4.push_failure(0);
 
     taul::tokenize_into(tkns4, lex1, "", lgr);
 
-    if (tkns4.size() == 1) {
-        EXPECT_EQ(tkns4[0], taul::token::failure("abc", 10));
-    }
-    else ADD_FAILURE();
+    EXPECT_TRUE(tkns4.empty());
 
     // test empty string (section) w/out token at end w/ offset
 
-    tkns5.push_back(taul::token::failure("abc", 10));
+    tkns5.push_failure(0);
 
     taul::tokenize_into(tkns5, lex1, "aa", 2, lgr);
 
-    if (tkns5.size() == 1) {
-        EXPECT_EQ(tkns5[0], taul::token::failure("abc", 10));
-    }
-    else ADD_FAILURE();
+    EXPECT_TRUE(tkns5.empty());
 }
 
 TEST_F(TokenizeTests, tokenize) {

@@ -16,6 +16,7 @@
 #include "grammar.h"
 
 #include "internal/lexer_pat.h"
+#include "internal/parser_pat.h"
 
 
 namespace taul {
@@ -133,6 +134,7 @@ namespace taul {
                 ets_type            type            = ets_type::none;
                 std::string_view    name            = "";               // name of lpr/ppr, if any
                 bool                has_lpr_pat     = false;            // pops from lexer_pats on pop (push must be done manually)
+                bool                has_ppr_pat     = false;            // pops from parser_pats on pop (push must be done manually)
                 
                 // the below are *not* to be initialized explicitly
                 
@@ -183,6 +185,7 @@ namespace taul {
             // built via them
 
             std::vector<std::shared_ptr<internal::lexer_pat>> lexer_pats;
+            std::vector<std::shared_ptr<internal::parser_pat>> parser_pats;
 
             // this is for simple exprs (eg. 'char') to *bind* their lexer pattern object
             // to the top one of the lexer_pats stack, instead of pushing to the stack
@@ -196,12 +199,32 @@ namespace taul {
                 return _new;
             }
 
+            // this is the parser equivalent of the above
+            
+            template<typename ParserPat, typename... Args>
+            inline std::shared_ptr<internal::parser_pat> bind_parser_pat(Args&&... args) {
+                auto _new = std::make_shared<ParserPat>(std::forward<Args>(args)...);
+                if (!parser_pats.empty()) {
+                    parser_pats.back()->children.push_back(_new);
+                }
+                return _new;
+            }
+
             // this is for composite exprs to push their lexer pattern object to the top of lexer_pats
 
             template<typename LexerPat, typename... Args>
             inline std::shared_ptr<internal::lexer_pat> push_lexer_pat(Args&&... args) {
                 auto _new = bind_lexer_pat<LexerPat>(std::forward<Args>(args)...);
                 lexer_pats.push_back(_new);
+                return _new;
+            }
+
+            // this is the parser equivalent of the above
+
+            template<typename ParserPat, typename... Args>
+            inline std::shared_ptr<internal::parser_pat> push_parser_pat(Args&&... args) {
+                auto _new = bind_parser_pat<ParserPat>(std::forward<Args>(args)...);
+                parser_pats.push_back(_new);
                 return _new;
             }
 
@@ -215,6 +238,17 @@ namespace taul {
                 }
                 return result;
             }
+            
+            // this is the parser equivalent of the above
+
+            inline std::shared_ptr<internal::parser_pat> pop_parser_pat() {
+                std::shared_ptr<internal::parser_pat> result = nullptr;
+                if (!parser_pats.empty()) {
+                    result = parser_pats.back();
+                    parser_pats.pop_back();
+                }
+                return result;
+            }
 
             inline void handle_pop_lexer_pat_for_top_ess() {
                 if (!in_lpr()) return;
@@ -225,15 +259,30 @@ namespace taul {
                 }
             }
 
+            inline void handle_pop_parser_pat_for_top_ess() {
+                if (!in_ppr()) return;
+                if (!ess.back().has_ppr_pat) return;
+                auto popped = pop_parser_pat();
+                if (ess.back().opcode == taul::spec_opcode::ppr) {
+                    bind_parser_pat_to_ppr(ess.back().name, popped);
+                }
+            }
+
 
             // these maps lpr/ppr names to their lexer/parser 'pattern' expr trees, for us to
             // then use to build final lexers/parsers during taul::load
 
             std::unordered_map<std::string_view, std::shared_ptr<internal::lexer_pat>> lexer_pat_map;
+            std::unordered_map<std::string_view, std::shared_ptr<internal::parser_pat>> parser_pat_map;
 
             inline void bind_lexer_pat_to_lpr(std::string_view lpr, std::shared_ptr<internal::lexer_pat> pat) {
                 TAUL_ASSERT(!lexer_pat_map.contains(lpr));
                 lexer_pat_map[lpr] = std::move(pat);
+            }
+            
+            inline void bind_parser_pat_to_ppr(std::string_view ppr, std::shared_ptr<internal::parser_pat> pat) {
+                TAUL_ASSERT(!parser_pat_map.contains(ppr));
+                parser_pat_map[ppr] = std::move(pat);
             }
 
 
@@ -258,6 +307,7 @@ namespace taul {
             void check_ppr_was_declared(std::string_view name);
             void check_lpr_not_already_defined(std::string_view name);
             void check_ppr_not_already_defined(std::string_view name);
+            void check_rule_is_not_ppr(std::string_view name);
 
             void check_lpr_or_ppr_exists_with_name(std::string_view name);
 
@@ -280,7 +330,7 @@ namespace taul {
             void on_startup() override final;
             void on_shutdown() override final;
 
-            static_assert(spec_opcodes == 19);
+            static_assert(spec_opcodes == 21);
 
             void on_grammar_bias(bias b) override final;
             void on_close() override final;
@@ -294,6 +344,8 @@ namespace taul {
             void on_any() override final;
             void on_string(std::string_view s) override final;
             void on_charset(std::string_view s) override final;
+            void on_token() override final;
+            void on_failure() override final;
             void on_name(std::string_view name) override final;
             void on_sequence() override final;
             void on_set(bias b) override final;
