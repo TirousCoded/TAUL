@@ -271,3 +271,4 @@ taul::internal::lexer_match taul::internal::name_lexer_pat::eval(const grammar_d
         ? make_lexer_match(true, tkn.str(), offset)
         : make_lexer_match(false, "", offset);
 }
+

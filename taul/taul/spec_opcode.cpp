@@ -30,7 +30,6 @@ std::string taul::fmt_spec_opcode(spec_opcode x) {
     case spec_opcode::constraint:       result = "constraint";      break;
     case spec_opcode::junction:         result = "junction";        break;
     case spec_opcode::localend:         result = "localend";        break;
-    //case spec_opcode::lsubexpr:         result = "lsubexpr";        break;
     default:                            TAUL_DEADEND;               break;
     }
     return result;

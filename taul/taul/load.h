@@ -322,6 +322,7 @@ namespace taul {
             void check_junction_not_misplaced();
             void check_junction_not_already_established();
             void check_has_junction_if_constraint();
+
             void check_localend_in_constraint_scope_and_after_junction();
 
 

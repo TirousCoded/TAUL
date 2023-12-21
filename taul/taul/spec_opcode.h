@@ -14,6 +14,7 @@ namespace taul {
 
 
     enum class spec_opcode : std::uint8_t {
+
         grammar_bias,   // grammar bias defaults to first-longest if missing
         close,
         lpr_decl,
@@ -61,15 +62,12 @@ namespace taul {
         constraint,     // lexer/parser
         junction,       // the *junction* between 'constrained' and 'constraining' exprs; this is not an expr
 
-        // TODO: when we add parser stuff, we'll need semantics to make it illegal for a localend
-        //       in an embedded lexer subexpr within a parser expr to be for a parser constraint
+        // TODO: if we ever add an 'lsubexpr' (aka. 'lexer subexpression') expr, we'll need to account
+        //       for having a localend within a nested lsubexpr expr be able to detect when the available
+        //       constraint expr is the one in the outside parser expr, w/ the localend being deemed
+        //       illegal in such circumstances
 
         localend,       // lexer/parser
-
-        // lexer subexprs accept only a single nested expr, so a sequence is expected to be generated
-        // by the compiler in order to enable TAUL syntax to treat them as allowing a sequence of subexprs
-
-        //lsubexpr,       // parser-only
 
         num,            // this is not a valid spec opcode
     };
