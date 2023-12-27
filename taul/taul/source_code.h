@@ -43,13 +43,20 @@ namespace taul {
     using source_pos = std::uint32_t;
 
 
+    // this format function is used to get a formatted string of a source_pos, for
+    // situations where full source_location information isn't otherwise available
+
+    std::string fmt_pos(source_pos pos);
+
+
     struct source_page final {
-        source_pos      pos	    = 0;
+        source_pos      pos     = 0;
         std::size_t     length  = 0;
         std::string	    origin;
     };
 
-    // note how source_location stores a std::string, be mindful of its heap usage
+
+    // note how source_location stores a std::string, so be mindful of its heap usage
 
     // I'm using std::string so that source_location can outlive its source_code object
 
@@ -58,8 +65,32 @@ namespace taul {
         std::string	    origin;
         std::size_t     chr     = 1;
         std::size_t     line    = 1;
-    };
 
+
+        std::string fmt() const;
+    };
+}
+
+
+template<>
+struct std::formatter<taul::source_location> final : std::formatter<std::string> {
+    auto format(const taul::source_location& x, format_context& ctx) const {
+        return formatter<string>::format(x.fmt(), ctx);
+    }
+};
+
+namespace std {
+    inline std::ostream& operator<<(std::ostream& stream, const taul::source_location& x) {
+        return stream << x.fmt();
+    }
+}
+
+
+namespace taul {
+
+
+    // source_code objects should generally be wrapped in shared pointers, but may
+    // be used w/ move-assignment to reduce overhead
 
     class source_code final {
     public:

@@ -288,10 +288,7 @@ namespace taul {
 
             template<typename... Args>
             inline void raise(spec_error err, std::format_string<Args...> fmt, Args&&... args) {
-                if (ec) {
-                    ec->raise(err);
-                }
-                TAUL_LOG(lgr, "TAUL error: ({}) {}", err, std::format(fmt, std::forward<Args&&>(args)...));
+                internal::raise_spec_error(ec, err, lgr, fmt, std::forward<Args&&>(args)...);
                 // mark load as a failure if error arises
                 success = false;
             }
@@ -331,7 +328,7 @@ namespace taul {
             void on_startup() override final;
             void on_shutdown() override final;
 
-            static_assert(spec_opcodes == 21);
+            static_assert(spec_opcodes == 22);
 
             void on_grammar_bias(bias b) override final;
             void on_close() override final;
@@ -345,6 +342,7 @@ namespace taul {
             void on_any() override final;
             void on_string(std::string_view s) override final;
             void on_charset(std::string_view s) override final;
+            void on_range(char a, char b) override final;
             void on_token() override final;
             void on_failure() override final;
             void on_name(std::string_view name) override final;

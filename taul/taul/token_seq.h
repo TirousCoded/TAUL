@@ -23,7 +23,7 @@ namespace taul {
     
     //      1) all tokens involved must share the same underlying source string
 
-    //      2) tokens in the sequence must be organized such that they're source
+    //      2) tokens in the sequence must be organized such that their source
     //         string positions are in ascending order
 
     // taul::token_seq defines a token sequence for a source string which strictly

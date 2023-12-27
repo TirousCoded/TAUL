@@ -6,9 +6,10 @@
 
 
 std::string taul::fmt_spec_error(spec_error x) {
-    static_assert(spec_errors == 18);
+    static_assert(spec_errors == 19);
     std::string result{};
     switch (x) {
+    case spec_error::source_code_not_found:         result = "source-code-not-found";           break;
     case spec_error::syntax_error:                  result = "syntax-error";                    break;
     case spec_error::scope_not_closed:              result = "scope-not-closed";                break;
     case spec_error::stray_close:                   result = "stray-close";                     break;

@@ -7,6 +7,14 @@
 #include "asserts.h"
 
 
+std::string taul::fmt_pos(source_pos pos) {
+    return std::format("[pos {}]", pos);
+}
+
+std::string taul::source_location::fmt() const {
+    return std::format("[ln {}, ch {}] {}", line, chr, origin);
+}
+
 taul::source_code::source_code(source_code&& x) noexcept {
     std::swap(_concat, x._concat);
     std::swap(_pages, x._pages);
@@ -92,7 +100,7 @@ bool taul::source_code::add_file(
     const std::shared_ptr<logger>& lgr) {
     // using this to format src_path, but avoiding heap allocating if lgr == nullptr
     const std::string src_path_s = bool(lgr) ? src_path.string() : std::string();
-    TAUL_LOG(lgr, "taul::source_code::add_file loading page from \"{}\"...", src_path_s);
+    TAUL_LOG(lgr, "loading source code page from \"{}\"...", src_path_s);
     std::ifstream ifs(src_path, std::ios::binary | std::ios::ate);
     if (ifs.is_open()) {
         const std::size_t file_size = (std::size_t)ifs.tellg();
@@ -101,9 +109,9 @@ bool taul::source_code::add_file(
         buff.resize(file_size, '\0'); // <- TODO: std::string can handle stray nulls, right?
         ifs.read(buff.data(), file_size);
         add_str(src_path.string(), buff);
-        TAUL_LOG(lgr, "taul::source_code::add_file loaded {} chars from \"{}\"!", ifs.gcount(), src_path_s);
+        TAUL_LOG(lgr, "loaded source code page ({} char) from \"{}\"!", ifs.gcount(), src_path_s);
     }
-    TAUL_LOG_IF(!ifs.is_open(), lgr, "taul::source_code::add_file failed due to \"{}\" not found!", src_path_s);
+    TAUL_LOG_IF(!ifs.is_open(), lgr, "failed source code page load due to \"{}\" not found!", src_path_s);
     return ifs.is_open();
 }
 

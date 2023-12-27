@@ -69,19 +69,19 @@ TEST_F(GrammarUsageTests, grammarWideLexer) {
             .lpr("ws", taul::qualifier::skip)
             .charset(" \t")
             .close()
-            .lpr("abc", taul::qualifier::exclude)
+            .lpr("abc", taul::qualifier::support)
             .string("abc")
             .close()
             .done();
         };
 
 
-    auto fl_spec = spec_fn(taul::bias::first_longest);
-    auto fs_spec = spec_fn(taul::bias::first_shortest);
-    auto ll_spec = spec_fn(taul::bias::last_longest);
-    auto ls_spec = spec_fn(taul::bias::last_shortest);
-    auto f_spec = spec_fn(taul::bias::first);
-    auto l_spec = spec_fn(taul::bias::last);
+    auto fl_spec = spec_fn(taul::bias::fl);
+    auto fs_spec = spec_fn(taul::bias::fs);
+    auto ll_spec = spec_fn(taul::bias::ll);
+    auto ls_spec = spec_fn(taul::bias::ls);
+    auto f_spec = spec_fn(taul::bias::f);
+    auto l_spec = spec_fn(taul::bias::l);
 
     auto fl_loaded = taul::load(fl_spec, lgr);
     auto fs_loaded = taul::load(fs_spec, lgr);
@@ -1958,7 +1958,7 @@ TEST_F(GrammarUsageTests, lexerExpr_charset) {
     EXPECT_EQ(lex("abc c", 3, lgr), taul::token::failure("", 3));
 }
 
-TEST_F(GrammarUsageTests, parserExpr_charset) {
+/*TEST_F(GrammarUsageTests, parserExpr_charset) {
 
     // remember that all parser expr tests should include testing things like
     // that the impl can handle token sequences w/ 'skip tokens' cut out
@@ -2089,6 +2089,106 @@ TEST_F(GrammarUsageTests, parserExpr_charset) {
         EXPECT_FALSE((bool)psr0(*nc, tkns, 4, lgr));
         EXPECT_FALSE((bool)psr0(*nc, tkns, 5, lgr));
     }
+}*/
+
+TEST_F(GrammarUsageTests, lexerExpr_range) {
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("f0")
+        .lpr_decl("f1")
+        .lpr("f0")
+        .range('3', '6')
+        .close()
+        .lpr("f1")
+        // test that semantic about order independence works
+        .range('f', 'c')
+        .close()
+        .done();
+
+    auto loaded = taul::load(spec, lgr);
+
+    ASSERT_TRUE(loaded);
+
+    const taul::grammar gram = std::move(*loaded);
+    const auto& lpr0 = gram.lpr("f0");
+    const auto& lpr1 = gram.lpr("f1");
+    const auto lex0 = gram.lexer("f0");
+    const auto lex1 = gram.lexer("f1");
+
+
+    // test w/out offset
+
+    // success
+
+    EXPECT_EQ(lex0("33", lgr), taul::token(lpr0, "3"));
+    EXPECT_EQ(lex0("44", lgr), taul::token(lpr0, "4"));
+    EXPECT_EQ(lex0("55", lgr), taul::token(lpr0, "5"));
+    EXPECT_EQ(lex0("66", lgr), taul::token(lpr0, "6"));
+
+    EXPECT_EQ(lex1("cc", lgr), taul::token(lpr1, "c"));
+    EXPECT_EQ(lex1("dd", lgr), taul::token(lpr1, "d"));
+    EXPECT_EQ(lex1("ee", lgr), taul::token(lpr1, "e"));
+    EXPECT_EQ(lex1("ff", lgr), taul::token(lpr1, "f"));
+
+    // failure
+
+    EXPECT_EQ(lex0("", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("&^!", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("\r\n\t", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0(" ", lgr), taul::token::failure(""));
+
+    EXPECT_EQ(lex0("1", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("2", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("7", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("8", lgr), taul::token::failure(""));
+
+    EXPECT_EQ(lex1("", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("&^!", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("\r\n\t", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1(" ", lgr), taul::token::failure(""));
+    
+    EXPECT_EQ(lex1("a", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("b", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("g", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("h", lgr), taul::token::failure(""));
+
+
+    // test w/ offset
+
+    // success
+
+    EXPECT_EQ(lex0("abc33", 3, lgr), taul::token(lpr0, "3", 3));
+    EXPECT_EQ(lex0("abc44", 3, lgr), taul::token(lpr0, "4", 3));
+    EXPECT_EQ(lex0("abc55", 3, lgr), taul::token(lpr0, "5", 3));
+    EXPECT_EQ(lex0("abc66", 3, lgr), taul::token(lpr0, "6", 3));
+
+    EXPECT_EQ(lex1("abccc", 3, lgr), taul::token(lpr1, "c", 3));
+    EXPECT_EQ(lex1("abcdd", 3, lgr), taul::token(lpr1, "d", 3));
+    EXPECT_EQ(lex1("abcee", 3, lgr), taul::token(lpr1, "e", 3));
+    EXPECT_EQ(lex1("abcff", 3, lgr), taul::token(lpr1, "f", 3));
+
+    // failure
+
+    EXPECT_EQ(lex0("abc", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc&^!", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc\r\n\t", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc ", 3, lgr), taul::token::failure("", 3));
+
+    EXPECT_EQ(lex0("abc1", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc2", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc7", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc8", 3, lgr), taul::token::failure("", 3));
+
+    EXPECT_EQ(lex1("abc", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("abc&^!", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("abc\r\n\t", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("abc ", 3, lgr), taul::token::failure("", 3));
+
+    EXPECT_EQ(lex1("abca", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("abcb", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("abcg", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("abch", 3, lgr), taul::token::failure("", 3));
 }
 
 TEST_F(GrammarUsageTests, parserExpr_token) {
@@ -2956,48 +3056,48 @@ TEST_F(GrammarUsageTests, lexerExpr_set) {
         .set()
         .close()
         .close()
-        .lpr("f1") // test non-empty set w/ first-longest
-        .set(taul::bias::first_longest)
+        .lpr("f1") // test non-empty set w/ f-longest
+        .set(taul::bias::fl)
         .string("123")
         .string("a")
         .string("12")
         .string("abc")
         .close()
         .close()
-        .lpr("f2") // test non-empty set w/ first-shortest
-        .set(taul::bias::first_shortest)
+        .lpr("f2") // test non-empty set w/ f-shortest
+        .set(taul::bias::fs)
         .string("123")
         .string("a")
         .string("12")
         .string("abc")
         .close()
         .close()
-        .lpr("f3") // test non-empty set w/ last-longest
-        .set(taul::bias::last_longest)
+        .lpr("f3") // test non-empty set w/ l-longest
+        .set(taul::bias::ll)
         .string("123")
         .string("a")
         .string("12")
         .string("abc")
         .close()
         .close()
-        .lpr("f4") // test non-empty set w/ last-shortest
-        .set(taul::bias::last_shortest)
+        .lpr("f4") // test non-empty set w/ l-shortest
+        .set(taul::bias::ls)
         .string("123")
         .string("a")
         .string("12")
         .string("abc")
         .close()
         .close()
-        .lpr("f5") // test non-empty set w/ first
-        .set(taul::bias::first)
+        .lpr("f5") // test non-empty set w/ f
+        .set(taul::bias::f)
         .string("123")
         .string("a")
         .string("12")
         .string("abc")
         .close()
         .close()
-        .lpr("f6") // test non-empty set w/ last
-        .set(taul::bias::last)
+        .lpr("f6") // test non-empty set w/ l
+        .set(taul::bias::l)
         .string("123")
         .string("a")
         .string("12")
@@ -3213,8 +3313,8 @@ TEST_F(GrammarUsageTests, parserExpr_set) {
         .set()
         .close()
         .close()
-        .ppr("f1") // test non-empty set w/ first-longest
-        .set(taul::bias::first_longest)
+        .ppr("f1") // test non-empty set w/ f-longest
+        .set(taul::bias::fl)
         .sequence()
         .string("1")
         .string("2")
@@ -3234,8 +3334,8 @@ TEST_F(GrammarUsageTests, parserExpr_set) {
         .close()
         .close()
         .close()
-        .ppr("f2") // test non-empty set w/ first-shortest
-        .set(taul::bias::first_shortest)
+        .ppr("f2") // test non-empty set w/ f-shortest
+        .set(taul::bias::fs)
         .sequence()
         .string("1")
         .string("2")
@@ -3255,8 +3355,8 @@ TEST_F(GrammarUsageTests, parserExpr_set) {
         .close()
         .close()
         .close()
-        .ppr("f3") // test non-empty set w/ last-longest
-        .set(taul::bias::last_longest)
+        .ppr("f3") // test non-empty set w/ l-longest
+        .set(taul::bias::ll)
         .sequence()
         .string("1")
         .string("2")
@@ -3276,8 +3376,8 @@ TEST_F(GrammarUsageTests, parserExpr_set) {
         .close()
         .close()
         .close()
-        .ppr("f4") // test non-empty set w/ last-shortest
-        .set(taul::bias::last_shortest)
+        .ppr("f4") // test non-empty set w/ l-shortest
+        .set(taul::bias::ls)
         .sequence()
         .string("1")
         .string("2")
@@ -3297,8 +3397,8 @@ TEST_F(GrammarUsageTests, parserExpr_set) {
         .close()
         .close()
         .close()
-        .ppr("f5") // test non-empty set w/ first
-        .set(taul::bias::first)
+        .ppr("f5") // test non-empty set w/ f
+        .set(taul::bias::f)
         .sequence()
         .string("1")
         .string("2")
@@ -3318,8 +3418,8 @@ TEST_F(GrammarUsageTests, parserExpr_set) {
         .close()
         .close()
         .close()
-        .ppr("f6") // test non-empty set w/ last
-        .set(taul::bias::last)
+        .ppr("f6") // test non-empty set w/ l
+        .set(taul::bias::l)
         .sequence()
         .string("1")
         .string("2")
@@ -4298,7 +4398,7 @@ TEST_F(GrammarUsageTests, parserExpr_set) {
             EXPECT_TRUE(f5_expect0.equiv(*f5_result0));
             EXPECT_EQ(f5_expect0.str(), f5_result0->str());
         }
-        else ADD_FAILURE(); std::list<int>{}.end();
+        else ADD_FAILURE();
 
         TAUL_LOG(lgr, "expected:\n{}", f6_expect0.fmt_tree());
         if ((bool)f6_result0) {
@@ -8476,7 +8576,7 @@ TEST_F(GrammarUsageTests, parserExpr_assertion) {
         .string("c")
         .close()
         .close()
-        // test assertions again, w/ assertion as last one in sequence
+        // test assertions again, w/ assertion as l one in sequence
         .ppr("f3")
         .sequence()
         .string("a")

@@ -14,7 +14,14 @@ namespace taul {
 
 
     enum class spec_error : std::uint8_t {
-        syntax_error,                   // used by the frontend to indicate a syntax error
+
+        // these errors arise during the creation of specs
+
+        source_code_not_found,          // indicates that compilation could not begin due to source code being unavailable
+        syntax_error,                   // indicates a syntax error during compilation
+
+        // these errors arise during the actual loading of specs
+
         scope_not_closed,               // spec ends w/ still open composite expr scopes
         stray_close,                    // usage of close instruction w/ no associated scope to close
         rule_name_conflict,             // lpr/ppr name already taken

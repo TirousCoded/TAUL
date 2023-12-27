@@ -244,7 +244,9 @@ namespace taul {
                 const std::shared_ptr<taul::logger>& lgr) override final;
         };
 
-        class charset_parser_pat final : public parser_pat {
+        // TODO: keep this in case we want to re-add it later
+
+        /*class charset_parser_pat final : public parser_pat {
         public:
 
             std::string s;
@@ -261,7 +263,7 @@ namespace taul {
                 std::size_t offset,
                 const std::size_t localend_offset,
                 const std::shared_ptr<taul::logger>& lgr) override final;
-        };
+        };*/
 
         class token_parser_pat final : public parser_pat {
         public:

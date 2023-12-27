@@ -109,7 +109,7 @@ TEST_F(TraverserTests, BasicTraversal) {
     expected += "end\n";
 
 
-    taul::traverse(*trav, p0);
+    trav->traverse(p0);
 
     TAUL_LOG(lgr, "expected:\n{}\nactual:\n{}\n", expected, trav->events);
 
@@ -161,8 +161,7 @@ TEST_F(TraverserTests, TraversalWithSkipChildren) {
 
 
     trav->skip_if_str_eq = "p1";
-
-    taul::traverse(*trav, p0);
+    trav->traverse(p0);
 
     TAUL_LOG(lgr, "expected:\n{}\nactual:\n{}\n", expected, trav->events);
 

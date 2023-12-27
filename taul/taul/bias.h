@@ -13,15 +13,12 @@ namespace taul {
 
 
     enum class bias : std::uint8_t {
-        first_longest,
-        first_shortest,
-        last_longest,
-        last_shortest,
-        first,
-        last,
-
-        longest = first_longest,
-        shortest = first_shortest,
+        fl,     // first longest
+        fs,     // first shortest
+        ll,     // last longest
+        ls,     // last shortest
+        f,      // first
+        l,      // last
     };
 
     std::string fmt_bias(bias x);

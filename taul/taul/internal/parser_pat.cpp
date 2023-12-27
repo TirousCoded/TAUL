@@ -286,7 +286,7 @@ taul::internal::parser_match taul::internal::string_parser_pat::eval(
     }
 }
 
-taul::internal::charset_parser_pat::charset_parser_pat(std::string s)
+/*taul::internal::charset_parser_pat::charset_parser_pat(std::string s)
     : s(s) {}
 
 taul::internal::parser_match taul::internal::charset_parser_pat::eval(
@@ -327,7 +327,7 @@ taul::internal::parser_match taul::internal::charset_parser_pat::eval(
                 node::iterator{},
                 node::iterator{});
     }
-}
+}*/
 
 taul::internal::token_parser_pat::token_parser_pat() {}
 
@@ -559,13 +559,13 @@ taul::internal::parser_match taul::internal::set_parser_pat::eval(
         // otherwise, select if new match is preferrable
         if (!select) {
             switch (b) {
-            case bias::first_longest:   select = matched.tkns.size() > selection.tkns.size();   break;
-            case bias::first_shortest:  select = matched.tkns.size() < selection.tkns.size();   break;
-            case bias::last_longest:    select = matched.tkns.size() >= selection.tkns.size();  break;
-            case bias::last_shortest:   select = matched.tkns.size() <= selection.tkns.size();  break;
-            case bias::first:           select = false;                                         break;
-            case bias::last:            select = true;                                          break;
-            default:                    TAUL_DEADEND;                                           break;
+            case bias::fl:  select = matched.tkns.size() > selection.tkns.size();   break;
+            case bias::fs:  select = matched.tkns.size() < selection.tkns.size();   break;
+            case bias::ll:  select = matched.tkns.size() >= selection.tkns.size();  break;
+            case bias::ls:  select = matched.tkns.size() <= selection.tkns.size();  break;
+            case bias::f:   select = false;                                         break;
+            case bias::l:   select = true;                                          break;
+            default:        TAUL_DEADEND;                                           break;
             }
         }
         // if above two make select == true, select matched
@@ -587,7 +587,7 @@ taul::internal::parser_match taul::internal::set_parser_pat::eval(
             }
         }
         // if our bias is 'first', then we may exit early
-        if (select && b == bias::first) {
+        if (select && b == bias::f) {
             break;
         }
     }

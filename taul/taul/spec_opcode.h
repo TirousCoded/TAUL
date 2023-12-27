@@ -26,16 +26,26 @@ namespace taul {
         end,            // lexer/parser
         any,            // lexer/parser
 
-        // within lprs, string/charset match against the target character sequence
+        // within lprs, string matches against the target character sequence
         
-        // within pprs, string/charset match against single non-failure tokens w/ matched strings which 
-        // conform to their rule:
-        //      - for string, this means the token's matched string must equal its string
-        //      - for charset, this means the token's matched string must be a single character
-        //        which is present in the charset's string
+        // within pprs, string matches a single non-failure token w/ a matched string
+        // which matches the string instruction's oprand exactly
 
         string,         // lexer/parser
-        charset,        // lexer/parser
+
+        // charset matches a single character which is present in its oprand string
+
+        charset,        // lexer-only
+
+        // range matches a single character that's within a character range
+
+        // the character range is defined by a pair of character values, w/ the range 
+        // being defined as including both characters, and all characters in between
+
+        // range does not require the first character value to be the lower of the two,
+        // w/ it working the same regardless of what order the range is specified in
+
+        range,          // lexer-only
 
         // token matches any single non-failure token
 

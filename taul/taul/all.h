@@ -21,8 +21,6 @@
 #include "rules.h"
 #include "grammar.h"
 
-#include "load.h"
-
 #include "token.h"
 #include "token_seq.h"
 #include "lexer.h"
@@ -32,4 +30,8 @@
 #include "parser.h"
 
 #include "traverser.h"
+
+#include "compile.h"
+#include "load.h"
+#include "load_taul_grammar.h"
 

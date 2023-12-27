@@ -14,7 +14,7 @@ TEST(grammar_tests, defaultCtor) {
 
     TAUL_LOG(lgr, "{}", gram);
 
-    EXPECT_EQ(gram.bias(), taul::bias::first_longest);
+    EXPECT_EQ(gram.bias(), taul::bias::fl);
     EXPECT_TRUE(gram.lprs().empty());
     EXPECT_TRUE(gram.pprs().empty());
 
@@ -56,7 +56,7 @@ TEST(grammar_tests, copyCtor) {
 
     const auto spec =
         taul::spec_writer()
-        .grammar_bias(taul::bias::last_longest)
+        .grammar_bias(taul::bias::ll)
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
@@ -83,7 +83,7 @@ TEST(grammar_tests, copyCtor) {
 
         TAUL_LOG(lgr, "{}", *gram0);
 
-        EXPECT_EQ(gram0->bias(), taul::bias::last_longest);
+        EXPECT_EQ(gram0->bias(), taul::bias::ll);
 
         if (gram0->lprs().size() == 2) {
             EXPECT_EQ(gram0->lprs()[0].name, "lpr0");
@@ -210,7 +210,7 @@ TEST(grammar_tests, copyCtor) {
     {
         TAUL_LOG(lgr, "{}", gram);
 
-        EXPECT_EQ(gram.bias(), taul::bias::last_longest);
+        EXPECT_EQ(gram.bias(), taul::bias::ll);
 
         if (gram.lprs().size() == 2) {
             EXPECT_EQ(gram.lprs()[0].name, "lpr0");
@@ -341,7 +341,7 @@ TEST(grammar_tests, moveCtor) {
 
     const auto spec =
         taul::spec_writer()
-        .grammar_bias(taul::bias::last_longest)
+        .grammar_bias(taul::bias::ll)
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
@@ -365,7 +365,7 @@ TEST(grammar_tests, moveCtor) {
 
     TAUL_LOG(lgr, "{}", gram);
 
-    EXPECT_EQ(gram.bias(), taul::bias::last_longest);
+    EXPECT_EQ(gram.bias(), taul::bias::ll);
 
     if (gram.lprs().size() == 2) {
         EXPECT_EQ(gram.lprs()[0].name, "lpr0");
@@ -495,7 +495,7 @@ TEST(grammar_tests, copyAssign) {
 
     const auto spec =
         taul::spec_writer()
-        .grammar_bias(taul::bias::last_longest)
+        .grammar_bias(taul::bias::ll)
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
@@ -524,7 +524,7 @@ TEST(grammar_tests, copyAssign) {
 
         TAUL_LOG(lgr, "{}", *gram0);
 
-        EXPECT_EQ(gram0->bias(), taul::bias::last_longest);
+        EXPECT_EQ(gram0->bias(), taul::bias::ll);
 
         if (gram0->lprs().size() == 2) {
             EXPECT_EQ(gram0->lprs()[0].name, "lpr0");
@@ -651,7 +651,7 @@ TEST(grammar_tests, copyAssign) {
     {
         TAUL_LOG(lgr, "{}", gram);
 
-        EXPECT_EQ(gram.bias(), taul::bias::last_longest);
+        EXPECT_EQ(gram.bias(), taul::bias::ll);
 
         if (gram.lprs().size() == 2) {
             EXPECT_EQ(gram.lprs()[0].name, "lpr0");
@@ -782,7 +782,7 @@ TEST(grammar_tests, moveAssign) {
 
     const auto spec =
         taul::spec_writer()
-        .grammar_bias(taul::bias::last_longest)
+        .grammar_bias(taul::bias::ll)
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
@@ -808,7 +808,7 @@ TEST(grammar_tests, moveAssign) {
 
     TAUL_LOG(lgr, "{}", gram);
 
-    EXPECT_EQ(gram.bias(), taul::bias::last_longest);
+    EXPECT_EQ(gram.bias(), taul::bias::ll);
 
     if (gram.lprs().size() == 2) {
         EXPECT_EQ(gram.lprs()[0].name, "lpr0");
@@ -938,7 +938,7 @@ TEST(grammar_tests, grammarInitViaSpec) {
 
     const auto spec =
         taul::spec_writer()
-        .grammar_bias(taul::bias::last_longest)
+        .grammar_bias(taul::bias::ll)
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
@@ -960,7 +960,7 @@ TEST(grammar_tests, grammarInitViaSpec) {
     TAUL_LOG(lgr, "{}", *gram);
 
 
-    EXPECT_EQ(gram->bias(), taul::bias::last_longest);
+    EXPECT_EQ(gram->bias(), taul::bias::ll);
 
     if (gram->lprs().size() == 2) {
         EXPECT_EQ(gram->lprs()[0].name, "lpr0");
@@ -1082,5 +1082,50 @@ TEST(grammar_tests, grammarInitViaSpec) {
     EXPECT_TRUE(gram->contains_ppr("ppr0"));
     EXPECT_TRUE(gram->contains_ppr("ppr1"));
     EXPECT_FALSE(gram->contains_ppr("missing"));
+}
+
+TEST(grammar_tests, nonsupport_lprs) {
+
+    const auto lgr = taul::make_stderr_logger();
+
+    const auto spec =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr_decl("lpr2")
+        .lpr_decl("lpr3")
+        .lpr_decl("lpr4")
+        .lpr_decl("lpr5")
+        .lpr_decl("lpr6")
+        .lpr_decl("lpr7")
+        .lpr_decl("lpr8")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .close()
+        .lpr("lpr2")
+        .close()
+        .lpr("lpr3", taul::qualifier::skip)
+        .close()
+        .lpr("lpr4", taul::qualifier::skip)
+        .close()
+        .lpr("lpr5", taul::qualifier::support)
+        .close()
+        .lpr("lpr6", taul::qualifier::support)
+        .close()
+        .lpr("lpr7", taul::qualifier::support)
+        .close()
+        .lpr("lpr8", taul::qualifier::support)
+        .close()
+        .done();
+
+    const auto gram = taul::load(spec, lgr);
+
+    ASSERT_TRUE(gram);
+
+    TAUL_LOG(lgr, "{}", *gram);
+
+
+    EXPECT_EQ(gram->nonsupport_lprs(), 5);
 }
 

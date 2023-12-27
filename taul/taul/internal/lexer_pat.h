@@ -168,6 +168,29 @@ namespace taul {
                 const source_pos localend_offset,
                 const std::shared_ptr<taul::logger>& lgr) override final;
         };
+
+        class range_lexer_pat final : public lexer_pat {
+        public:
+
+            char a;
+            char b;
+
+
+            range_lexer_pat(char a, char b);
+
+
+            lexer_match eval(
+                const grammar_data& gramdat,
+                std::string_view txt,
+                source_pos offset,
+                const source_pos localend_offset,
+                const std::shared_ptr<taul::logger>& lgr) override final;
+
+
+        private:
+
+            bool _in_range(char x) const noexcept;
+        };
         
         class name_lexer_pat final : public lexer_pat {
         public:

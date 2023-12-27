@@ -1,0 +1,131 @@
+
+
+options (
+    bias                    : fl ;
+)
+
+lexer (
+    # notice that only non-support LPRs are actually in our regression tests
+
+    # general
+
+    # see https://en.wikipedia.org/wiki/ASCII
+
+    support VIS_ASCII       : '!'..'~' ;
+
+    support LETTER          : 'a'..'z' | 'A'..'Z' ;
+    support DIGIT           : '0'..'9' ;
+
+    support ANY_IDENTIFIER  : ( LETTER | '_' ) ( DIGIT | LETTER | '_' )* ;
+
+    IDENTIFIER              : ANY_IDENTIFIER -KEYWORD ;
+    INTEGER                 : DIGIT ( '_'? DIGIT )* ( LETTER | '_' )~ ;
+    STRING                  : '\'' ( ( '\\'? ( VIS_ASCII | WHITESPACE | NEWLINE ) -'\'' ) | '\\\\' | '\\\'' )* '\'' ;
+    CHARSET                 : '[' ( ( '\\'? ( VIS_ASCII | WHITESPACE | NEWLINE ) -']' ) |  '\\\\' | '\\]' )* ']' ;
+    
+    skip WHITESPACE         : [ \t] ;
+    skip NEWLINE            : [\r\n] | '\r\n' ;
+
+    skip SL_COMMENT         : '#' ( any -NEWLINE )* ;
+    skip ML_COMMENT         : '!#' ( any -'#!' )* '#!'? ;
+    
+    # keywords
+
+    support KEYWORD         : KW_OPTIONS
+                            | KW_LEXER
+                            | KW_PARSER
+                            | KW_BIAS
+                            | KW_SKIP
+                            | KW_SUPPORT
+                            | KW_FL
+                            | KW_FS
+                            | KW_LL
+                            | KW_LS
+                            | KW_F
+                            | KW_L
+                            | KW_BEGIN
+                            | KW_END
+                            | KW_ANY
+                            | KW_TOKEN
+                            | KW_FAILURE
+                            | KW_LOCALEND ;
+
+    # 'EOK' == 'End Of Keyword'
+
+    support EOK             : ( DIGIT | LETTER | '_' )~ ;
+    
+    KW_OPTIONS              : 'options' EOK ;
+    KW_LEXER                : 'lexer' EOK ;
+    KW_PARSER               : 'parser' EOK ;
+    
+    KW_BIAS                 : 'bias' EOK ;
+
+    KW_SKIP                 : 'skip' EOK ;
+    KW_SUPPORT              : 'support' EOK ;
+    
+    # these describe biases
+    #   fl  ->  first longest
+    #   fs  ->  first shortest
+    #   ll  ->  last longest
+    #   ls  ->  last shortest
+    #   f   ->  first
+    #   l   ->  last
+
+    KW_FL                   : 'fl' EOK ;
+    KW_FS                   : 'fs' EOK ;
+    KW_LL                   : 'll' EOK ;
+    KW_LS                   : 'ls' EOK ;
+    KW_F                    : 'f' EOK ;
+    KW_L                    : 'l' EOK ;
+    
+    KW_BEGIN                : 'begin' EOK ;
+    KW_END                  : 'end' EOK ;
+    KW_ANY                  : 'any' EOK ;
+    KW_TOKEN                : 'token' EOK ;
+    KW_FAILURE              : 'failure' EOK ;
+    KW_LOCALEND             : 'localend' EOK ;
+    
+    # operators
+
+    # TODO: 'OPERATORS' is currently unused, and isn't in our regression tests
+
+    support OPERATORS       : OP_PERIOD
+                            | OP_COMMA
+                            | OP_COLON
+                            | OP_SEMICOLON
+                            | OP_VBAR
+                            | OP_QUESTION
+                            | OP_ASTERISK
+                            | OP_PLUS
+                            | OP_EXCLAM
+                            | OP_TILDE
+                            | OP_AMPERSAND
+                            | OP_MINUS
+                            | OP_L_ROUND
+                            | OP_R_ROUND
+                            | OP_L_CURLY
+                            | OP_R_CURLY ;
+    
+    OP_PERIOD               : '.' ;
+    OP_COMMA                : ',' ;
+    OP_COLON                : ':' ;
+    OP_SEMICOLON            : ';' ;
+    OP_VBAR                 : '|' ;
+    OP_QUESTION             : '?' ;
+    OP_ASTERISK             : '*' ;
+    OP_PLUS                 : '+' ;
+    OP_EXCLAM               : '!' ;
+    OP_TILDE                : '~' ;
+    OP_AMPERSAND            : '&' ;
+    OP_MINUS                : '-' ;
+
+    OP_L_ROUND              : '(' ;
+    OP_R_ROUND              : ')' ;
+    OP_L_CURLY              : '{' ;
+    OP_R_CURLY              : '}' ;
+)
+
+parser (
+    #
+)
+

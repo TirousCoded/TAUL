@@ -20,7 +20,7 @@
 // this test is for general usage of *all* instructions, so be sure to
 // update it as we add new instructions
 
-static_assert(taul::spec_opcodes == 21);
+static_assert(taul::spec_opcodes == 22);
 
 TEST(load_tests, success) {
     const auto lgr = taul::make_stderr_logger();
@@ -28,16 +28,16 @@ TEST(load_tests, success) {
 
     const auto s =
         taul::spec_writer()
-        .grammar_bias(taul::bias::last_longest)
+        .grammar_bias(taul::bias::ll)
         // gonna test successful usage of qualifiers here
         .lpr_decl("with_none_qualifier")
         .lpr_decl("with_skip_qualifier")
-        .lpr_decl("with_exclude_qualifier")
+        .lpr_decl("with_support_qualifier")
         .lpr("with_none_qualifier", taul::qualifier::none)
         .close()
         .lpr("with_skip_qualifier", taul::qualifier::skip)
         .close()
-        .lpr("with_exclude_qualifier", taul::qualifier::exclude)
+        .lpr("with_support_qualifier", taul::qualifier::support)
         .close()
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
@@ -50,6 +50,8 @@ TEST(load_tests, success) {
         .any()
         .string("abc")
         .charset("abc")
+        .range('A', 'Z')
+        .range('z', 'a')
         .name("lpr0") // legal lpr ref
         .name("lpr1") // legal lpr ref
         // test composite lexer exprs
@@ -88,7 +90,7 @@ TEST(load_tests, success) {
         .close() // test w/ nested constraint #2 (end)
         .close() // test w/ nested (end)
         // set
-        .set(taul::bias::last_longest) // test empty
+        .set(taul::bias::ll) // test empty
         .close() // test empty (end)
         .set() // test w/ nested
         .any()
@@ -222,7 +224,6 @@ TEST(load_tests, success) {
         .end()
         .any()
         .string("abc")
-        .charset("abc")
         .token()
         .failure()
         .name("lpr0") // legal lpr ref
@@ -265,7 +266,7 @@ TEST(load_tests, success) {
         .close() // test w/ nested constraint #2 (end)
         .close() // test w/ nested (end)
         // set
-        .set(taul::bias::last_longest) // test empty
+        .set(taul::bias::ll) // test empty
         .close() // test empty (end)
         .set() // test w/ nested
         .any()
@@ -412,7 +413,7 @@ TEST(load_tests, success) {
     if (gram) {
         TAUL_LOG(lgr, "{}", *gram);
 
-        EXPECT_EQ(gram->bias(), taul::bias::last_longest);
+        EXPECT_EQ(gram->bias(), taul::bias::ll);
 
         if (gram->contains_lpr("with_none_qualifier")) {
             EXPECT_EQ(gram->lpr("with_none_qualifier").name, "with_none_qualifier");
@@ -426,10 +427,10 @@ TEST(load_tests, success) {
             EXPECT_EQ(gram->lpr("with_skip_qualifier").qualifer, taul::qualifier::skip);
         }
         else ADD_FAILURE();
-        if (gram->contains_lpr("with_exclude_qualifier")) {
-            EXPECT_EQ(gram->lpr("with_exclude_qualifier").name, "with_exclude_qualifier");
-            EXPECT_EQ(gram->lpr("with_exclude_qualifier").index, 2);
-            EXPECT_EQ(gram->lpr("with_exclude_qualifier").qualifer, taul::qualifier::exclude);
+        if (gram->contains_lpr("with_support_qualifier")) {
+            EXPECT_EQ(gram->lpr("with_support_qualifier").name, "with_support_qualifier");
+            EXPECT_EQ(gram->lpr("with_support_qualifier").index, 2);
+            EXPECT_EQ(gram->lpr("with_support_qualifier").qualifer, taul::qualifier::support);
         }
         else ADD_FAILURE();
         if (gram->contains_lpr("lpr0")) {
@@ -475,7 +476,7 @@ TEST(load_tests, success_withEmptyGrammarSpec) {
     if (gram) {
         TAUL_LOG(lgr, "{}", *gram);
 
-        EXPECT_EQ(gram->bias(), taul::bias::first_longest);
+        EXPECT_EQ(gram->bias(), taul::bias::fl);
         EXPECT_TRUE(gram->lprs().empty());
         EXPECT_TRUE(gram->pprs().empty());
     }
@@ -490,8 +491,8 @@ TEST(load_tests, success_withExpectedGrammarBiasOverwriting) {
 
     const auto s =
         taul::spec_writer()
-        .grammar_bias(taul::bias::first_shortest)
-        .grammar_bias(taul::bias::last_longest)
+        .grammar_bias(taul::bias::fs)
+        .grammar_bias(taul::bias::ll)
         .done();
 
     const auto gram = taul::load(s, ec, lgr);
@@ -501,7 +502,7 @@ TEST(load_tests, success_withExpectedGrammarBiasOverwriting) {
     if (gram) {
         TAUL_LOG(lgr, "{}", *gram);
 
-        EXPECT_EQ(gram->bias(), taul::bias::last_longest);
+        EXPECT_EQ(gram->bias(), taul::bias::ll);
         EXPECT_TRUE(gram->lprs().empty());
         EXPECT_TRUE(gram->pprs().empty());
     }
@@ -539,7 +540,7 @@ TEST(load_tests, success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage) {
     if (gram) {
         TAUL_LOG(lgr, "{}", *gram);
 
-        EXPECT_EQ(gram->bias(), taul::bias::first_longest);
+        EXPECT_EQ(gram->bias(), taul::bias::fl);
 
         if (gram->contains_lpr("lpr0")) {
             EXPECT_EQ(gram->lpr("lpr0").name, "lpr0");
@@ -571,7 +572,7 @@ TEST(load_tests, success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage) {
 // the below detail what errors each instruction can raise, and thus which must
 // be unit tested, and being specified *in order*
 
-static_assert(taul::spec_errors == 18);
+static_assert(taul::spec_errors == 19);
 
 // grammar-bias
 //      illegal-in-lpr-scope
@@ -585,7 +586,7 @@ TEST(load_tests, grammar_bias_forErr_illegal_in_lpr_scope) {
         taul::spec_writer()
         .lpr_decl("lpr0")
         .lpr("lpr0")
-        .grammar_bias(taul::bias::longest)
+        .grammar_bias(taul::bias::l)
         .close()
         .done();
 
@@ -604,7 +605,7 @@ TEST(load_tests, grammar_bias_forErr_illegal_in_ppr_scope) {
         taul::spec_writer()
         .ppr_decl("ppr0")
         .ppr("ppr0")
-        .grammar_bias(taul::bias::longest)
+        .grammar_bias(taul::bias::l)
         .close()
         .done();
 
@@ -1081,7 +1082,27 @@ TEST(load_tests, string_seq_forErr_illegal_in_no_scope) {
 }
 
 // charset
+//      illegal-in-ppr-scope
 //      illegal-in-no-scope
+
+TEST(load_tests, charset_forErr_illegal_in_ppr_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("a")
+        .ppr("a")
+        .charset("abc") // illegal!
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
+    EXPECT_FALSE(gram);
+}
 
 TEST(load_tests, charset_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -1090,6 +1111,45 @@ TEST(load_tests, charset_forErr_illegal_in_no_scope) {
     const auto s =
         taul::spec_writer()
         .charset("abc")
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+// range
+//      illegal-in-ppr-scope
+//      illegal-in-no-scope
+
+TEST(load_tests, range_forErr_illegal_in_ppr_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("a")
+        .ppr("a")
+        .range('a', 'z') // illegal!
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, range_forErr_illegal_in_no_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .range('a', 'z')
         .done();
 
     const auto gram = taul::load(s, ec, lgr);
@@ -1340,7 +1400,7 @@ TEST(load_tests, set_forErr_illegal_in_no_scope) {
 
     const auto s =
         taul::spec_writer()
-        .set(taul::bias::last_shortest)
+        .set(taul::bias::ls)
         .close()
         .done();
 

@@ -224,7 +224,7 @@ void taul::internal::load_spec_interpreter::check_localend_in_constraint_scope_a
 void taul::internal::load_spec_interpreter::on_startup() {
     TAUL_ASSERT(ec);
     success = true; // <- deem eval successful until proven otherwise
-    last_bias = bias::first_longest; // <- expected default
+    last_bias = bias::fl; // <- expected default
     lpr_count = 0;
     ppr_count = 0;
     TAUL_ASSERT(lprs.empty());
@@ -317,9 +317,17 @@ void taul::internal::load_spec_interpreter::on_string(std::string_view s) {
 }
 
 void taul::internal::load_spec_interpreter::on_charset(std::string_view s) {
+    check_not_in_ppr_scope(spec_opcode::charset);
     check_in_lpr_or_ppr_scope(spec_opcode::charset);
     if (in_lpr()) bind_lexer_pat<charset_lexer_pat>((std::string)s);
-    if (in_ppr()) bind_parser_pat<charset_parser_pat>((std::string)s);
+    if (in_ppr()) (void)0;
+}
+
+void taul::internal::load_spec_interpreter::on_range(char a, char b) {
+    check_not_in_ppr_scope(spec_opcode::range);
+    check_in_lpr_or_ppr_scope(spec_opcode::range);
+    if (in_lpr()) bind_lexer_pat<range_lexer_pat>(a, b);
+    if (in_ppr()) (void)0;
 }
 
 void taul::internal::load_spec_interpreter::on_token() {

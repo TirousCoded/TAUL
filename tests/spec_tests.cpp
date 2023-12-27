@@ -32,7 +32,7 @@ protected:
         output += "shutdown\n";
     }
 
-    static_assert(taul::spec_opcodes == 21);
+    static_assert(taul::spec_opcodes == 22);
 
     inline void on_grammar_bias(taul::bias b) override final {
         output += std::format("grammar-bias {}\n", b);
@@ -76,6 +76,10 @@ protected:
 
     inline void on_charset(std::string_view s) override final {
         output += std::format("charset \"{}\"\n", s);
+    }
+
+    inline void on_range(char a, char b) override final {
+        output += std::format("range \'{}\' \'{}\'\n", a, b);
     }
 
     inline void on_token() override final {
@@ -146,23 +150,23 @@ TEST(spec_tests, tests) {
     const auto spec0 = sw
         .done();
 
-    ASSERT_TRUE(spec0.empty());
+    ASSERT_TRUE(spec0.bin.empty());
 
 
     // test done w/ main usage
 
-    static_assert(taul::spec_opcodes == 21);
+    static_assert(taul::spec_opcodes == 22);
 
     const auto spec1 = sw
-        .grammar_bias(taul::bias::last_shortest)
+        .grammar_bias(taul::bias::ls)
         .lpr_decl("test_none_qualifier")
         .lpr_decl("test_skip_qualifier")
-        .lpr_decl("test_exclude_qualifier")
+        .lpr_decl("test_support_qualifier")
         .lpr("test_none_qualifier", taul::qualifier::none)
         .close()
         .lpr("test_skip_qualifier", taul::qualifier::skip)
         .close()
-        .lpr("test_exclude_qualifier", taul::qualifier::exclude)
+        .lpr("test_support_qualifier", taul::qualifier::support)
         .close()
         .lpr_decl("lpr0")
         .ppr_decl("ppr0")
@@ -172,8 +176,9 @@ TEST(spec_tests, tests) {
         .any()
         .string("abc")
         .charset("abc")
+        .range('A', 'Z')
         .sequence()
-        .set(taul::bias::last_shortest)
+        .set(taul::bias::ls)
         .any()
         .name("lpr0")
         .close()
@@ -198,7 +203,6 @@ TEST(spec_tests, tests) {
         .end()
         .any()
         .string("abc")
-        .charset("abc")
         .token()
         .failure()
         .sequence()
@@ -225,7 +229,7 @@ TEST(spec_tests, tests) {
         .close()
         .done();
 
-    ASSERT_FALSE(spec1.empty());
+    ASSERT_FALSE(spec1.bin.empty());
 
 
     // test done w/ post-main usage state
@@ -233,7 +237,7 @@ TEST(spec_tests, tests) {
     const auto spec2 = sw
         .done();
 
-    ASSERT_TRUE(spec2.empty());
+    ASSERT_TRUE(spec2.bin.empty());
 
 
     test_spec_interpreter tsi{};
@@ -261,12 +265,12 @@ TEST(spec_tests, tests) {
     expected += "grammar-bias last-shortest\n";
     expected += "lpr-decl \"test_none_qualifier\"\n";
     expected += "lpr-decl \"test_skip_qualifier\"\n";
-    expected += "lpr-decl \"test_exclude_qualifier\"\n";
+    expected += "lpr-decl \"test_support_qualifier\"\n";
     expected += "lpr \"test_none_qualifier\" none\n";
     expected += "close\n";
     expected += "lpr \"test_skip_qualifier\" skip\n";
     expected += "close\n";
-    expected += "lpr \"test_exclude_qualifier\" exclude\n";
+    expected += "lpr \"test_support_qualifier\" support\n";
     expected += "close\n";
     expected += "lpr-decl \"lpr0\"\n";
     expected += "ppr-decl \"ppr0\"\n";
@@ -276,6 +280,7 @@ TEST(spec_tests, tests) {
     expected += "any\n";
     expected += "string \"abc\"\n";
     expected += "charset \"abc\"\n";
+    expected += "range \'A\' \'Z\'\n";
     expected += "sequence\n";
     expected += "set last-shortest\n";
     expected += "any\n";
@@ -302,7 +307,6 @@ TEST(spec_tests, tests) {
     expected += "end\n";
     expected += "any\n";
     expected += "string \"abc\"\n";
-    expected += "charset \"abc\"\n";
     expected += "token\n";
     expected += "failure\n";
     expected += "sequence\n";

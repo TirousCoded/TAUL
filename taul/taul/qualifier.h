@@ -15,7 +15,7 @@ namespace taul {
     enum class qualifier : std::uint8_t {
         none,
         skip,       // skip qualified lexers participates in grammar-wide lexer, but is discarded during tokenization
-        exclude,    // exclude qualified lexers does not participate in grammar-wide lexer
+        support,    // support qualified lexers does not participate in grammar-wide lexer
     };
 
     std::string fmt_qualifier(qualifier x);

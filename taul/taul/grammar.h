@@ -107,6 +107,11 @@ namespace taul {
         bool contains_ppr(const char* name) const noexcept;
 
 
+        // this is useful for writing regression tests for grammars
+
+        std::size_t nonsupport_lprs() const noexcept;
+
+
         std::string fmt(std::string_view tab = "    ") const;
 
 

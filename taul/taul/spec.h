@@ -6,7 +6,9 @@
 #include <string>
 #include <vector>
 #include <span>
+#include <optional>
 
+#include "source_code.h"
 #include "bias.h"
 #include "polarity.h"
 #include "qualifier.h"
@@ -18,7 +20,18 @@ namespace taul {
 
     // usage of invalid spec will result in undefined behaviour
 
-    using spec = std::vector<std::uint8_t>;
+    struct spec final {
+        std::vector<std::uint8_t>       bin;                // the spec binary itself
+        std::shared_ptr<source_code>    src = nullptr;      // the source_code the spec will be associated with, if any
+
+
+        // associate binds a source_code to the spec, associating it w/ it, such
+        // that it will be used when loading requires source location information
+
+        inline void associate(const std::shared_ptr<source_code>& x) noexcept {
+            src = x;
+        }
+    };
 
 
     class spec_writer final {
@@ -36,7 +49,7 @@ namespace taul {
         spec_writer& operator=(spec_writer&&) noexcept = delete;
 
 
-        static_assert(spec_opcodes == 21);
+        static_assert(spec_opcodes == 22);
 
         spec_writer& grammar_bias(bias b);
         spec_writer& close();
@@ -50,11 +63,12 @@ namespace taul {
         spec_writer& any();
         spec_writer& string(std::string_view s);
         spec_writer& charset(std::string_view s);
+        spec_writer& range(char a, char b);
         spec_writer& token();
         spec_writer& failure();
         spec_writer& name(std::string_view name);
         spec_writer& sequence();
-        spec_writer& set(bias b = bias::first_longest);
+        spec_writer& set(bias b = bias::fl);
         spec_writer& modifier(std::uint16_t min, std::uint16_t max);
         spec_writer& assertion(polarity p = polarity::positive);
         spec_writer& constraint(polarity p = polarity::positive);
@@ -98,7 +112,7 @@ namespace taul {
         virtual void on_startup() {}
         virtual void on_shutdown() {}
 
-        static_assert(spec_opcodes == 21);
+        static_assert(spec_opcodes == 22);
 
         virtual void on_grammar_bias(bias b) {}
         virtual void on_close() {}
@@ -112,6 +126,7 @@ namespace taul {
         virtual void on_any() {}
         virtual void on_string(std::string_view s) {}
         virtual void on_charset(std::string_view s) {}
+        virtual void on_range(char a, char b) {}
         virtual void on_token() {}
         virtual void on_failure() {}
         virtual void on_name(std::string_view name) {}
@@ -136,6 +151,7 @@ namespace taul {
         void spec_write_u8(spec& s, std::uint8_t x) noexcept;
         void spec_write_u16(spec& s, std::uint16_t x) noexcept;
         void spec_write_u32(spec& s, std::uint32_t x) noexcept;
+        void spec_write_char(spec& s, char x) noexcept;
         void spec_write_opcode(spec& s, spec_opcode opcode) noexcept;
         void spec_write_bias(spec& s, bias b) noexcept;
         void spec_write_polarity(spec& s, polarity p) noexcept;
@@ -145,6 +161,7 @@ namespace taul {
         std::uint8_t spec_read_u8(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         std::uint16_t spec_read_u16(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         std::uint32_t spec_read_u32(const spec& s, std::size_t offset, std::size_t& len) noexcept;
+        char spec_read_char(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         taul::spec_opcode spec_read_opcode(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         taul::bias spec_read_bias(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         taul::polarity spec_read_polarity(const spec& s, std::size_t offset, std::size_t& len) noexcept;

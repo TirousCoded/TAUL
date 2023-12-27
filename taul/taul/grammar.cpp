@@ -37,7 +37,7 @@ taul::grammar::grammar(
 }
 
 taul::bias taul::grammar::bias() const noexcept {
-    return _data ? _data->_bias : bias::first_longest;
+    return _data ? _data->_bias : bias::fl;
 }
 
 std::span<const taul::lexer_rule> taul::grammar::lprs() const noexcept {
@@ -180,6 +180,16 @@ bool taul::grammar::contains_ppr(const char* name) const noexcept {
     return contains_ppr(std::string_view(name));
 }
 
+std::size_t taul::grammar::nonsupport_lprs() const noexcept {
+    std::size_t n = 0;
+    for (const auto& I : lprs()) {
+        if (I.qualifer != taul::qualifier::support) {
+            n++;
+        }
+    }
+    return n;
+}
+
 std::string taul::grammar::fmt(std::string_view tab) const {
     return std::format(
         "taul::grammar (details)"
@@ -238,8 +248,8 @@ taul::token taul::internal::base_grammar_wide_lexer_function(
     bool has_selection = false;
     // TODO: could we make bias::last run *faster* by iterating backwards? or would increase be too small?
     for (const auto& I : _state->_lprs) {
-        // skip if excluded
-        if (I.qualifer == qualifier::exclude) {
+        // skip if support
+        if (I.qualifer == qualifier::support) {
             continue;
         }
         const auto tkn = I.lexer()(txt, offset, lgr);
@@ -252,13 +262,13 @@ taul::token taul::internal::base_grammar_wide_lexer_function(
         // otherwise, select if new match is preferrable
         if (!select) {
             switch (_state->_bias) {
-            case bias::first_longest:   select = tkn.str().length() > selection.str().length();     break;
-            case bias::first_shortest:  select = tkn.str().length() < selection.str().length();     break;
-            case bias::last_longest:    select = tkn.str().length() >= selection.str().length();    break;
-            case bias::last_shortest:   select = tkn.str().length() <= selection.str().length();    break;
-            case bias::first:           select = false;                                             break;
-            case bias::last:            select = true;                                              break;
-            default:                    TAUL_DEADEND;                                               break;
+            case bias::fl:  select = tkn.str().length() > selection.str().length();     break;
+            case bias::fs:  select = tkn.str().length() < selection.str().length();     break;
+            case bias::ll:  select = tkn.str().length() >= selection.str().length();    break;
+            case bias::ls:  select = tkn.str().length() <= selection.str().length();    break;
+            case bias::f:   select = false;                                             break;
+            case bias::l:   select = true;                                              break;
+            default:        TAUL_DEADEND;                                               break;
             }
         }
         // if above two make select == true, select tkn
@@ -266,7 +276,7 @@ taul::token taul::internal::base_grammar_wide_lexer_function(
             selection = tkn;
         }
         // if our bias is 'first', then we may exit early
-        if (select && _state->_bias == bias::first) {
+        if (select && _state->_bias == bias::f) {
             break;
         }
     }

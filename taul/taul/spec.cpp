@@ -68,6 +68,13 @@ taul::spec_writer& taul::spec_writer::charset(std::string_view s) {
     return *this;
 }
 
+taul::spec_writer& taul::spec_writer::range(char a, char b) {
+    internal::spec_write_opcode(_temp, spec_opcode::range);
+    internal::spec_write_char(_temp, a);
+    internal::spec_write_char(_temp, b);
+    return *this;
+}
+
 taul::spec_writer& taul::spec_writer::token() {
     internal::spec_write_opcode(_temp, spec_opcode::token);
     return *this;
@@ -133,14 +140,14 @@ taul::spec taul::spec_writer::done() {
 void taul::spec_interpreter::interpret(const spec& x) {
     std::size_t offset = 0;
     on_startup();
-    while (offset < x.size()) {
+    while (offset < x.bin.size()) {
         offset += _step(x, offset);
     }
     on_shutdown();
 }
 
 std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
-    static_assert(spec_opcodes == 21);
+    static_assert(spec_opcodes == 22);
     std::size_t len = 0;
     const auto opcode = internal::spec_read_opcode(s, offset, len);
     switch (opcode) {
@@ -207,6 +214,13 @@ std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
         on_charset(s0);
     }
     break;
+    case spec_opcode::range:
+    {
+        const char a = internal::spec_read_char(s, offset + len, len);
+        const char b = internal::spec_read_char(s, offset + len, len);
+        on_range(a, b);
+    }
+    break;
     case spec_opcode::token:
     {
         on_token();
@@ -270,7 +284,7 @@ std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
 }
 
 void taul::internal::spec_write_u8(spec& s, std::uint8_t x) noexcept {
-    s.push_back(x);
+    s.bin.push_back(x);
 }
 
 void taul::internal::spec_write_u16(spec& s, std::uint16_t x) noexcept {
@@ -285,6 +299,10 @@ void taul::internal::spec_write_u32(spec& s, std::uint32_t x) noexcept {
     spec_write_u8(s, ptr[1]);
     spec_write_u8(s, ptr[2]);
     spec_write_u8(s, ptr[3]);
+}
+
+void taul::internal::spec_write_char(spec& s, char x) noexcept {
+    spec_write_u8(s, *(std::uint8_t*)&x);
 }
 
 void taul::internal::spec_write_opcode(spec& s, spec_opcode opcode) noexcept {
@@ -311,28 +329,33 @@ void taul::internal::spec_write_str(spec& s, std::string_view x) noexcept {
 }
 
 std::uint8_t taul::internal::spec_read_u8(const spec& s, std::size_t offset, std::size_t& len) noexcept {
-    TAUL_IN_BOUNDS(offset, 0, s.size());
-    std::uint8_t result = s[offset];
+    TAUL_IN_BOUNDS(offset, 0, s.bin.size());
+    std::uint8_t result = s.bin[offset];
     len++;
     return result;
 }
 
 std::uint16_t taul::internal::spec_read_u16(const spec& s, std::size_t offset, std::size_t& len) noexcept {
-    TAUL_IN_BOUNDS(offset + 0, 0, s.size());
-    TAUL_IN_BOUNDS(offset + 1, 0, s.size());
+    TAUL_IN_BOUNDS(offset + 0, 0, s.bin.size());
+    TAUL_IN_BOUNDS(offset + 1, 0, s.bin.size());
     std::uint16_t result{};
-    std::memcpy((void*)&result, (const void*)(s.data() + offset), sizeof(result));
+    std::memcpy((void*)&result, (const void*)(s.bin.data() + offset), sizeof(result));
     len += 2;
     return result;
 }
 
 std::uint32_t taul::internal::spec_read_u32(const spec& s, std::size_t offset, std::size_t& len) noexcept {
-    TAUL_IN_BOUNDS(offset + 0, 0, s.size());
-    TAUL_IN_BOUNDS(offset + 3, 0, s.size());
+    TAUL_IN_BOUNDS(offset + 0, 0, s.bin.size());
+    TAUL_IN_BOUNDS(offset + 3, 0, s.bin.size());
     std::uint32_t result{};
-    std::memcpy((void*)&result, (const void*)(s.data() + offset), sizeof(result));
+    std::memcpy((void*)&result, (const void*)(s.bin.data() + offset), sizeof(result));
     len += 4;
     return result;
+}
+
+char taul::internal::spec_read_char(const spec& s, std::size_t offset, std::size_t& len) noexcept {
+    std::uint8_t v = spec_read_u8(s, offset, len);
+    return *(char*)&v;
 }
 
 taul::spec_opcode taul::internal::spec_read_opcode(const spec& s, std::size_t offset, std::size_t& len) noexcept {
@@ -353,7 +376,7 @@ taul::qualifier taul::internal::spec_read_qualifier(const spec& s, std::size_t o
 
 std::string_view taul::internal::spec_read_str(const spec& s, std::size_t offset, std::size_t& len) noexcept {
     const auto length = spec_read_u32(s, offset, len);
-    const auto ptr = (const char*)(s.data() + offset + sizeof(std::uint32_t));
+    const auto ptr = (const char*)(s.bin.data() + offset + sizeof(std::uint32_t));
     len += length;
     return std::string_view(ptr, length);
 }

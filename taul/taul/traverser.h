@@ -17,6 +17,13 @@ namespace taul {
         virtual ~traverser() noexcept = default;
 
 
+        // traverse uses the traverser to perform a depth-first traversal of nd
+
+        void traverse(const node& nd);
+
+
+    protected:
+
         virtual void on_begin();
         virtual void on_end();
 
@@ -25,22 +32,11 @@ namespace taul {
 
         virtual void on_enter(const node& nd, bool& skip_children) = 0;
         virtual void on_exit(const taul::node& nd) = 0;
+
+
+    private:
+        
+        void _traverse(const node& nd);
     };
-
-
-    // traverse uses traverser t to perform a depth-first traversal of nd
-
-    void traverse(
-        traverser& t, 
-        const node& nd);
-
-
-    namespace internal {
-
-
-        void do_traverse(
-            traverser& t,
-            const node& nd);
-    }
 }
 
