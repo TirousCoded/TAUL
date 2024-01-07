@@ -1,0 +1,18 @@
+
+
+lexer section:
+
+    skip ABC	: 'abc' ;
+
+parser section:
+
+    Abc			: ABC ;
+
+lexer section:
+
+    DEF			: 'def' ;
+
+parser section:
+
+    Def			: DEF ;
+

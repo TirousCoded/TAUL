@@ -22,9 +22,11 @@ taul::token::token(const token& x)
     _pos(x._pos) {}
 
 taul::token::token(token&& x) noexcept
-    : _lpr(std::move(x._lpr)),
-    _str(std::move(x._str)),
-    _pos(std::move(x._pos)) {}
+    : token() {
+    std::swap(_lpr, x._lpr);
+    std::swap(_str, x._str);
+    std::swap(_pos, x._pos);
+}
 
 taul::token& taul::token::operator=(const token& rhs) {
     _lpr = rhs._lpr;
@@ -35,15 +37,15 @@ taul::token& taul::token::operator=(const token& rhs) {
 
 taul::token& taul::token::operator=(token&& rhs) noexcept {
     if (&rhs != this) {
-        _lpr = std::move(rhs._lpr);
-        _str = std::move(rhs._str);
-        _pos = std::move(rhs._pos);
+        std::swap(_lpr, rhs._lpr);
+        std::swap(_str, rhs._str);
+        std::swap(_pos, rhs._pos);
     }
     return *this;
 }
 
 bool taul::token::is_failure() const noexcept {
-    return !_lpr;
+    return _lpr == nullptr;
 }
 
 const taul::lexer_rule& taul::token::lpr() const {
@@ -65,9 +67,9 @@ taul::source_pos taul::token::pos() const noexcept {
 }
 
 bool taul::token::equal(const token& other) const noexcept {
-    return 
-        _lpr == other._lpr && 
-        _str == other._str && 
+    return
+        _lpr == other._lpr &&
+        _str == other._str &&
         _pos == other._pos;
 }
 

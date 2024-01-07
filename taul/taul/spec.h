@@ -28,9 +28,24 @@ namespace taul {
         // associate binds a source_code to the spec, associating it w/ it, such
         // that it will be used when loading requires source location information
 
+        // if x == nullptr, the spec will be imbued will be disassociated from
+        // any current source_code association it may have
+
         inline void associate(const std::shared_ptr<source_code>& x) noexcept {
             src = x;
         }
+
+        inline bool associated(const std::shared_ptr<source_code>& x) const noexcept {
+            return src == x;
+        }
+
+
+        // concat concatenates two specs together, producing a new specification
+
+        // the source_code association (or lack thereof) of spec 'a' is the one imbued in
+        // the spec resulting from the concatenation
+
+        static spec concat(const spec& a, const spec& b);
     };
 
 

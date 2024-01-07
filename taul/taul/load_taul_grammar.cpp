@@ -7,41 +7,20 @@
 
 
 taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
-    spec s =
-        spec_writer()
-        .lpr_decl("VIS_ASCII")
-        .lpr_decl("LETTER")
-        .lpr_decl("DIGIT")
-        .lpr_decl("ANY_IDENTIFIER")
-        .lpr_decl("IDENTIFIER")
-        .lpr_decl("INTEGER")
-        .lpr_decl("STRING")
-        .lpr_decl("CHARSET")
-        .lpr_decl("WHITESPACE")
-        .lpr_decl("NEWLINE")
-        .lpr_decl("SL_COMMENT")
-        .lpr_decl("ML_COMMENT")
-        .lpr_decl("KEYWORD")
-        .lpr_decl("EOK")
-        .lpr_decl("KW_OPTIONS")
+    spec_writer sw;
+    sw
+        .grammar_bias(bias::f); // need this for LL(1) semantics
+    sw
         .lpr_decl("KW_LEXER")
         .lpr_decl("KW_PARSER")
-        .lpr_decl("KW_BIAS")
+        .lpr_decl("KW_SECTION")
         .lpr_decl("KW_SKIP")
-        .lpr_decl("KW_SUPPORT")
-        .lpr_decl("KW_FL")
-        .lpr_decl("KW_FS")
-        .lpr_decl("KW_LL")
-        .lpr_decl("KW_LS")
-        .lpr_decl("KW_F")
-        .lpr_decl("KW_L")
         .lpr_decl("KW_BEGIN")
         .lpr_decl("KW_END")
         .lpr_decl("KW_ANY")
         .lpr_decl("KW_TOKEN")
-        .lpr_decl("KW_FAILURE")
-        .lpr_decl("KW_LOCALEND")
-        .lpr_decl("OPERATORS") // this is currently unused
+        .lpr_decl("KW_FAILURE");
+    sw
         .lpr_decl("OP_PERIOD")
         .lpr_decl("OP_COMMA")
         .lpr_decl("OP_COLON")
@@ -50,316 +29,462 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .lpr_decl("OP_QUESTION")
         .lpr_decl("OP_ASTERISK")
         .lpr_decl("OP_PLUS")
-        .lpr_decl("OP_EXCLAM")
         .lpr_decl("OP_TILDE")
         .lpr_decl("OP_AMPERSAND")
         .lpr_decl("OP_MINUS")
         .lpr_decl("OP_L_ROUND")
-        .lpr_decl("OP_R_ROUND")
-        .lpr_decl("OP_L_CURLY")
-        .lpr_decl("OP_R_CURLY")
-        .lpr("VIS_ASCII", qualifier::support)
-        .range('!', '~')
-        .close()
-        .lpr("LETTER", qualifier::support)
+        .lpr_decl("OP_R_ROUND");
+    sw
+        .lpr_decl("IDENTIFIER")
+        .lpr_decl("STRING")
+        .lpr_decl("CHARSET")
+        .lpr_decl("WHITESPACE")
+        .lpr_decl("NEWLINE")
+        .lpr_decl("SL_COMMENT")
+        .lpr_decl("ML_COMMENT");
+    sw
+        .ppr_decl("Spec")
+        .ppr_decl("Spec_SyntaxError");
+    sw
+        .ppr_decl("Clause")
+        .ppr_decl("Clause_LexerSection")
+        .ppr_decl("Clause_ParserSection")
+        .ppr_decl("Clause_Rule")
+        .ppr_decl("Clause_Rule_Skip")
+        .ppr_decl("Clause_Rule_Name")
+        .ppr_decl("Clause_Rule_Expr");
+    sw
+        .ppr_decl("Expr")
+        .ppr_decl("Expr_Primary")
+        .ppr_decl("Expr_Begin")
+        .ppr_decl("Expr_End")
+        .ppr_decl("Expr_Any")
+        .ppr_decl("Expr_Token")
+        .ppr_decl("Expr_Failure")
+        .ppr_decl("Expr_String")
+        .ppr_decl("Expr_Charset")
+        .ppr_decl("Expr_Name")
+        .ppr_decl("Expr_Group")
+        .ppr_decl("Expr_LookAhead")
+        .ppr_decl("Expr_LookAheadNot")
+        .ppr_decl("Expr_Not")
+        .ppr_decl("Expr_Optional")
+        .ppr_decl("Expr_Optional_Expr")
+        .ppr_decl("Expr_KleeneStar")
+        .ppr_decl("Expr_KleeneStar_Expr")
+        .ppr_decl("Expr_KleenePlus")
+        .ppr_decl("Expr_KleenePlus_Expr")
+        .ppr_decl("Expr_Sequence")
+        .ppr_decl("Expr_Sequence_Expr")
+        .ppr_decl("Expr_Set")
+        .ppr_decl("Expr_Set_Expr");
+    auto add_keyword_lpr =
+        [&](const char* kwName, const char* s) {
+        sw
+            .lpr(kwName)
+            .string(s)
+            //-[0-9a-zA-Z_]
+            .assertion(polarity::negative)
+            .set()
+            .range('0', '9')
+            .range('a', 'z')
+            .range('A', 'Z')
+            .string("_")
+            .close()
+            .close()
+            .close();
+        };
+    add_keyword_lpr("KW_LEXER", "lexer");
+    add_keyword_lpr("KW_PARSER", "parser");
+    add_keyword_lpr("KW_SECTION", "section");
+    add_keyword_lpr("KW_SKIP", "skip");
+    add_keyword_lpr("KW_BEGIN", "begin");
+    add_keyword_lpr("KW_END", "end");
+    add_keyword_lpr("KW_ANY", "any");
+    add_keyword_lpr("KW_TOKEN", "token");
+    add_keyword_lpr("KW_FAILURE", "failure");
+    auto add_operator_lpr =
+        [&](const char* opName, const char* s) {
+        sw
+            .lpr(opName)
+            .string(s)
+            .close();
+        };
+    add_operator_lpr("OP_PERIOD", ".");
+    add_operator_lpr("OP_COMMA", ",");
+    add_operator_lpr("OP_COLON", ":");
+    add_operator_lpr("OP_SEMICOLON", ";");
+    add_operator_lpr("OP_VBAR", "|");
+    add_operator_lpr("OP_QUESTION", "?");
+    add_operator_lpr("OP_ASTERISK", "*");
+    add_operator_lpr("OP_PLUS", "+");
+    add_operator_lpr("OP_TILDE", "~");
+    add_operator_lpr("OP_AMPERSAND", "&");
+    add_operator_lpr("OP_MINUS", "-");
+    add_operator_lpr("OP_L_ROUND", "(");
+    add_operator_lpr("OP_R_ROUND", ")");
+    sw
+        .lpr("IDENTIFIER")
+        // [a-zA-Z_] [0-9a-zA-Z_]*
         .set()
         .range('a', 'z')
         .range('A', 'Z')
+        .string("_")
         .close()
-        .close()
-        .lpr("DIGIT", qualifier::support)
+        .modifier(0, 0)
+        .set()
         .range('0', '9')
-        .close()
-        .lpr("ANY_IDENTIFIER", qualifier::support)
-        .set()
-        .name("LETTER")
-        .string("_")
-        .close()
-        .modifier(0, 0)
-        .set()
-        .name("DIGIT")
-        .name("LETTER")
+        .range('a', 'z')
+        .range('A', 'Z')
         .string("_")
         .close()
         .close()
-        .close()
-        .lpr("IDENTIFIER")
-        .constraint(polarity::negative)
-        .name("ANY_IDENTIFIER")
-        .junction()
-        .name("KEYWORD")
-        .close()
-        .close()
-        .lpr("INTEGER")
-        .name("DIGIT")
-        .modifier(0, 0)
-        .sequence()
-        .modifier(0, 1)
-        .string("_")
-        .close()
-        .name("DIGIT")
-        .close()
-        .close()
-        .assertion(polarity::negative)
-        .set()
-        .name("LETTER")
-        .string("_")
-        .close()
-        .close()
-        .close()
+        .close();
+    sw
         .lpr("STRING")
+        // '\'' ( ~'\'' | '\\' any )* '\''
         .string("'")
         .modifier(0, 0)
         .set()
+        // ~'\''
         .sequence()
-        .modifier(0, 1)
+        .assertion(polarity::negative)
+        .string("'")
+        .close()
+        .any()
+        .close()
+        // '\\' any
+        .sequence()
         .string("\\")
+        .any()
         .close()
-        .constraint(polarity::negative)
-        .set()
-        .name("VIS_ASCII")
-        .name("WHITESPACE")
-        .name("NEWLINE")
-        .close()
-        .junction()
-        .string("'")
-        .close()
-        .close()
-        .string("\\\\")
-        .string("\\'")
         .close()
         .close()
         .string("'")
-        .close()
+        .close();
+    sw
         .lpr("CHARSET")
+        // '[' ( ~']' | '\\' any )* ']'
         .string("[")
         .modifier(0, 0)
         .set()
+        // ~']'
         .sequence()
-        .modifier(0, 1)
+        .assertion(polarity::negative)
+        .string("]")
+        .close()
+        .any()
+        .close()
+        // '\\' any
+        .sequence()
         .string("\\")
+        .any()
         .close()
-        .constraint(polarity::negative)
-        .set()
-        .name("VIS_ASCII")
-        .name("WHITESPACE")
-        .name("NEWLINE")
-        .close()
-        .junction()
-        .string("]")
-        .close()
-        .close()
-        .string("\\\\")
-        .string("\\]")
         .close()
         .close()
         .string("]")
-        .close()
+        .close();
+    sw
         .lpr("WHITESPACE", qualifier::skip)
+        // [ \t]
         .charset(" \t")
-        .close()
+        .close();
+    sw
         .lpr("NEWLINE", qualifier::skip)
-        .set()
-        .charset("\r\n")
+        // '\r\n' | [\r\n]
+        .set(bias::f)
         .string("\r\n")
+        .charset("\r\n")
         .close()
-        .close()
+        .close();
+    sw
         .lpr("SL_COMMENT", qualifier::skip)
+        // '#' ~[\r\n]*
         .string("#")
         .modifier(0, 0)
-        .constraint(polarity::negative)
+        // ~[\r\n]
+        .sequence()
+        .assertion(polarity::negative)
+        .charset("\r\n")
+        .close()
         .any()
-        .junction()
-        .name("NEWLINE")
         .close()
         .close()
-        .close()
+        .close();
+    sw
         .lpr("ML_COMMENT", qualifier::skip)
+        // '!#' ( ~'#' | '#' -'!' )* '#!'?
         .string("!#")
         .modifier(0, 0)
-        .constraint(polarity::negative)
+        .set(bias::f)
+        // ~'#'
+        .sequence()
+        .assertion(polarity::negative)
+        .string("#")
+        .close()
         .any()
-        .junction()
-        .string("#!")
+        .close()
+        // '#' -'!'
+        .sequence()
+        .string("#")
+        .assertion(polarity::negative)
+        .string("!")
+        .close()
+        .close()
         .close()
         .close()
         .modifier(0, 1)
         .string("#!")
         .close()
+        .close();
+    sw
+        .ppr("Spec")
+        // begin Clause* ( end | Spec_SyntaxError )
+        .begin()
+        .modifier(0, 0)
+        .name("Clause")
         .close()
-        .lpr("KEYWORD", qualifier::support)
-        .set()
-        .name("KW_OPTIONS")
+        .set(bias::f)
+        .end()
+        .name("Spec_SyntaxError")
+        .close()
+        .close();
+    sw
+        .ppr("Spec_SyntaxError")
+        // any
+        .any()
+        .close();
+    sw
+        .ppr("Clause")
+        .set(bias::f)
+        .name("Clause_LexerSection")
+        .name("Clause_ParserSection")
+        .name("Clause_Rule")
+        .close()
+        .close();
+    sw
+        .ppr("Clause_LexerSection")
+        // KW_LEXER KW_SECTION OP_COLON
         .name("KW_LEXER")
-        .name("KW_PARSER")
-        .name("KW_BIAS")
-        .name("KW_SKIP")
-        .name("KW_SUPPORT")
-        .name("KW_FL")
-        .name("KW_FS")
-        .name("KW_LL")
-        .name("KW_LS")
-        .name("KW_F")
-        .name("KW_L")
-        .name("KW_BEGIN")
-        .name("KW_END")
-        .name("KW_ANY")
-        .name("KW_TOKEN")
-        .name("KW_FAILURE")
-        .name("KW_LOCALEND")
-        .close()
-        .close()
-        .lpr("EOK", qualifier::support)
-        .assertion(polarity::negative)
-        .set()
-        .name("DIGIT")
-        .name("LETTER")
-        .string("_")
-        .close()
-        .close()
-        .close()
-        .lpr("KW_OPTIONS")
-        .string("options")
-        .name("EOK")
-        .close()
-        .lpr("KW_LEXER")
-        .string("lexer")
-        .name("EOK")
-        .close()
-        .lpr("KW_PARSER")
-        .string("parser")
-        .name("EOK")
-        .close()
-        .lpr("KW_BIAS")
-        .string("bias")
-        .name("EOK")
-        .close()
-        .lpr("KW_SKIP")
-        .string("skip")
-        .name("EOK")
-        .close()
-        .lpr("KW_SUPPORT")
-        .string("support")
-        .name("EOK")
-        .close()
-        .lpr("KW_FL")
-        .string("fl")
-        .name("EOK")
-        .close()
-        .lpr("KW_FS")
-        .string("fs")
-        .name("EOK")
-        .close()
-        .lpr("KW_LL")
-        .string("ll")
-        .name("EOK")
-        .close()
-        .lpr("KW_LS")
-        .string("ls")
-        .name("EOK")
-        .close()
-        .lpr("KW_F")
-        .string("f")
-        .name("EOK")
-        .close()
-        .lpr("KW_L")
-        .string("l")
-        .name("EOK")
-        .close()
-        .lpr("KW_BEGIN")
-        .string("begin")
-        .name("EOK")
-        .close()
-        .lpr("KW_END")
-        .string("end")
-        .name("EOK")
-        .close()
-        .lpr("KW_ANY")
-        .string("any")
-        .name("EOK")
-        .close()
-        .lpr("KW_TOKEN")
-        .string("token")
-        .name("EOK")
-        .close()
-        .lpr("KW_FAILURE")
-        .string("failure")
-        .name("EOK")
-        .close()
-        .lpr("KW_LOCALEND")
-        .string("localend")
-        .name("EOK")
-        .close()
-        .lpr("OPERATORS", qualifier::support)
-        .set()
-        .name("OP_PERIOD")
-        .name("OP_COMMA")
+        .name("KW_SECTION")
         .name("OP_COLON")
+        .close();
+    sw
+        .ppr("Clause_ParserSection")
+        // KW_PARSER KW_SECTION OP_COLON
+        .name("KW_PARSER")
+        .name("KW_SECTION")
+        .name("OP_COLON")
+        .close();
+    sw
+        .ppr("Clause_Rule")
+        // Clause_Rule_Skip? Clause_Rule_Name OP_COLON Clause_Rule_Expr OP_SEMICOLON
+        .modifier(0, 1)
+        .name("Clause_Rule_Skip")
+        .close()
+        .name("Clause_Rule_Name")
+        .name("OP_COLON")
+        .name("Clause_Rule_Expr")
         .name("OP_SEMICOLON")
-        .name("OP_VBAR")
-        .name("OP_QUESTION")
-        .name("OP_ASTERISK")
-        .name("OP_PLUS")
-        .name("OP_EXCLAM")
-        .name("OP_TILDE")
-        .name("OP_AMPERSAND")
-        .name("OP_MINUS")
+        .close();
+    sw
+        .ppr("Clause_Rule_Skip")
+        // KW_SKIP
+        .name("KW_SKIP")
+        .close();
+    sw
+        .ppr("Clause_Rule_Name")
+        // IDENTIFIER
+        .name("IDENTIFIER")
+        .close();
+    sw
+        .ppr("Clause_Rule_Expr")
+        // Expr
+        .name("Expr")
+        .close();
+    sw
+        .ppr("Expr")
+        .set(bias::f)
+        .name("Expr_Set")
+        .name("Expr_Sequence")
+        .name("Expr_KleenePlus")
+        .name("Expr_KleeneStar")
+        .name("Expr_Optional")
+        .name("Expr_Not")
+        .name("Expr_LookAheadNot")
+        .name("Expr_LookAhead")
+        .name("Expr_Group")
+        .name("Expr_Primary")
+        .close()
+        .close();
+    sw
+        .ppr("Expr_Primary")
+        .set(bias::f)
+        .name("Expr_Begin")
+        .name("Expr_End")
+        .name("Expr_Any")
+        .name("Expr_Token")
+        .name("Expr_Failure")
+        .name("Expr_String")
+        .name("Expr_Charset")
+        .name("Expr_Name")
+        .close()
+        .close();
+    sw
+        .ppr("Expr_Begin")
+        .name("KW_BEGIN")
+        .close();
+    sw
+        .ppr("Expr_End")
+        .name("KW_END")
+        .close();
+    sw
+        .ppr("Expr_Any")
+        .name("KW_ANY")
+        .close();
+    sw
+        .ppr("Expr_Token")
+        .name("KW_TOKEN")
+        .close();
+    sw
+        .ppr("Expr_Failure")
+        .name("KW_FAILURE")
+        .close();
+    sw
+        .ppr("Expr_String")
+        .name("STRING")
+        .close();
+    sw
+        .ppr("Expr_Charset")
+        .name("CHARSET")
+        .close();
+    sw
+        .ppr("Expr_Name")
+        .name("IDENTIFIER")
+        .close();
+    sw
+        .ppr("Expr_Group")
+        // OP_L_ROUND Expr OP_R_ROUND
         .name("OP_L_ROUND")
+        .name("Expr")
         .name("OP_R_ROUND")
-        .name("OP_L_CURLY")
-        .name("OP_R_CURLY")
+        .close();
+    sw
+        .ppr("Expr_LookAhead")
+        // OP_AMPERSAND Expr
+        .name("OP_AMPERSAND")
+        .name("Expr")
+        .close();
+    sw
+        .ppr("Expr_LookAheadNot")
+        // OP_MINUS Expr
+        .name("OP_MINUS")
+        .name("Expr")
+        .close();
+    sw
+        .ppr("Expr_Not")
+        // OP_TILDE Expr
+        .name("OP_TILDE")
+        .name("Expr")
+        .close();
+    sw
+        .ppr("Expr_Optional")
+        // Expr_Optional_Expr OP_QUESTION
+        .name("Expr_Optional_Expr")
+        .name("OP_QUESTION")
+        .close();
+    sw
+        .ppr("Expr_Optional_Expr")
+        .set(bias::f)
+        .name("Expr_Not")
+        .name("Expr_LookAheadNot")
+        .name("Expr_LookAhead")
+        .name("Expr_Group")
+        .name("Expr_Primary")
+        .close()
+        .close();
+    sw
+        .ppr("Expr_KleeneStar")
+        // Expr_KleeneStar_Expr OP_ASTERISK
+        .name("Expr_KleeneStar_Expr")
+        .name("OP_ASTERISK")
+        .close();
+    sw
+        .ppr("Expr_KleeneStar_Expr")
+        .set(bias::f)
+        .name("Expr_Optional")
+        .name("Expr_Not")
+        .name("Expr_LookAheadNot")
+        .name("Expr_LookAhead")
+        .name("Expr_Group")
+        .name("Expr_Primary")
+        .close()
+        .close();
+    sw
+        .ppr("Expr_KleenePlus")
+        // Expr_KleenePlus_Expr OP_PLUS
+        .name("Expr_KleenePlus_Expr")
+        .name("OP_PLUS")
+        .close();
+    sw
+        .ppr("Expr_KleenePlus_Expr")
+        .set(bias::f)
+        .name("Expr_KleeneStar")
+        .name("Expr_Optional")
+        .name("Expr_Not")
+        .name("Expr_LookAheadNot")
+        .name("Expr_LookAhead")
+        .name("Expr_Group")
+        .name("Expr_Primary")
+        .close()
+        .close();
+    sw
+        .ppr("Expr_Sequence")
+        // Expr_Sequence_Expr Expr_Sequence_Expr+
+        .name("Expr_Sequence_Expr")
+        .modifier(1, 0)
+        .name("Expr_Sequence_Expr")
+        .close()
+        .close();
+    sw
+        .ppr("Expr_Sequence_Expr")
+        .set(bias::f)
+        .name("Expr_KleenePlus")
+        .name("Expr_KleeneStar")
+        .name("Expr_Optional")
+        .name("Expr_Not")
+        .name("Expr_LookAheadNot")
+        .name("Expr_LookAhead")
+        .name("Expr_Group")
+        .name("Expr_Primary")
+        .close()
+        .close();
+    sw
+        .ppr("Expr_Set")
+        // Expr_Set_Expr ( OP_VBAR Expr_Set_Expr )+
+        .name("Expr_Set_Expr")
+        .modifier(1, 0)
+        .sequence()
+        .name("OP_VBAR")
+        .name("Expr_Set_Expr")
         .close()
         .close()
-        .lpr("OP_PERIOD")
-        .string(".")
+        .close();
+    sw
+        .ppr("Expr_Set_Expr")
+        .set(bias::f)
+        .name("Expr_Sequence")
+        .name("Expr_KleenePlus")
+        .name("Expr_KleeneStar")
+        .name("Expr_Optional")
+        .name("Expr_Not")
+        .name("Expr_LookAheadNot")
+        .name("Expr_LookAhead")
+        .name("Expr_Group")
+        .name("Expr_Primary")
         .close()
-        .lpr("OP_COMMA")
-        .string(",")
-        .close()
-        .lpr("OP_COLON")
-        .string(":")
-        .close()
-        .lpr("OP_SEMICOLON")
-        .string(";")
-        .close()
-        .lpr("OP_VBAR")
-        .string("|")
-        .close()
-        .lpr("OP_QUESTION")
-        .string("?")
-        .close()
-        .lpr("OP_ASTERISK")
-        .string("*")
-        .close()
-        .lpr("OP_PLUS")
-        .string("+")
-        .close()
-        .lpr("OP_EXCLAM")
-        .string("!")
-        .close()
-        .lpr("OP_TILDE")
-        .string("~")
-        .close()
-        .lpr("OP_AMPERSAND")
-        .string("&")
-        .close()
-        .lpr("OP_MINUS")
-        .string("-")
-        .close()
-        .lpr("OP_L_ROUND")
-        .string("(")
-        .close()
-        .lpr("OP_R_ROUND")
-        .string(")")
-        .close()
-        .lpr("OP_L_CURLY")
-        .string("{")
-        .close()
-        .lpr("OP_R_CURLY")
-        .string("}")
-        .close()
-        .done();
-    auto ld = load(s, lgr);
+        .close();
+    auto ld = load(sw.done(), lgr);
     TAUL_ASSERT(ld);
     return std::move(*ld);
 }

@@ -81,7 +81,8 @@ namespace taul {
 
         // at/operator[] returns the token at index ind in the token sequence
 
-        // throws std::out_of_range if ind is out-of-bounds of the token sequence
+        // throws std::out_of_range if ind is out-of-bounds of the token sequence,
+        // providing a strong guarantee
 
         const token& at(std::size_t ind) const;
 
@@ -89,9 +90,23 @@ namespace taul {
 
         // back returns the token at the back of the token sequence
 
-        // throws std::out_of_range if the token sequence is empty
+        // throws std::out_of_range if the token sequence is empty,
+        // providing a strong guarantee
 
         const token& back() const;
+
+
+        // range_str returns a string view of the portion of source string starting
+        // at the source string position of the first token specified, and ending
+        // at the end of the source string portion of the last token specified
+
+        // range_str specifies the above token range via a starting index ind, and 
+        // a number of tokens n
+
+        // throws std::out_of_range if the range of tokens specified is invalid,
+        // providing a strong guarantee
+
+        std::string_view range_str(std::size_t ind, std::size_t n) const;
 
 
         const_iterator begin() const noexcept;
@@ -177,11 +192,31 @@ namespace taul {
             std::string_view s);
 
 
+        std::string fmt(const char* tab = "    ") const;
+
+
     private:
 
         std::string_view _s;
         std::vector<token> _tkns;
         source_pos _readpos;
+
+
+        bool _in_bounds(std::size_t ind, std::size_t n) const noexcept;
     };
+}
+
+
+template<>
+struct std::formatter<taul::token_seq> final : std::formatter<std::string> {
+    auto format(const taul::token_seq& x, format_context& ctx) const {
+        return formatter<string>::format(x.fmt(), ctx);
+    }
+};
+
+namespace std {
+    inline std::ostream& operator<<(std::ostream& stream, const taul::token_seq& x) {
+        return stream << x.fmt();
+    }
 }
 

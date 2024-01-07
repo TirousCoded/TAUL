@@ -1,131 +1,212 @@
 
 
-options (
-    bias                    : fl ;
-)
+lexer section:
 
-lexer (
-    # notice that only non-support LPRs are actually in our regression tests
+    # TODO: w/ our new LL(1) design, take note of how the below KW_*** LPRs
+    #       *must* be defined prior to IDENTIFIER, or it'll be the one matched
+    #       instead DUE TO THE ORDER
 
-    # general
-
-    # see https://en.wikipedia.org/wiki/ASCII
-
-    support VIS_ASCII       : '!'..'~' ;
-
-    support LETTER          : 'a'..'z' | 'A'..'Z' ;
-    support DIGIT           : '0'..'9' ;
-
-    support ANY_IDENTIFIER  : ( LETTER | '_' ) ( DIGIT | LETTER | '_' )* ;
-
-    IDENTIFIER              : ANY_IDENTIFIER -KEYWORD ;
-    INTEGER                 : DIGIT ( '_'? DIGIT )* ( LETTER | '_' )~ ;
-    STRING                  : '\'' ( ( '\\'? ( VIS_ASCII | WHITESPACE | NEWLINE ) -'\'' ) | '\\\\' | '\\\'' )* '\'' ;
-    CHARSET                 : '[' ( ( '\\'? ( VIS_ASCII | WHITESPACE | NEWLINE ) -']' ) |  '\\\\' | '\\]' )* ']' ;
-    
-    skip WHITESPACE         : [ \t] ;
-    skip NEWLINE            : [\r\n] | '\r\n' ;
-
-    skip SL_COMMENT         : '#' ( any -NEWLINE )* ;
-    skip ML_COMMENT         : '!#' ( any -'#!' )* '#!'? ;
-    
     # keywords
 
-    support KEYWORD         : KW_OPTIONS
-                            | KW_LEXER
-                            | KW_PARSER
-                            | KW_BIAS
-                            | KW_SKIP
-                            | KW_SUPPORT
-                            | KW_FL
-                            | KW_FS
-                            | KW_LL
-                            | KW_LS
-                            | KW_F
-                            | KW_L
-                            | KW_BEGIN
-                            | KW_END
-                            | KW_ANY
-                            | KW_TOKEN
-                            | KW_FAILURE
-                            | KW_LOCALEND ;
+    KW_LEXER                        : 'lexer' -[0-9a-zA-Z_] ;
+    KW_PARSER                       : 'parser' -[0-9a-zA-Z_] ;
+    KW_SECTION                      : 'section' -[0-9a-zA-Z_] ;
 
-    # 'EOK' == 'End Of Keyword'
-
-    support EOK             : ( DIGIT | LETTER | '_' )~ ;
+    KW_SKIP                         : 'skip' -[0-9a-zA-Z_] ;
     
-    KW_OPTIONS              : 'options' EOK ;
-    KW_LEXER                : 'lexer' EOK ;
-    KW_PARSER               : 'parser' EOK ;
-    
-    KW_BIAS                 : 'bias' EOK ;
-
-    KW_SKIP                 : 'skip' EOK ;
-    KW_SUPPORT              : 'support' EOK ;
-    
-    # these describe biases
-    #   fl  ->  first longest
-    #   fs  ->  first shortest
-    #   ll  ->  last longest
-    #   ls  ->  last shortest
-    #   f   ->  first
-    #   l   ->  last
-
-    KW_FL                   : 'fl' EOK ;
-    KW_FS                   : 'fs' EOK ;
-    KW_LL                   : 'll' EOK ;
-    KW_LS                   : 'ls' EOK ;
-    KW_F                    : 'f' EOK ;
-    KW_L                    : 'l' EOK ;
-    
-    KW_BEGIN                : 'begin' EOK ;
-    KW_END                  : 'end' EOK ;
-    KW_ANY                  : 'any' EOK ;
-    KW_TOKEN                : 'token' EOK ;
-    KW_FAILURE              : 'failure' EOK ;
-    KW_LOCALEND             : 'localend' EOK ;
+    KW_BEGIN                        : 'begin' -[0-9a-zA-Z_] ;
+    KW_END                          : 'end' -[0-9a-zA-Z_] ;
+    KW_ANY                          : 'any' -[0-9a-zA-Z_] ;
+    KW_TOKEN                        : 'token' -[0-9a-zA-Z_] ;
+    KW_FAILURE                      : 'failure' -[0-9a-zA-Z_] ;
     
     # operators
 
-    # TODO: 'OPERATORS' is currently unused, and isn't in our regression tests
+    OP_PERIOD                       : '.' ;
+    OP_COMMA                        : ',' ;
+    OP_COLON                        : ':' ;
+    OP_SEMICOLON                    : ';' ;
+    OP_VBAR                         : '|' ;
+    OP_QUESTION                     : '?' ;
+    OP_ASTERISK                     : '*' ;
+    OP_PLUS                         : '+' ;
+    OP_TILDE                        : '~' ;
+    OP_AMPERSAND                    : '&' ;
+    OP_MINUS                        : '-' ;
 
-    support OPERATORS       : OP_PERIOD
-                            | OP_COMMA
-                            | OP_COLON
-                            | OP_SEMICOLON
-                            | OP_VBAR
-                            | OP_QUESTION
-                            | OP_ASTERISK
-                            | OP_PLUS
-                            | OP_EXCLAM
-                            | OP_TILDE
-                            | OP_AMPERSAND
-                            | OP_MINUS
-                            | OP_L_ROUND
-                            | OP_R_ROUND
-                            | OP_L_CURLY
-                            | OP_R_CURLY ;
-    
-    OP_PERIOD               : '.' ;
-    OP_COMMA                : ',' ;
-    OP_COLON                : ':' ;
-    OP_SEMICOLON            : ';' ;
-    OP_VBAR                 : '|' ;
-    OP_QUESTION             : '?' ;
-    OP_ASTERISK             : '*' ;
-    OP_PLUS                 : '+' ;
-    OP_EXCLAM               : '!' ;
-    OP_TILDE                : '~' ;
-    OP_AMPERSAND            : '&' ;
-    OP_MINUS                : '-' ;
+    OP_L_ROUND                      : '(' ;
+    OP_R_ROUND                      : ')' ;
 
-    OP_L_ROUND              : '(' ;
-    OP_R_ROUND              : ')' ;
-    OP_L_CURLY              : '{' ;
-    OP_R_CURLY              : '}' ;
-)
+    # general
 
-parser (
+    # TODO: don't forget that [!..~] is the range of all visible ASCII characters
     #
-)
+    #       https://en.wikipedia.org/wiki/ASCII
+    
+    # TODO: we're gonna steal ANTLR semantics for charsets, likely replacing our ranges too
+    # TODO: the &x is the 'lookahead' expr, which asserts the next char is in the 
+    #       charset x w/out advancing
+    # TODO: the -x is the 'lookahead-not' expr, which asserts that there must either be
+    #       no next char, or that the next char is NOT in the charset x, all done w/out advancing
+    # TODO: the ~x is the 'not' expr, which takes a char or charset subexpr, and matches
+    #       a single char which is NOT in said set
+
+    IDENTIFIER                      : [a-zA-Z_] [0-9a-zA-Z_]* ;
+    STRING                          : '\'' ( ~'\'' | '\\' any )* '\'' ;
+    CHARSET                         : '[' ( ~']' | '\\' any )* ']' ;
+
+    skip WHITESPACE                 : [ \t] ;
+    skip NEWLINE                    : '\r\n' | [\r\n] ;
+
+    skip SL_COMMENT                 : '#' ~[\r\n]* ;
+    skip ML_COMMENT                 : '!#' ( ~'#' | '#' -'!' )* '#!'? ;
+
+parser section:
+
+    Spec                            : begin Clause* ( end | Spec_SyntaxError ) ;
+
+    # TODO: replace later w/ proper error handling/recovery
+
+    Spec_SyntaxError                : any ;
+    
+    Clause                          : Clause_LexerSection
+                                    | Clause_ParserSection
+                                    | Clause_Rule ;
+    Clause_LexerSection             : KW_LEXER KW_SECTION OP_COLON ;
+    Clause_ParserSection            : KW_PARSER KW_SECTION OP_COLON ;
+    Clause_Rule                     : Clause_Rule_Skip? Clause_Rule_Name OP_COLON Clause_Rule_Expr OP_SEMICOLON ;
+    Clause_Rule_Skip                : KW_SKIP ;
+    Clause_Rule_Name                : IDENTIFIER ;
+    Clause_Rule_Expr                : Expr ;
+    
+    # expr precedence (ordered highest to lowest)
+    #       (primary)
+    #       - begin
+    #       - end
+    #       - any
+    #       - token
+    #       - failure
+    #       - string
+    #       - charset
+    #       - name
+    #       - integer           <- expr, but not lexer/parser pattern
+    #       (non-primary)
+    #       - group             <- the expr "( abc )", where 'abc' is the nested expr
+    #       - lookahead         <- &x
+    #       - lookahead-not     <- -x
+    #       - not               <- ~x
+    #       - optional          <- x?
+    #       - kleene-star       <- x*
+    #       - kleene-plus       <- x+
+    #       - sequence          <- a sequence "a b c", w/ enclosing "(...)" not being mandatory
+    #       - set               <- an *alternatives* set "a | b | c", which can contain nested sequences
+
+    # below, the '_Expr' suffixed helper PPRs are used to replace 'Expr' in order to 
+    # address the whole *left-recursion* thing
+
+    # enumerating exprs must go from lowest -> highest precedence
+
+    Expr                            : Expr_Set
+                                    | Expr_Sequence
+                                    | Expr_KleenePlus
+                                    | Expr_KleeneStar
+                                    | Expr_Optional
+                                    | Expr_Not
+                                    | Expr_LookAheadNot
+                                    | Expr_LookAhead
+                                    | Expr_Group
+                                    | Expr_Primary ;
+
+    Expr_Primary                    : Expr_Begin
+                                    | Expr_End
+                                    | Expr_Any
+                                    | Expr_Token
+                                    | Expr_Failure
+                                    | Expr_String
+                                    | Expr_Charset
+                                    | Expr_Name ;
+
+    Expr_Begin                      : KW_BEGIN ;
+    Expr_End                        : KW_END ;
+    Expr_Any                        : KW_ANY ;
+    Expr_Token                      : KW_TOKEN ;
+    Expr_Failure                    : KW_FAILURE ;
+    Expr_String                     : STRING ;
+    Expr_Charset                    : CHARSET ;
+    Expr_Name                       : IDENTIFIER ;
+
+    Expr_Group                      : OP_L_ROUND Expr OP_R_ROUND ;
+    Expr_LookAhead                  : OP_AMPERSAND Expr ;
+    Expr_LookAheadNot               : OP_MINUS Expr ;
+    Expr_Not                        : OP_TILDE Expr ;
+
+    Expr_Optional                   : Expr_Optional_Expr OP_QUESTION ;
+    
+    # enumerating exprs must go from lowest -> highest precedence
+
+    Expr_Optional_Expr              : Expr_Not
+                                    | Expr_LookAheadNot
+                                    | Expr_LookAhead
+                                    | Expr_Group
+                                    | Expr_Primary ;
+
+    Expr_KleeneStar                 : Expr_KleeneStar_Expr OP_ASTERISK ;
+    
+    # enumerating exprs must go from lowest -> highest precedence
+
+    Expr_KleeneStar_Expr            : Expr_Optional
+                                    | Expr_Not
+                                    | Expr_LookAheadNot
+                                    | Expr_LookAhead
+                                    | Expr_Group
+                                    | Expr_Primary ;
+
+    Expr_KleenePlus                 : Expr_KleenePlus_Expr OP_PLUS ;
+    
+    # enumerating exprs must go from lowest -> highest precedence
+
+    Expr_KleenePlus_Expr            : Expr_KleeneStar
+                                    | Expr_Optional
+                                    | Expr_Not
+                                    | Expr_LookAheadNot
+                                    | Expr_LookAhead
+                                    | Expr_Group
+                                    | Expr_Primary ;
+
+    # for sequences and sets below, we'll only consider them syntactically
+    # present if they have at least two nested subexprs, as w/ only one neither
+    # of them are actually needed, so in those cases we'll just not match them
+
+    # implicit sequence exprs shouldn't contain any immediately nested implicit
+    # sequence exprs, so we'll use Expr_Sequence_Expr over-and-over, rather
+    # than using Expr
+
+    Expr_Sequence                   : Expr_Sequence_Expr Expr_Sequence_Expr+ ;
+    
+    # enumerating exprs must go from lowest -> highest precedence
+
+    Expr_Sequence_Expr              : Expr_KleenePlus
+                                    | Expr_KleeneStar
+                                    | Expr_Optional
+                                    | Expr_Not
+                                    | Expr_LookAheadNot
+                                    | Expr_LookAhead
+                                    | Expr_Group
+                                    | Expr_Primary ;
+
+    # below use of Expr_Set_Expr over-and-over is for same reason as above
+
+    Expr_Set                        : Expr_Set_Expr ( OP_VBAR Expr_Set_Expr )+ ;
+    
+    # enumerating exprs must go from lowest -> highest precedence
+
+    Expr_Set_Expr                   : Expr_Sequence
+                                    | Expr_KleenePlus
+                                    | Expr_KleeneStar
+                                    | Expr_Optional
+                                    | Expr_Not
+                                    | Expr_LookAheadNot
+                                    | Expr_LookAhead
+                                    | Expr_Group
+                                    | Expr_Primary ;
 

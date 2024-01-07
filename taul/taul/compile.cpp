@@ -2,6 +2,11 @@
 
 #include "compile.h"
 
+#include "grammar.h"
+#include "lexer.h"
+#include "tokenize.h"
+#include "load_taul_grammar.h"
+
 #include "internal/util.h"
 
 
@@ -18,7 +23,25 @@ std::optional<taul::spec> taul::compile(
             "passed (std::shared_ptr<source_code>) src argument was nullptr!");
         return std::nullopt;
     }
-    return std::nullopt;
+    // get our TAUL language grammar
+    grammar taul_gram = load_taul_grammar();
+    TAUL_ASSERT(taul_gram.contains_ppr("Spec"));
+    // tokenize input
+    auto tkns = tokenize(taul_gram, src->str());
+    // parse AST
+    auto ast = taul_gram.parser("Spec")(ctx, tkns);
+    TAUL_ASSERT((bool)ast);
+    // traverse AST
+    internal::compile_traverser ct{};
+    ct.traverse(*ast);
+    // if syntax or other error arose, fail and return nullopt
+    if (!ct.success) {
+        return std::nullopt;
+    }
+    // if successful, imbue w/ source_code association
+    ct.output.associate(src);
+    TAUL_ASSERT(ct.output.associated(src));
+    return ct.output;
 }
 
 std::optional<taul::spec> taul::compile(
@@ -47,7 +70,7 @@ std::optional<taul::spec> taul::compile(
 
 std::optional<taul::spec> taul::compile(
     node_ctx& ctx, 
-    std::string src, 
+    const std::string& src, 
     spec_error_counter& ec, 
     const std::shared_ptr<logger>& lgr) {
     auto sc = std::make_shared<source_code>();
@@ -57,14 +80,14 @@ std::optional<taul::spec> taul::compile(
 
 std::optional<taul::spec> taul::compile(
     node_ctx& ctx, 
-    std::string src, 
+    const std::string& src, 
     const std::shared_ptr<logger>& lgr) {
     spec_error_counter ec{};
     return compile(ctx, src, ec, lgr);
 }
 
 std::optional<taul::spec> taul::compile(
-    std::string src, 
+    const std::string& src, 
     spec_error_counter& ec, 
     const std::shared_ptr<logger>& lgr) {
     node_ctx ctx{};
@@ -72,7 +95,7 @@ std::optional<taul::spec> taul::compile(
 }
 
 std::optional<taul::spec> taul::compile(
-    std::string src, 
+    const std::string& src, 
     const std::shared_ptr<logger>& lgr) {
     node_ctx ctx{};
     spec_error_counter ec{};
@@ -120,5 +143,98 @@ std::optional<taul::spec> taul::compile(
     node_ctx ctx{};
     spec_error_counter ec{};
     return compile(ctx, src_path, ec, lgr);
+}
+
+taul::internal::compile_traverser::compile_traverser() 
+    : traverser() {}
+
+void taul::internal::compile_traverser::on_begin() {
+    swForDecls.grammar_bias(bias::f);
+}
+
+void taul::internal::compile_traverser::on_end() {
+    auto spec0 = swForDecls.done();
+    auto spec1 = swForDefs.done();
+    output = spec::concat(spec0, spec1);
+}
+
+void taul::internal::compile_traverser::on_enter(const node& nd, bool& skip_children) {
+    if (nd.is_lexical()) {
+        //
+    }
+    else if (nd.is_syntactic()) {
+        if (nd.ppr().name == "Clause_LexerSection") {
+            lexerSection = true;
+        }
+        else if (nd.ppr().name == "Clause_ParserSection") {
+            lexerSection = false;
+        }
+        else if (nd.ppr().name == "Clause_Rule") {
+            ruleName = "";
+            ruleSkip = false;
+        }
+        else if (nd.ppr().name == "Clause_Rule_Skip") {
+            ruleSkip = true;
+        }
+        else if (nd.ppr().name == "Clause_Rule_Name") {
+            ruleName = nd.str();
+        }
+        else if (nd.ppr().name == "Clause_Rule_Expr") {
+            if (lexerSection) {
+                swForDecls.lpr_decl(ruleName);
+                swForDefs.lpr(ruleName, ruleSkip ? qualifier::skip : qualifier::none);
+            }
+            else {
+                swForDecls.ppr_decl(ruleName);
+                // TODO: add in semantic error if ppr has qualifier
+                swForDefs.ppr(ruleName);
+            }
+        }
+        else if (nd.ppr().name == "Expr_Begin") {
+            swForDefs.begin();
+        }
+        else if (nd.ppr().name == "Expr_End") {
+            swForDefs.end();
+        }
+        else if (nd.ppr().name == "Expr_Any") {
+            swForDefs.any();
+        }
+        else if (nd.ppr().name == "Expr_Token") {
+            swForDefs.token();
+        }
+        else if (nd.ppr().name == "Expr_Failure") {
+            swForDefs.failure();
+        }
+        else if (nd.ppr().name == "Expr_String") {
+            TAUL_ASSERT(nd.str().length() >= 2);
+            swForDefs.string(nd.str().substr(1, nd.str().length() - 2));
+        }
+        else if (nd.ppr().name == "Expr_Charset") {
+            TAUL_ASSERT(nd.str().length() >= 2);
+            swForDefs.charset(nd.str().substr(1, nd.str().length() - 2));
+        }
+        else if (nd.ppr().name == "Expr_Name") {
+            swForDefs.name(nd.str());
+        }
+    }
+    else TAUL_DEADEND;
+}
+
+void taul::internal::compile_traverser::on_exit(const taul::node& nd) {
+    if (nd.is_lexical()) {
+        //
+    }
+    else if (nd.is_syntactic()) {
+        if (nd.ppr().name == "Clause_LexerSection") {
+            lexerSection = true;
+        }
+        else if (nd.ppr().name == "Clause_ParserSection") {
+            lexerSection = false;
+        }
+        else if (nd.ppr().name == "Clause_Rule_Expr") {
+            swForDefs.close();
+        }
+    }
+    else TAUL_DEADEND;
 }
 

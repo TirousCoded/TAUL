@@ -72,6 +72,18 @@ const taul::token& taul::token_seq::back() const {
     return at(size() - 1);
 }
 
+std::string_view taul::token_seq::range_str(std::size_t ind, std::size_t n) const {
+    if (!_in_bounds(ind, n)) {
+        throw std::out_of_range("range_str specified range out-of-bounds!");
+    }
+    std::size_t first_ind = at(ind).pos();
+    std::size_t last_ind =
+        n > 0
+        ? at(ind + n - 1).pos() + at(ind + n - 1).str().length()
+        : first_ind;
+    return str().substr(first_ind, last_ind - first_ind);
+}
+
 taul::token_seq::const_iterator taul::token_seq::begin() const noexcept {
     return cbegin();
 }
@@ -178,5 +190,22 @@ void taul::token_seq::reset(std::string_view s) {
     _s = s;
     _tkns.clear();
     _readpos = 0;
+}
+
+std::string taul::token_seq::fmt(const char* tab) const {
+    std::string result{};
+    result += std::format("token seq. (size {})", size());
+    std::size_t ind = 0;
+    for (const auto& I : *this) {
+        result += std::format("\n{}(index {}) {}", tab, ind, I);
+        ind++;
+    }
+    return result;
+}
+
+bool taul::token_seq::_in_bounds(std::size_t ind, std::size_t n) const noexcept {
+    return 
+        ind <= size() &&
+        n <= size() - ind;
 }
 

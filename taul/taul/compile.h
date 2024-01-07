@@ -8,6 +8,7 @@
 #include "spec_error.h"
 #include "spec.h"
 #include "node.h"
+#include "traverser.h"
 
 
 namespace taul {
@@ -62,22 +63,22 @@ namespace taul {
 
     std::optional<spec> compile(
         node_ctx& ctx,
-        std::string src,
+        const std::string& src,
         spec_error_counter& ec,
         const std::shared_ptr<logger>& lgr = nullptr);
 
     std::optional<spec> compile(
         node_ctx& ctx,
-        std::string src,
+        const std::string& src,
         const std::shared_ptr<logger>& lgr = nullptr);
-    
+
     std::optional<spec> compile(
-        std::string src,
+        const std::string& src,
         spec_error_counter& ec,
         const std::shared_ptr<logger>& lgr = nullptr);
 
     std::optional<spec> compile(
-        std::string src,
+        const std::string& src,
         const std::shared_ptr<logger>& lgr = nullptr);
 
     std::optional<spec> compile(
@@ -99,5 +100,44 @@ namespace taul {
     std::optional<spec> compile(
         const std::filesystem::path& src_path,
         const std::shared_ptr<logger>& lgr = nullptr);
+
+
+    namespace internal {
+
+
+        // this traverser produces the spec, but does not imbue it w/
+        // any source_code association, so be sure that gets done
+
+
+        class compile_traverser final : public traverser {
+        public:
+
+            bool success = true;
+            spec output;
+
+
+            compile_traverser();
+
+
+        protected:
+
+            void on_begin() override final;
+            void on_end() override final;
+
+            void on_enter(const node& nd, bool& skip_children) override final;
+            void on_exit(const taul::node& nd) override final;
+
+
+        private:
+
+            bool lexerSection = true;
+
+            std::string ruleName;
+            bool ruleSkip = false;
+
+            spec_writer swForDecls;
+            spec_writer swForDefs;
+        };
+    }
 }
 

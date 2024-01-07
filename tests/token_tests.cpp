@@ -330,5 +330,17 @@ TEST_F(TokenTests, equality) {
     EXPECT_TRUE(taul::token(gram.lpr("lpr0"), "abc") != taul::token(gram.lpr("lpr0"), "abc", 10));
     EXPECT_TRUE(taul::token::failure("abc", 13) != taul::token::failure("abc", 14));
     EXPECT_TRUE(taul::token::failure("abc") != taul::token::failure("abc", 10));
+
+    // test that taul::token works w/ (ASSERT/EXPECT)_(EQ/NE)
+
+    EXPECT_EQ(taul::token{}, taul::token{});
+    EXPECT_EQ(taul::token(gram.lpr("lpr0"), "abc", 13), taul::token(gram.lpr("lpr0"), "abc", 13));
+    EXPECT_EQ(taul::token::failure("abc", 3), taul::token::failure("abc", 3));
+    EXPECT_EQ(taul::token{}, taul::token::failure(""));
+    EXPECT_EQ(taul::token::failure("abc"), taul::token::failure("abc", 0));
+
+    EXPECT_NE(taul::token(gram.lpr("lpr0"), "abc", 13), taul::token(gram.lpr("lpr1"), "abc", 13));
+    EXPECT_NE(taul::token(gram.lpr("lpr0"), "abc", 13), taul::token{});
+    EXPECT_NE(taul::token(gram.lpr("lpr0"), "abc", 13), taul::token::failure("abc", 13));
 }
 

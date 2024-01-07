@@ -920,3 +920,58 @@ TEST_F(TokenSeqTests, Pointers) {
     EXPECT_EQ(ts[3].str().data(), txt + 6);
 }
 
+TEST_F(TokenSeqTests, RangeStr) {
+
+    taul::token_seq ts("abc def ghi jkl mno");
+
+    ts.push(gram.lpr("a"), 3);
+    ts.skip(1);
+    ts.push(gram.lpr("a"), 3);
+    ts.skip(1);
+    ts.push(gram.lpr("a"), 3);
+    ts.skip(1);
+    ts.push(gram.lpr("a"), 3);
+    ts.skip(1);
+    ts.push(gram.lpr("a"), 3);
+
+    
+    ASSERT_EQ(ts.size(), 5);
+
+
+    // TODO: in theory we should *maybe* also test that the pointed-to memory
+    //       is of the source string... or is this even needed?
+
+
+    EXPECT_EQ(ts.range_str(0, 5), "abc def ghi jkl mno");
+
+    EXPECT_EQ(ts.range_str(0, 4), "abc def ghi jkl");
+    EXPECT_EQ(ts.range_str(1, 4), "def ghi jkl mno");
+
+    EXPECT_EQ(ts.range_str(0, 3), "abc def ghi");
+    EXPECT_EQ(ts.range_str(1, 3), "def ghi jkl");
+    EXPECT_EQ(ts.range_str(2, 3), "ghi jkl mno");
+
+    EXPECT_EQ(ts.range_str(0, 2), "abc def");
+    EXPECT_EQ(ts.range_str(1, 2), "def ghi");
+    EXPECT_EQ(ts.range_str(2, 2), "ghi jkl");
+    EXPECT_EQ(ts.range_str(3, 2), "jkl mno");
+
+    EXPECT_EQ(ts.range_str(0, 1), "abc");
+    EXPECT_EQ(ts.range_str(1, 1), "def");
+    EXPECT_EQ(ts.range_str(2, 1), "ghi");
+    EXPECT_EQ(ts.range_str(3, 1), "jkl");
+    EXPECT_EQ(ts.range_str(4, 1), "mno");
+
+    EXPECT_EQ(ts.range_str(0, 0), "");
+    EXPECT_EQ(ts.range_str(1, 0), "");
+    EXPECT_EQ(ts.range_str(2, 0), "");
+    EXPECT_EQ(ts.range_str(3, 0), "");
+    EXPECT_EQ(ts.range_str(4, 0), "");
+
+
+    EXPECT_THROW(ts.range_str(5, 1), std::out_of_range);
+    EXPECT_THROW(ts.range_str(0, 6), std::out_of_range);
+    EXPECT_THROW(ts.range_str(2, 4), std::out_of_range);
+    EXPECT_THROW(ts.range_str(10, 1), std::out_of_range);
+}
+

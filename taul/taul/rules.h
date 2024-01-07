@@ -48,7 +48,7 @@ namespace taul {
 
     struct parser_rule final {
         std::string     name;
-        std::size_t     index = -1;
+        std::size_t     index       = -1;
         taul::parser    fnobj;                                  // the parser function object of the parser rule
 
 

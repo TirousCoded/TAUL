@@ -13,7 +13,7 @@
 // to be *close enough* to work as proper regression tests
 
 
-class LoadTaulGrammarTests : public testing::Test {
+class LoadTAULGrammarTests : public testing::Test {
 protected:
 
     std::shared_ptr<taul::logger> lgr = nullptr;
@@ -27,27 +27,20 @@ protected:
 };
 
 
-constexpr std::size_t nonsupport_lprs = 42;
-constexpr std::size_t keywords = 18;
-constexpr std::size_t operators = 16;
+constexpr std::size_t lprs              = 29;
+constexpr std::size_t pprs              = 33;
+constexpr std::size_t keywords          = 9;
+constexpr std::size_t operators         = 13;
+constexpr std::size_t primary_exprs     = 8;
 
 
-TEST_F(LoadTaulGrammarTests, HasExpectedGrammarWideBias) {
+TEST_F(LoadTAULGrammarTests, HasExpectedLPRs) {
 
-    EXPECT_EQ(gram.bias(), taul::bias::fl);
-}
+    EXPECT_EQ(gram.lprs().size(), lprs);
 
-TEST_F(LoadTaulGrammarTests, HasExpectedLPRs) {
-
-    EXPECT_EQ(gram.nonsupport_lprs(), nonsupport_lprs);
-
-    //EXPECT_TRUE(gram.contains_lpr("VIS_ASCII"));
-    //EXPECT_TRUE(gram.contains_lpr("LETTER"));
-    //EXPECT_TRUE(gram.contains_lpr("DIGIT"));
-    //EXPECT_TRUE(gram.contains_lpr("ANY_IDENTIFIER"));
+    static_assert(lprs == 29);
 
     EXPECT_TRUE(gram.contains_lpr("IDENTIFIER"));
-    EXPECT_TRUE(gram.contains_lpr("INTEGER"));
     EXPECT_TRUE(gram.contains_lpr("STRING"));
     EXPECT_TRUE(gram.contains_lpr("CHARSET"));
 
@@ -56,33 +49,19 @@ TEST_F(LoadTaulGrammarTests, HasExpectedLPRs) {
     EXPECT_TRUE(gram.contains_lpr("SL_COMMENT"));
     EXPECT_TRUE(gram.contains_lpr("ML_COMMENT"));
 
-    //EXPECT_TRUE(gram.contains_lpr("KEYWORD"));
-    //EXPECT_TRUE(gram.contains_lpr("EOK"));
+    static_assert(keywords == 9);
 
-    static_assert(keywords == 18);
-
-    EXPECT_TRUE(gram.contains_lpr("KW_OPTIONS"));
     EXPECT_TRUE(gram.contains_lpr("KW_LEXER"));
     EXPECT_TRUE(gram.contains_lpr("KW_PARSER"));
-    EXPECT_TRUE(gram.contains_lpr("KW_BIAS"));
+    EXPECT_TRUE(gram.contains_lpr("KW_SECTION"));
     EXPECT_TRUE(gram.contains_lpr("KW_SKIP"));
-    EXPECT_TRUE(gram.contains_lpr("KW_SUPPORT"));
-    EXPECT_TRUE(gram.contains_lpr("KW_FL"));
-    EXPECT_TRUE(gram.contains_lpr("KW_FS"));
-    EXPECT_TRUE(gram.contains_lpr("KW_LL"));
-    EXPECT_TRUE(gram.contains_lpr("KW_LS"));
-    EXPECT_TRUE(gram.contains_lpr("KW_F"));
-    EXPECT_TRUE(gram.contains_lpr("KW_L"));
     EXPECT_TRUE(gram.contains_lpr("KW_BEGIN"));
     EXPECT_TRUE(gram.contains_lpr("KW_END"));
     EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
     EXPECT_TRUE(gram.contains_lpr("KW_TOKEN"));
     EXPECT_TRUE(gram.contains_lpr("KW_FAILURE"));
-    EXPECT_TRUE(gram.contains_lpr("KW_LOCALEND"));
 
-    //EXPECT_TRUE(gram.contains_lpr("OPERATORS"));
-
-    static_assert(operators == 16);
+    static_assert(operators == 13);
 
     EXPECT_TRUE(gram.contains_lpr("OP_PERIOD"));
     EXPECT_TRUE(gram.contains_lpr("OP_COMMA"));
@@ -92,147 +71,701 @@ TEST_F(LoadTaulGrammarTests, HasExpectedLPRs) {
     EXPECT_TRUE(gram.contains_lpr("OP_QUESTION"));
     EXPECT_TRUE(gram.contains_lpr("OP_ASTERISK"));
     EXPECT_TRUE(gram.contains_lpr("OP_PLUS"));
-    EXPECT_TRUE(gram.contains_lpr("OP_EXCLAM"));
     EXPECT_TRUE(gram.contains_lpr("OP_TILDE"));
     EXPECT_TRUE(gram.contains_lpr("OP_AMPERSAND"));
     EXPECT_TRUE(gram.contains_lpr("OP_MINUS"));
     EXPECT_TRUE(gram.contains_lpr("OP_L_ROUND"));
     EXPECT_TRUE(gram.contains_lpr("OP_R_ROUND"));
-    EXPECT_TRUE(gram.contains_lpr("OP_L_CURLY"));
-    EXPECT_TRUE(gram.contains_lpr("OP_R_CURLY"));
 }
 
-TEST_F(LoadTaulGrammarTests, HasExpectedPPRs) {
+TEST_F(LoadTAULGrammarTests, HasExpectedPPRs) {
 
-    //
+    EXPECT_EQ(gram.pprs().size(), pprs);
+
+    static_assert(pprs == 33);
+
+    EXPECT_TRUE(gram.contains_ppr("Spec"));
+    EXPECT_TRUE(gram.contains_ppr("Spec_SyntaxError"));
+
+    EXPECT_TRUE(gram.contains_ppr("Clause"));
+    EXPECT_TRUE(gram.contains_ppr("Clause_LexerSection"));
+    EXPECT_TRUE(gram.contains_ppr("Clause_ParserSection"));
+    EXPECT_TRUE(gram.contains_ppr("Clause_Rule"));
+    EXPECT_TRUE(gram.contains_ppr("Clause_Rule_Skip"));
+    EXPECT_TRUE(gram.contains_ppr("Clause_Rule_Name"));
+    EXPECT_TRUE(gram.contains_ppr("Clause_Rule_Expr"));
+
+    EXPECT_TRUE(gram.contains_ppr("Expr"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Primary"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Begin"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_End"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Any"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Token"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Failure"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_String"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Charset"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Name"));
+
+    EXPECT_TRUE(gram.contains_ppr("Expr_Group"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_LookAhead"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_LookAheadNot"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Not"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Optional"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Optional_Expr"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_KleeneStar"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_KleeneStar_Expr"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_KleenePlus"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_KleenePlus_Expr"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Sequence"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Sequence_Expr"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Set"));
+    EXPECT_TRUE(gram.contains_ppr("Expr_Set_Expr"));
 }
 
-/*TEST_F(LoadTaulGrammarTests, VIS_ASCII) {
+TEST_F(LoadTAULGrammarTests, KW_LEXER) {
 
-    ASSERT_TRUE(gram.contains_lpr("VIS_ASCII"));
+    ASSERT_TRUE(gram.contains_lpr("KW_LEXER"));
 
-    EXPECT_EQ(gram.lpr("VIS_ASCII").qualifer, taul::qualifier::support);
-    
-    auto lxr = gram.lexer("VIS_ASCII");
+    EXPECT_EQ(gram.lpr("KW_LEXER").qualifer, taul::qualifier::none);
 
-    for (std::uint8_t i = 0x00; i < 0x80; i++) {
-        // skip stray nulls for now
-        if (i == 0x00) {
-            continue;
-        }
-        std::string s = " a";
-        s[0] = (char)i;
-        taul::token tkn = lxr(s);
-        if ((char(i) >= '!') && (char(i) <= '~')) {
-            EXPECT_EQ(tkn, taul::token(gram.lpr("VIS_ASCII"), s.substr(0, 1))) << "std::size_t(s[0])==" << size_t(i);
-        }
-        else {
-            EXPECT_EQ(tkn, taul::token::failure("")) << "std::size_t(s[0])==" << size_t(i);
-        }
-    }
+    auto lxr = gram.lexer("KW_LEXER");
+
+    EXPECT_EQ(lxr("lexer"), taul::token(gram.lpr("KW_LEXER"), "lexer"));
+    EXPECT_EQ(lxr("lexer?"), taul::token(gram.lpr("KW_LEXER"), "lexer"));
+    EXPECT_EQ(lxr("lexer "), taul::token(gram.lpr("KW_LEXER"), "lexer"));
+    EXPECT_EQ(lxr("lexer\r\n"), taul::token(gram.lpr("KW_LEXER"), "lexer"));
+
+    EXPECT_EQ(lxr("lexerA"), taul::token::failure(""));
+    EXPECT_EQ(lxr("lexer1"), taul::token::failure(""));
+    EXPECT_EQ(lxr("lexer_"), taul::token::failure(""));
 
     EXPECT_EQ(lxr(""), taul::token::failure(""));
-}*/
-
-/*TEST_F(LoadTaulGrammarTests, LETTER) {
-
-    ASSERT_TRUE(gram.contains_lpr("LETTER"));
-
-    EXPECT_EQ(gram.lpr("LETTER").qualifer, taul::qualifier::support);
-    
-    auto lxr = gram.lexer("LETTER");
-
-    for (std::uint8_t i = 0x00; i < 0x80; i++) {
-        // skip stray nulls for now
-        if (i == 0x00) {
-            continue;
-        }
-        std::string s = " a";
-        s[0] = (char)i;
-        taul::token tkn = lxr(s);
-        if (((char(i) >= 'a') && (char(i) <= 'z')) || ((char(i) >= 'A') && (char(i) <= 'Z'))) {
-            EXPECT_EQ(tkn, taul::token(gram.lpr("LETTER"), s.substr(0, 1))) << "std::size_t(s[0])==" << size_t(i);
-        }
-        else {
-            EXPECT_EQ(tkn, taul::token::failure("")) << "std::size_t(s[0])==" << size_t(i);
-        }
-    }
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-}*/
-
-/*TEST_F(LoadTaulGrammarTests, DIGIT) {
-
-    ASSERT_TRUE(gram.contains_lpr("DIGIT"));
-
-    EXPECT_EQ(gram.lpr("DIGIT").qualifer, taul::qualifier::support);
-    
-    auto lxr = gram.lexer("DIGIT");
-
-    for (std::uint8_t i = 0x00; i < 0x80; i++) {
-        // skip stray nulls for now
-        if (i == 0x00) {
-            continue;
-        }
-        std::string s = " a";
-        s[0] = (char)i;
-        taul::token tkn = lxr(s);
-        if ((char(i) >= '0') && (char(i) <= '9')) {
-            EXPECT_EQ(tkn, taul::token(gram.lpr("DIGIT"), s.substr(0, 1))) << "std::size_t(s[0])==" << size_t(i);
-        }
-        else {
-            EXPECT_EQ(tkn, taul::token::failure("")) << "std::size_t(s[0])==" << size_t(i);
-        }
-    }
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-}*/
-
-/*TEST_F(LoadTaulGrammarTests, ANY_IDENTIFIER) {
-
-    ASSERT_TRUE(gram.contains_lpr("ANY_IDENTIFIER"));
-
-    EXPECT_EQ(gram.lpr("ANY_IDENTIFIER").qualifer, taul::qualifier::support);
-
-    auto lxr = gram.lexer("ANY_IDENTIFIER");
-
-    EXPECT_EQ(lxr("abc(abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "abc"));
-    EXPECT_EQ(lxr("_a_b_c&abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "_a_b_c"));
-    EXPECT_EQ(lxr("_123*abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "_123"));
-    EXPECT_EQ(lxr("_&abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "_"));
-    EXPECT_EQ(lxr("A&abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "A"));
-
-    static_assert(keywords == 18);
-
-    EXPECT_EQ(lxr("options)abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "options"));
-    EXPECT_EQ(lxr("lexer!abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "lexer"));
-    EXPECT_EQ(lxr("parser(abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "parser"));
-    EXPECT_EQ(lxr("bias&abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "bias"));
-    EXPECT_EQ(lxr("skip+abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "skip"));
-    EXPECT_EQ(lxr("support-abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "support"));
-    EXPECT_EQ(lxr("fl abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "fl"));
-    EXPECT_EQ(lxr("fs\tabc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "fs"));
-    EXPECT_EQ(lxr("ll*abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "ll"));
-    EXPECT_EQ(lxr("ls?abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "ls"));
-    EXPECT_EQ(lxr("f:abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "f"));
-    EXPECT_EQ(lxr("l;abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "l"));
-    EXPECT_EQ(lxr("begin)abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "begin"));
-    EXPECT_EQ(lxr("end(abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "end"));
-    EXPECT_EQ(lxr("any&abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "any"));
-    EXPECT_EQ(lxr("token&abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "token"));
-    EXPECT_EQ(lxr("failure~abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "failure"));
-    EXPECT_EQ(lxr("localend*abc"), taul::token(gram.lpr("ANY_IDENTIFIER"), "localend"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
     EXPECT_EQ(lxr("123"), taul::token::failure(""));
     EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
     EXPECT_EQ(lxr(" "), taul::token::failure(""));
     EXPECT_EQ(lxr("\t"), taul::token::failure(""));
     EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
     EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-}*/
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
 
-TEST_F(LoadTaulGrammarTests, IDENTIFIER) {
+TEST_F(LoadTAULGrammarTests, KW_PARSER) {
+
+    ASSERT_TRUE(gram.contains_lpr("KW_PARSER"));
+
+    EXPECT_EQ(gram.lpr("KW_PARSER").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("KW_PARSER");
+
+    EXPECT_EQ(lxr("parser"), taul::token(gram.lpr("KW_PARSER"), "parser"));
+    EXPECT_EQ(lxr("parser?"), taul::token(gram.lpr("KW_PARSER"), "parser"));
+    EXPECT_EQ(lxr("parser "), taul::token(gram.lpr("KW_PARSER"), "parser"));
+    EXPECT_EQ(lxr("parser\r\n"), taul::token(gram.lpr("KW_PARSER"), "parser"));
+
+    EXPECT_EQ(lxr("parserA"), taul::token::failure(""));
+    EXPECT_EQ(lxr("parser1"), taul::token::failure(""));
+    EXPECT_EQ(lxr("parser_"), taul::token::failure(""));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, KW_SECTION) {
+
+    ASSERT_TRUE(gram.contains_lpr("KW_SECTION"));
+
+    EXPECT_EQ(gram.lpr("KW_SECTION").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("KW_SECTION");
+
+    EXPECT_EQ(lxr("section"), taul::token(gram.lpr("KW_SECTION"), "section"));
+    EXPECT_EQ(lxr("section?"), taul::token(gram.lpr("KW_SECTION"), "section"));
+    EXPECT_EQ(lxr("section "), taul::token(gram.lpr("KW_SECTION"), "section"));
+    EXPECT_EQ(lxr("section\r\n"), taul::token(gram.lpr("KW_SECTION"), "section"));
+
+    EXPECT_EQ(lxr("sectionA"), taul::token::failure(""));
+    EXPECT_EQ(lxr("section1"), taul::token::failure(""));
+    EXPECT_EQ(lxr("section_"), taul::token::failure(""));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, KW_SKIP) {
+
+    ASSERT_TRUE(gram.contains_lpr("KW_SKIP"));
+
+    EXPECT_EQ(gram.lpr("KW_SKIP").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("KW_SKIP");
+
+    EXPECT_EQ(lxr("skip"), taul::token(gram.lpr("KW_SKIP"), "skip"));
+    EXPECT_EQ(lxr("skip?"), taul::token(gram.lpr("KW_SKIP"), "skip"));
+    EXPECT_EQ(lxr("skip "), taul::token(gram.lpr("KW_SKIP"), "skip"));
+    EXPECT_EQ(lxr("skip\r\n"), taul::token(gram.lpr("KW_SKIP"), "skip"));
+
+    EXPECT_EQ(lxr("skipA"), taul::token::failure(""));
+    EXPECT_EQ(lxr("skip1"), taul::token::failure(""));
+    EXPECT_EQ(lxr("skip_"), taul::token::failure(""));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, KW_BEGIN) {
+
+    ASSERT_TRUE(gram.contains_lpr("KW_BEGIN"));
+
+    EXPECT_EQ(gram.lpr("KW_BEGIN").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("KW_BEGIN");
+
+    EXPECT_EQ(lxr("begin"), taul::token(gram.lpr("KW_BEGIN"), "begin"));
+    EXPECT_EQ(lxr("begin?"), taul::token(gram.lpr("KW_BEGIN"), "begin"));
+    EXPECT_EQ(lxr("begin "), taul::token(gram.lpr("KW_BEGIN"), "begin"));
+    EXPECT_EQ(lxr("begin\r\n"), taul::token(gram.lpr("KW_BEGIN"), "begin"));
+
+    EXPECT_EQ(lxr("beginA"), taul::token::failure(""));
+    EXPECT_EQ(lxr("begin1"), taul::token::failure(""));
+    EXPECT_EQ(lxr("begin_"), taul::token::failure(""));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, KW_END) {
+
+    ASSERT_TRUE(gram.contains_lpr("KW_END"));
+
+    EXPECT_EQ(gram.lpr("KW_END").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("KW_END");
+
+    EXPECT_EQ(lxr("end"), taul::token(gram.lpr("KW_END"), "end"));
+    EXPECT_EQ(lxr("end?"), taul::token(gram.lpr("KW_END"), "end"));
+    EXPECT_EQ(lxr("end "), taul::token(gram.lpr("KW_END"), "end"));
+    EXPECT_EQ(lxr("end\r\n"), taul::token(gram.lpr("KW_END"), "end"));
+
+    EXPECT_EQ(lxr("endA"), taul::token::failure(""));
+    EXPECT_EQ(lxr("end1"), taul::token::failure(""));
+    EXPECT_EQ(lxr("end_"), taul::token::failure(""));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, KW_ANY) {
+
+    ASSERT_TRUE(gram.contains_lpr("KW_ANY"));
+
+    EXPECT_EQ(gram.lpr("KW_ANY").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("KW_ANY");
+
+    EXPECT_EQ(lxr("any"), taul::token(gram.lpr("KW_ANY"), "any"));
+    EXPECT_EQ(lxr("any?"), taul::token(gram.lpr("KW_ANY"), "any"));
+    EXPECT_EQ(lxr("any "), taul::token(gram.lpr("KW_ANY"), "any"));
+    EXPECT_EQ(lxr("any\r\n"), taul::token(gram.lpr("KW_ANY"), "any"));
+
+    EXPECT_EQ(lxr("anyA"), taul::token::failure(""));
+    EXPECT_EQ(lxr("any1"), taul::token::failure(""));
+    EXPECT_EQ(lxr("any_"), taul::token::failure(""));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, KW_TOKEN) {
+
+    ASSERT_TRUE(gram.contains_lpr("KW_TOKEN"));
+
+    EXPECT_EQ(gram.lpr("KW_TOKEN").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("KW_TOKEN");
+
+    EXPECT_EQ(lxr("token"), taul::token(gram.lpr("KW_TOKEN"), "token"));
+    EXPECT_EQ(lxr("token?"), taul::token(gram.lpr("KW_TOKEN"), "token"));
+    EXPECT_EQ(lxr("token "), taul::token(gram.lpr("KW_TOKEN"), "token"));
+    EXPECT_EQ(lxr("token\r\n"), taul::token(gram.lpr("KW_TOKEN"), "token"));
+
+    EXPECT_EQ(lxr("tokenA"), taul::token::failure(""));
+    EXPECT_EQ(lxr("token1"), taul::token::failure(""));
+    EXPECT_EQ(lxr("token_"), taul::token::failure(""));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, KW_FAILURE) {
+
+    ASSERT_TRUE(gram.contains_lpr("KW_FAILURE"));
+
+    EXPECT_EQ(gram.lpr("KW_FAILURE").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("KW_FAILURE");
+
+    EXPECT_EQ(lxr("failure"), taul::token(gram.lpr("KW_FAILURE"), "failure"));
+    EXPECT_EQ(lxr("failure?"), taul::token(gram.lpr("KW_FAILURE"), "failure"));
+    EXPECT_EQ(lxr("failure "), taul::token(gram.lpr("KW_FAILURE"), "failure"));
+    EXPECT_EQ(lxr("failure\r\n"), taul::token(gram.lpr("KW_FAILURE"), "failure"));
+
+    EXPECT_EQ(lxr("failureA"), taul::token::failure(""));
+    EXPECT_EQ(lxr("failure1"), taul::token::failure(""));
+    EXPECT_EQ(lxr("failure_"), taul::token::failure(""));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_PERIOD) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_PERIOD"));
+
+    EXPECT_EQ(gram.lpr("OP_PERIOD").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_PERIOD");
+
+    EXPECT_EQ(lxr(".abc"), taul::token(gram.lpr("OP_PERIOD"), "."));
+    EXPECT_EQ(lxr(".123"), taul::token(gram.lpr("OP_PERIOD"), "."));
+    EXPECT_EQ(lxr(".!@#"), taul::token(gram.lpr("OP_PERIOD"), "."));
+    EXPECT_EQ(lxr(". "), taul::token(gram.lpr("OP_PERIOD"), "."));
+    EXPECT_EQ(lxr(".\t"), taul::token(gram.lpr("OP_PERIOD"), "."));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_COMMA) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_COMMA"));
+
+    EXPECT_EQ(gram.lpr("OP_COMMA").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_COMMA");
+
+    EXPECT_EQ(lxr(",abc"), taul::token(gram.lpr("OP_COMMA"), ","));
+    EXPECT_EQ(lxr(",123"), taul::token(gram.lpr("OP_COMMA"), ","));
+    EXPECT_EQ(lxr(",!@#"), taul::token(gram.lpr("OP_COMMA"), ","));
+    EXPECT_EQ(lxr(", "), taul::token(gram.lpr("OP_COMMA"), ","));
+    EXPECT_EQ(lxr(",\t"), taul::token(gram.lpr("OP_COMMA"), ","));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_COLON) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_COLON"));
+
+    EXPECT_EQ(gram.lpr("OP_COLON").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_COLON");
+
+    EXPECT_EQ(lxr(":abc"), taul::token(gram.lpr("OP_COLON"), ":"));
+    EXPECT_EQ(lxr(":123"), taul::token(gram.lpr("OP_COLON"), ":"));
+    EXPECT_EQ(lxr(":!@#"), taul::token(gram.lpr("OP_COLON"), ":"));
+    EXPECT_EQ(lxr(": "), taul::token(gram.lpr("OP_COLON"), ":"));
+    EXPECT_EQ(lxr(":\t"), taul::token(gram.lpr("OP_COLON"), ":"));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_SEMICOLON) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_SEMICOLON"));
+
+    EXPECT_EQ(gram.lpr("OP_SEMICOLON").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_SEMICOLON");
+
+    EXPECT_EQ(lxr(";abc"), taul::token(gram.lpr("OP_SEMICOLON"), ";"));
+    EXPECT_EQ(lxr(";123"), taul::token(gram.lpr("OP_SEMICOLON"), ";"));
+    EXPECT_EQ(lxr(";!@#"), taul::token(gram.lpr("OP_SEMICOLON"), ";"));
+    EXPECT_EQ(lxr("; "), taul::token(gram.lpr("OP_SEMICOLON"), ";"));
+    EXPECT_EQ(lxr(";\t"), taul::token(gram.lpr("OP_SEMICOLON"), ";"));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_VBAR) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_VBAR"));
+
+    EXPECT_EQ(gram.lpr("OP_VBAR").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_VBAR");
+
+    EXPECT_EQ(lxr("|abc"), taul::token(gram.lpr("OP_VBAR"), "|"));
+    EXPECT_EQ(lxr("|123"), taul::token(gram.lpr("OP_VBAR"), "|"));
+    EXPECT_EQ(lxr("|!@#"), taul::token(gram.lpr("OP_VBAR"), "|"));
+    EXPECT_EQ(lxr("| "), taul::token(gram.lpr("OP_VBAR"), "|"));
+    EXPECT_EQ(lxr("|\t"), taul::token(gram.lpr("OP_VBAR"), "|"));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_QUESTION) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_QUESTION"));
+
+    EXPECT_EQ(gram.lpr("OP_QUESTION").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_QUESTION");
+
+    EXPECT_EQ(lxr("?abc"), taul::token(gram.lpr("OP_QUESTION"), "?"));
+    EXPECT_EQ(lxr("?123"), taul::token(gram.lpr("OP_QUESTION"), "?"));
+    EXPECT_EQ(lxr("?!@#"), taul::token(gram.lpr("OP_QUESTION"), "?"));
+    EXPECT_EQ(lxr("? "), taul::token(gram.lpr("OP_QUESTION"), "?"));
+    EXPECT_EQ(lxr("?\t"), taul::token(gram.lpr("OP_QUESTION"), "?"));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_ASTERISK) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_ASTERISK"));
+
+    EXPECT_EQ(gram.lpr("OP_ASTERISK").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_ASTERISK");
+
+    EXPECT_EQ(lxr("*abc"), taul::token(gram.lpr("OP_ASTERISK"), "*"));
+    EXPECT_EQ(lxr("*123"), taul::token(gram.lpr("OP_ASTERISK"), "*"));
+    EXPECT_EQ(lxr("*!@#"), taul::token(gram.lpr("OP_ASTERISK"), "*"));
+    EXPECT_EQ(lxr("* "), taul::token(gram.lpr("OP_ASTERISK"), "*"));
+    EXPECT_EQ(lxr("*\t"), taul::token(gram.lpr("OP_ASTERISK"), "*"));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_PLUS) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_PLUS"));
+
+    EXPECT_EQ(gram.lpr("OP_PLUS").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_PLUS");
+
+    EXPECT_EQ(lxr("+abc"), taul::token(gram.lpr("OP_PLUS"), "+"));
+    EXPECT_EQ(lxr("+123"), taul::token(gram.lpr("OP_PLUS"), "+"));
+    EXPECT_EQ(lxr("+!@#"), taul::token(gram.lpr("OP_PLUS"), "+"));
+    EXPECT_EQ(lxr("+ "), taul::token(gram.lpr("OP_PLUS"), "+"));
+    EXPECT_EQ(lxr("+\t"), taul::token(gram.lpr("OP_PLUS"), "+"));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_TILDE) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_TILDE"));
+
+    EXPECT_EQ(gram.lpr("OP_TILDE").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_TILDE");
+
+    EXPECT_EQ(lxr("~abc"), taul::token(gram.lpr("OP_TILDE"), "~"));
+    EXPECT_EQ(lxr("~123"), taul::token(gram.lpr("OP_TILDE"), "~"));
+    EXPECT_EQ(lxr("~!@#"), taul::token(gram.lpr("OP_TILDE"), "~"));
+    EXPECT_EQ(lxr("~ "), taul::token(gram.lpr("OP_TILDE"), "~"));
+    EXPECT_EQ(lxr("~\t"), taul::token(gram.lpr("OP_TILDE"), "~"));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    //EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_AMPERSAND) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_AMPERSAND"));
+
+    EXPECT_EQ(gram.lpr("OP_AMPERSAND").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_AMPERSAND");
+
+    EXPECT_EQ(lxr("&abc"), taul::token(gram.lpr("OP_AMPERSAND"), "&"));
+    EXPECT_EQ(lxr("&123"), taul::token(gram.lpr("OP_AMPERSAND"), "&"));
+    EXPECT_EQ(lxr("&!@#"), taul::token(gram.lpr("OP_AMPERSAND"), "&"));
+    EXPECT_EQ(lxr("& "), taul::token(gram.lpr("OP_AMPERSAND"), "&"));
+    EXPECT_EQ(lxr("&\t"), taul::token(gram.lpr("OP_AMPERSAND"), "&"));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_MINUS) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_MINUS"));
+
+    EXPECT_EQ(gram.lpr("OP_MINUS").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_MINUS");
+
+    EXPECT_EQ(lxr("-abc"), taul::token(gram.lpr("OP_MINUS"), "-"));
+    EXPECT_EQ(lxr("-123"), taul::token(gram.lpr("OP_MINUS"), "-"));
+    EXPECT_EQ(lxr("-!@#"), taul::token(gram.lpr("OP_MINUS"), "-"));
+    EXPECT_EQ(lxr("- "), taul::token(gram.lpr("OP_MINUS"), "-"));
+    EXPECT_EQ(lxr("-\t"), taul::token(gram.lpr("OP_MINUS"), "-"));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_L_ROUND) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_L_ROUND"));
+
+    EXPECT_EQ(gram.lpr("OP_L_ROUND").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_L_ROUND");
+
+    EXPECT_EQ(lxr("(abc"), taul::token(gram.lpr("OP_L_ROUND"), "("));
+    EXPECT_EQ(lxr("(123"), taul::token(gram.lpr("OP_L_ROUND"), "("));
+    EXPECT_EQ(lxr("(!@#"), taul::token(gram.lpr("OP_L_ROUND"), "("));
+    EXPECT_EQ(lxr("( "), taul::token(gram.lpr("OP_L_ROUND"), "("));
+    EXPECT_EQ(lxr("(\t"), taul::token(gram.lpr("OP_L_ROUND"), "("));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, OP_R_ROUND) {
+
+    ASSERT_TRUE(gram.contains_lpr("OP_R_ROUND"));
+
+    EXPECT_EQ(gram.lpr("OP_R_ROUND").qualifer, taul::qualifier::none);
+
+    auto lxr = gram.lexer("OP_R_ROUND");
+
+    EXPECT_EQ(lxr(")abc"), taul::token(gram.lpr("OP_R_ROUND"), ")"));
+    EXPECT_EQ(lxr(")123"), taul::token(gram.lpr("OP_R_ROUND"), ")"));
+    EXPECT_EQ(lxr(")!@#"), taul::token(gram.lpr("OP_R_ROUND"), ")"));
+    EXPECT_EQ(lxr(") "), taul::token(gram.lpr("OP_R_ROUND"), ")"));
+    EXPECT_EQ(lxr(")\t"), taul::token(gram.lpr("OP_R_ROUND"), ")"));
+
+    EXPECT_EQ(lxr(""), taul::token::failure(""));
+    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
+    EXPECT_EQ(lxr("123"), taul::token::failure(""));
+    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
+    EXPECT_EQ(lxr("_"), taul::token::failure(""));
+    EXPECT_EQ(lxr(" "), taul::token::failure(""));
+    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
+    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
+    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
+    EXPECT_EQ(lxr("''"), taul::token::failure(""));
+    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
+    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+}
+
+TEST_F(LoadTAULGrammarTests, IDENTIFIER) {
 
     ASSERT_TRUE(gram.contains_lpr("IDENTIFIER"));
 
@@ -246,26 +779,20 @@ TEST_F(LoadTaulGrammarTests, IDENTIFIER) {
     EXPECT_EQ(lxr("_&abc"), taul::token(gram.lpr("IDENTIFIER"), "_"));
     EXPECT_EQ(lxr("A&abc"), taul::token(gram.lpr("IDENTIFIER"), "A"));
 
-    static_assert(keywords == 18);
+    static_assert(keywords == 9);
 
-    EXPECT_EQ(lxr("optionsA"), taul::token(gram.lpr("IDENTIFIER"), "optionsA"));
-    EXPECT_EQ(lxr("lexerA"), taul::token(gram.lpr("IDENTIFIER"), "lexerA"));
-    EXPECT_EQ(lxr("parserA"), taul::token(gram.lpr("IDENTIFIER"), "parserA"));
-    EXPECT_EQ(lxr("biasA"), taul::token(gram.lpr("IDENTIFIER"), "biasA"));
-    EXPECT_EQ(lxr("skipA"), taul::token(gram.lpr("IDENTIFIER"), "skipA"));
-    EXPECT_EQ(lxr("supportA"), taul::token(gram.lpr("IDENTIFIER"), "supportA"));
-    EXPECT_EQ(lxr("flA"), taul::token(gram.lpr("IDENTIFIER"), "flA"));
-    EXPECT_EQ(lxr("fsA"), taul::token(gram.lpr("IDENTIFIER"), "fsA"));
-    EXPECT_EQ(lxr("llA"), taul::token(gram.lpr("IDENTIFIER"), "llA"));
-    EXPECT_EQ(lxr("lsA"), taul::token(gram.lpr("IDENTIFIER"), "lsA"));
-    EXPECT_EQ(lxr("fA"), taul::token(gram.lpr("IDENTIFIER"), "fA"));
-    EXPECT_EQ(lxr("lA"), taul::token(gram.lpr("IDENTIFIER"), "lA"));
-    EXPECT_EQ(lxr("beginA"), taul::token(gram.lpr("IDENTIFIER"), "beginA"));
-    EXPECT_EQ(lxr("endA"), taul::token(gram.lpr("IDENTIFIER"), "endA"));
-    EXPECT_EQ(lxr("anyA"), taul::token(gram.lpr("IDENTIFIER"), "anyA"));
-    EXPECT_EQ(lxr("tokenA"), taul::token(gram.lpr("IDENTIFIER"), "tokenA"));
-    EXPECT_EQ(lxr("failureA"), taul::token(gram.lpr("IDENTIFIER"), "failureA"));
-    EXPECT_EQ(lxr("localendA"), taul::token(gram.lpr("IDENTIFIER"), "localendA"));
+    // when matching *specifically* an IDENTIFIER, not the whole grammar,
+    // then the below keywords will be matched as IDENTIFIER tokens
+
+    EXPECT_EQ(lxr("lexer"), taul::token(gram.lpr("IDENTIFIER"), "lexer"));
+    EXPECT_EQ(lxr("parser"), taul::token(gram.lpr("IDENTIFIER"), "parser"));
+    EXPECT_EQ(lxr("section"), taul::token(gram.lpr("IDENTIFIER"), "section"));
+    EXPECT_EQ(lxr("skip"), taul::token(gram.lpr("IDENTIFIER"), "skip"));
+    EXPECT_EQ(lxr("begin"), taul::token(gram.lpr("IDENTIFIER"), "begin"));
+    EXPECT_EQ(lxr("end"), taul::token(gram.lpr("IDENTIFIER"), "end"));
+    EXPECT_EQ(lxr("any"), taul::token(gram.lpr("IDENTIFIER"), "any"));
+    EXPECT_EQ(lxr("token"), taul::token(gram.lpr("IDENTIFIER"), "token"));
+    EXPECT_EQ(lxr("failure"), taul::token(gram.lpr("IDENTIFIER"), "failure"));
 
     EXPECT_EQ(lxr(""), taul::token::failure(""));
     EXPECT_EQ(lxr("123"), taul::token::failure(""));
@@ -274,62 +801,9 @@ TEST_F(LoadTaulGrammarTests, IDENTIFIER) {
     EXPECT_EQ(lxr("\t"), taul::token::failure(""));
     EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
     EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-
-    static_assert(keywords == 18);
-
-    EXPECT_EQ(lxr("options"), taul::token::failure(""));
-    EXPECT_EQ(lxr("lexer"), taul::token::failure(""));
-    EXPECT_EQ(lxr("parser"), taul::token::failure(""));
-    EXPECT_EQ(lxr("bias"), taul::token::failure(""));
-    EXPECT_EQ(lxr("skip"), taul::token::failure(""));
-    EXPECT_EQ(lxr("support"), taul::token::failure(""));
-    EXPECT_EQ(lxr("fl"), taul::token::failure(""));
-    EXPECT_EQ(lxr("fs"), taul::token::failure(""));
-    EXPECT_EQ(lxr("ll"), taul::token::failure(""));
-    EXPECT_EQ(lxr("ls"), taul::token::failure(""));
-    EXPECT_EQ(lxr("f"), taul::token::failure(""));
-    EXPECT_EQ(lxr("l"), taul::token::failure(""));
-    EXPECT_EQ(lxr("begin"), taul::token::failure(""));
-    EXPECT_EQ(lxr("end"), taul::token::failure(""));
-    EXPECT_EQ(lxr("any"), taul::token::failure(""));
-    EXPECT_EQ(lxr("token"), taul::token::failure(""));
-    EXPECT_EQ(lxr("failure"), taul::token::failure(""));
-    EXPECT_EQ(lxr("localend"), taul::token::failure(""));
 }
 
-TEST_F(LoadTaulGrammarTests, INTEGER) {
-
-    ASSERT_TRUE(gram.contains_lpr("INTEGER"));
-
-    EXPECT_EQ(gram.lpr("INTEGER").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("INTEGER");
-
-    EXPECT_EQ(lxr("123(abc"), taul::token(gram.lpr("INTEGER"), "123"));
-    EXPECT_EQ(lxr("1_2_3(abc"), taul::token(gram.lpr("INTEGER"), "1_2_3"));
-    EXPECT_EQ(lxr("102_203_300_489_009+abc"), taul::token(gram.lpr("INTEGER"), "102_203_300_489_009"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-
-    EXPECT_EQ(lxr("123a"), taul::token::failure(""));
-    EXPECT_EQ(lxr("1_2_3A"), taul::token::failure(""));
-    EXPECT_EQ(lxr("102_203_300_489_009abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123_"), taul::token::failure(""));
-    EXPECT_EQ(lxr("1_2_3_"), taul::token::failure(""));
-    EXPECT_EQ(lxr("102_203_300_489_009_"), taul::token::failure(""));
-
-    EXPECT_EQ(lxr("1__23"), taul::token::failure(""));
-    EXPECT_EQ(lxr("12__3"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, STRING) {
+TEST_F(LoadTAULGrammarTests, STRING) {
 
     ASSERT_TRUE(gram.contains_lpr("STRING"));
 
@@ -363,7 +837,7 @@ TEST_F(LoadTaulGrammarTests, STRING) {
     EXPECT_EQ(lxr("'\\'"), taul::token::failure(""));
 }
 
-TEST_F(LoadTaulGrammarTests, CHARSET) {
+TEST_F(LoadTAULGrammarTests, CHARSET) {
 
     ASSERT_TRUE(gram.contains_lpr("CHARSET"));
 
@@ -397,12 +871,12 @@ TEST_F(LoadTaulGrammarTests, CHARSET) {
     EXPECT_EQ(lxr("[\\]"), taul::token::failure(""));
 }
 
-TEST_F(LoadTaulGrammarTests, WHITESPACE) {
+TEST_F(LoadTAULGrammarTests, WHITESPACE) {
 
     ASSERT_TRUE(gram.contains_lpr("WHITESPACE"));
 
     EXPECT_EQ(gram.lpr("WHITESPACE").qualifer, taul::qualifier::skip);
-    
+
     auto lxr = gram.lexer("WHITESPACE");
 
     for (std::uint8_t i = 0x00; i < 0x80; i++) {
@@ -424,12 +898,12 @@ TEST_F(LoadTaulGrammarTests, WHITESPACE) {
     EXPECT_EQ(lxr(""), taul::token::failure(""));
 }
 
-TEST_F(LoadTaulGrammarTests, NEWLINE) {
+TEST_F(LoadTAULGrammarTests, NEWLINE) {
 
     ASSERT_TRUE(gram.contains_lpr("NEWLINE"));
 
     EXPECT_EQ(gram.lpr("NEWLINE").qualifer, taul::qualifier::skip);
-    
+
     auto lxr = gram.lexer("NEWLINE");
 
     for (std::uint8_t i = 0x00; i < 0x80; i++) {
@@ -453,7 +927,7 @@ TEST_F(LoadTaulGrammarTests, NEWLINE) {
     EXPECT_EQ(lxr(""), taul::token::failure(""));
 }
 
-TEST_F(LoadTaulGrammarTests, SL_COMMENT) {
+TEST_F(LoadTAULGrammarTests, SL_COMMENT) {
 
     ASSERT_TRUE(gram.contains_lpr("SL_COMMENT"));
 
@@ -486,7 +960,7 @@ TEST_F(LoadTaulGrammarTests, SL_COMMENT) {
     EXPECT_EQ(lxr("!##!"), taul::token::failure(""));
 }
 
-TEST_F(LoadTaulGrammarTests, ML_COMMENT) {
+TEST_F(LoadTAULGrammarTests, ML_COMMENT) {
 
     ASSERT_TRUE(gram.contains_lpr("ML_COMMENT"));
 
@@ -514,1009 +988,948 @@ TEST_F(LoadTaulGrammarTests, ML_COMMENT) {
     EXPECT_EQ(lxr("#!"), taul::token::failure(""));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_OPTIONS) {
+// we're gonna perform our syntax tests *in bulk*, w/ bulk unit tests 
+// for collections of PPRs tested at once via an example node tree
 
-    ASSERT_TRUE(gram.contains_lpr("KW_OPTIONS"));
+// for PPRs w/ ***_Expr subpatterns used to address left-recursion,
+// take note that our unit tests presume that these are implemented
+// as expected, and that they work properly, w/ these tests likewise
+// not testing *every single little thing* they should match
 
-    EXPECT_EQ(gram.lpr("KW_OPTIONS").qualifer, taul::qualifier::none);
+// TODO: add tests for expr precedence and (maybe) expr associativity
 
-    auto lxr = gram.lexer("KW_OPTIONS");
+TEST_F(LoadTAULGrammarTests, Syntax_1) {
 
-    EXPECT_EQ(lxr("options"), taul::token(gram.lpr("KW_OPTIONS"), "options"));
-    EXPECT_EQ(lxr("options?"), taul::token(gram.lpr("KW_OPTIONS"), "options"));
-    EXPECT_EQ(lxr("options "), taul::token(gram.lpr("KW_OPTIONS"), "options"));
-    EXPECT_EQ(lxr("options\r\n"), taul::token(gram.lpr("KW_OPTIONS"), "options"));
 
-    EXPECT_EQ(lxr("optionsA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("options1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("options_"), taul::token::failure(""));
+    // this tests an empty source file
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    ASSERT_TRUE(gram.contains_ppr("Spec"));
+
+
+    std::string src =
+        "\n";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 0);
+
+    taul::node_ctx ctx;
+
+
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Spec"), "", 0))
+        .end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Spec")(ctx, tkns);
+    
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+    
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_LEXER) {
+TEST_F(LoadTAULGrammarTests, Syntax_2) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_LEXER"));
 
-    EXPECT_EQ(gram.lpr("KW_LEXER").qualifer, taul::qualifier::none);
+    // this tests the basics of clause syntax
 
-    auto lxr = gram.lexer("KW_LEXER");
 
-    EXPECT_EQ(lxr("lexer"), taul::token(gram.lpr("KW_LEXER"), "lexer"));
-    EXPECT_EQ(lxr("lexer?"), taul::token(gram.lpr("KW_LEXER"), "lexer"));
-    EXPECT_EQ(lxr("lexer "), taul::token(gram.lpr("KW_LEXER"), "lexer"));
-    EXPECT_EQ(lxr("lexer\r\n"), taul::token(gram.lpr("KW_LEXER"), "lexer"));
+    EXPECT_TRUE(gram.contains_lpr("KW_LEXER"));
+    EXPECT_TRUE(gram.contains_lpr("KW_PARSER"));
+    EXPECT_TRUE(gram.contains_lpr("KW_SECTION"));
+    EXPECT_TRUE(gram.contains_lpr("KW_SKIP"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
+    EXPECT_TRUE(gram.contains_lpr("OP_COLON"));
+    EXPECT_TRUE(gram.contains_lpr("OP_SEMICOLON"));
+    EXPECT_TRUE(gram.contains_lpr("IDENTIFIER"));
 
-    EXPECT_EQ(lxr("lexerA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("lexer1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("lexer_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Spec"));
+    ASSERT_TRUE(gram.contains_ppr("Clause"));
+    ASSERT_TRUE(gram.contains_ppr("Clause_LexerSection"));
+    ASSERT_TRUE(gram.contains_ppr("Clause_ParserSection"));
+    EXPECT_TRUE(gram.contains_ppr("Clause_Rule"));
+    EXPECT_TRUE(gram.contains_ppr("Clause_Rule_Skip"));
+    EXPECT_TRUE(gram.contains_ppr("Clause_Rule_Name"));
+    EXPECT_TRUE(gram.contains_ppr("Clause_Rule_Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    std::string src =
+        "lexer section:\n"
+        "skip ABC : any ;\n"
+        "parser section:\n"
+        "Abc : any ;";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 15);
+
+    taul::node_ctx ctx;
+
+
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Spec"), tkns.range_str(0, 15), tkns[0].pos()))
+
+        .enter(ctx.create(gram.ppr("Clause"), tkns.range_str(0, 3), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Clause_LexerSection"), tkns.range_str(0, 3), tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("KW_LEXER"), "lexer", tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("KW_SECTION"), "section", tkns[1].pos()))
+        .attach(ctx.create(gram.lpr("OP_COLON"), ":", tkns[2].pos()))
+        .exit()
+        .exit()
+
+        .enter(ctx.create(gram.ppr("Clause"), tkns.range_str(3, 5), tkns[3].pos()))
+        .enter(ctx.create(gram.ppr("Clause_Rule"), tkns.range_str(3, 5), tkns[3].pos()))
+        .enter(ctx.create(gram.ppr("Clause_Rule_Skip"), "skip", tkns[3].pos()))
+        .attach(ctx.create(gram.lpr("KW_SKIP"), "skip", tkns[3].pos()))
+        .exit()
+        .enter(ctx.create(gram.ppr("Clause_Rule_Name"), "ABC", tkns[4].pos()))
+        .attach(ctx.create(gram.lpr("IDENTIFIER"), "ABC", tkns[4].pos()))
+        .exit()
+        .attach(ctx.create(gram.lpr("OP_COLON"), ":", tkns[5].pos()))
+        .enter(ctx.create(gram.ppr("Clause_Rule_Expr"), "any", tkns[6].pos()))
+        .enter(ctx.create(gram.ppr("Expr"), "any", tkns[6].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[6].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[6].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[6].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .exit()
+        .attach(ctx.create(gram.lpr("OP_SEMICOLON"), ";", tkns[7].pos()))
+        .exit()
+        .exit()
+        
+        .enter(ctx.create(gram.ppr("Clause"), tkns.range_str(8, 3), tkns[8].pos()))
+        .enter(ctx.create(gram.ppr("Clause_ParserSection"), tkns.range_str(8, 3), tkns[8].pos()))
+        .attach(ctx.create(gram.lpr("KW_PARSER"), "parser", tkns[8].pos()))
+        .attach(ctx.create(gram.lpr("KW_SECTION"), "section", tkns[9].pos()))
+        .attach(ctx.create(gram.lpr("OP_COLON"), ":", tkns[10].pos()))
+        .exit()
+        .exit()
+
+        .enter(ctx.create(gram.ppr("Clause"), tkns.range_str(11, 4), tkns[11].pos()))
+        .enter(ctx.create(gram.ppr("Clause_Rule"), tkns.range_str(11, 4), tkns[11].pos()))
+        .enter(ctx.create(gram.ppr("Clause_Rule_Name"), "Abc", tkns[11].pos()))
+        .attach(ctx.create(gram.lpr("IDENTIFIER"), "Abc", tkns[11].pos()))
+        .exit()
+        .attach(ctx.create(gram.lpr("OP_COLON"), ":", tkns[12].pos()))
+        .enter(ctx.create(gram.ppr("Clause_Rule_Expr"), "any", tkns[13].pos()))
+        .enter(ctx.create(gram.ppr("Expr"), "any", tkns[13].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[13].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[13].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[13].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .exit()
+        .attach(ctx.create(gram.lpr("OP_SEMICOLON"), ";", tkns[14].pos()))
+        .exit()
+        .exit()
+
+        .end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Spec")(ctx, tkns);
+    
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+    
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_PARSER) {
+TEST_F(LoadTAULGrammarTests, Syntax_3) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_PARSER"));
 
-    EXPECT_EQ(gram.lpr("KW_PARSER").qualifer, taul::qualifier::none);
+    // this tests the detection of syntax errors
 
-    auto lxr = gram.lexer("KW_PARSER");
 
-    EXPECT_EQ(lxr("parser"), taul::token(gram.lpr("KW_PARSER"), "parser"));
-    EXPECT_EQ(lxr("parser?"), taul::token(gram.lpr("KW_PARSER"), "parser"));
-    EXPECT_EQ(lxr("parser "), taul::token(gram.lpr("KW_PARSER"), "parser"));
-    EXPECT_EQ(lxr("parser\r\n"), taul::token(gram.lpr("KW_PARSER"), "parser"));
+    EXPECT_TRUE(gram.contains_lpr("KW_LEXER"));
+    EXPECT_TRUE(gram.contains_lpr("KW_PARSER"));
+    EXPECT_TRUE(gram.contains_lpr("KW_SECTION"));
+    EXPECT_TRUE(gram.contains_lpr("KW_SKIP"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
+    EXPECT_TRUE(gram.contains_lpr("OP_COLON"));
+    EXPECT_TRUE(gram.contains_lpr("OP_SEMICOLON"));
+    EXPECT_TRUE(gram.contains_lpr("IDENTIFIER"));
 
-    EXPECT_EQ(lxr("parserA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("parser1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("parser_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Spec"));
+    ASSERT_TRUE(gram.contains_ppr("Spec_SyntaxError"));
+    ASSERT_TRUE(gram.contains_ppr("Clause"));
+    ASSERT_TRUE(gram.contains_ppr("Clause_LexerSection"));
+    ASSERT_TRUE(gram.contains_ppr("Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    std::string src =
+        "lexer section:\n"
+        "skip ABC : + ;\n" // <- the '+' is a syntax error
+        "parser section:\n"
+        "Abc : any ;";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 15);
+
+    taul::node_ctx ctx;
+
+
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Spec"), tkns.range_str(0, 4), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Clause"), tkns.range_str(0, 3), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Clause_LexerSection"), tkns.range_str(0, 3), tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("KW_LEXER"), "lexer", tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("KW_SECTION"), "section", tkns[1].pos()))
+        .attach(ctx.create(gram.lpr("OP_COLON"), ":", tkns[2].pos()))
+        .exit()
+        .exit()
+        .enter(ctx.create(gram.ppr("Spec_SyntaxError"), "skip", tkns[3].pos()))
+        .attach(ctx.create(gram.lpr("KW_SKIP"), "skip", tkns[3].pos()))
+        .exit()
+        .end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Spec")(ctx, tkns);
+    
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+    
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_BIAS) {
+TEST_F(LoadTAULGrammarTests, Syntax_4) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_BIAS"));
 
-    EXPECT_EQ(gram.lpr("KW_BIAS").qualifer, taul::qualifier::none);
+    // this tests the syntax of primary exprs
 
-    auto lxr = gram.lexer("KW_BIAS");
 
-    EXPECT_EQ(lxr("bias"), taul::token(gram.lpr("KW_BIAS"), "bias"));
-    EXPECT_EQ(lxr("bias?"), taul::token(gram.lpr("KW_BIAS"), "bias"));
-    EXPECT_EQ(lxr("bias "), taul::token(gram.lpr("KW_BIAS"), "bias"));
-    EXPECT_EQ(lxr("bias\r\n"), taul::token(gram.lpr("KW_BIAS"), "bias"));
+    EXPECT_TRUE(gram.contains_lpr("KW_BEGIN"));
+    EXPECT_TRUE(gram.contains_lpr("KW_END"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
+    EXPECT_TRUE(gram.contains_lpr("KW_TOKEN"));
+    EXPECT_TRUE(gram.contains_lpr("KW_FAILURE"));
+    EXPECT_TRUE(gram.contains_lpr("IDENTIFIER"));
+    EXPECT_TRUE(gram.contains_lpr("STRING"));
+    EXPECT_TRUE(gram.contains_lpr("CHARSET"));
 
-    EXPECT_EQ(lxr("biasA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("bias1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("bias_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Begin"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_End"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Token"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Failure"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_String"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Charset"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Name"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Sequence"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Sequence_Expr"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    // this is NOT semantically valid TAUL, but it is syntactic
+
+    static_assert(primary_exprs == 8);
+
+    std::string src =
+        "begin end any token failure "
+        "'abc'"
+        "[abc]"
+        "Abc";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 8);
+
+    taul::node_ctx ctx;
+
+
+    taul::node_assembler na{};
+
+    na
+        .begin(ctx.create(gram.ppr("Expr_Sequence"), tkns.range_str(0, 8), tkns[0].pos()));
+
+    std::size_t offset = 0;
+
+    na
+        .enter(ctx.create(gram.ppr("Expr_Sequence_Expr"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Begin"), tkns[offset].str(), tkns[offset].pos()))
+        .attach(ctx.create(tkns[offset]))
+        .exit()
+        .exit()
+        .exit();
+
+    offset++;
+
+    na
+        .enter(ctx.create(gram.ppr("Expr_Sequence_Expr"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_End"), tkns[offset].str(), tkns[offset].pos()))
+        .attach(ctx.create(tkns[offset]))
+        .exit()
+        .exit()
+        .exit();
+
+    offset++;
+
+    na
+        .enter(ctx.create(gram.ppr("Expr_Sequence_Expr"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), tkns[offset].str(), tkns[offset].pos()))
+        .attach(ctx.create(tkns[offset]))
+        .exit()
+        .exit()
+        .exit();
+
+    offset++;
+
+    na
+        .enter(ctx.create(gram.ppr("Expr_Sequence_Expr"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Token"), tkns[offset].str(), tkns[offset].pos()))
+        .attach(ctx.create(tkns[offset]))
+        .exit()
+        .exit()
+        .exit();
+
+    offset++;
+
+    na
+        .enter(ctx.create(gram.ppr("Expr_Sequence_Expr"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Failure"), tkns[offset].str(), tkns[offset].pos()))
+        .attach(ctx.create(tkns[offset]))
+        .exit()
+        .exit()
+        .exit();
+
+    offset++;
+
+    na
+        .enter(ctx.create(gram.ppr("Expr_Sequence_Expr"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_String"), tkns[offset].str(), tkns[offset].pos()))
+        .attach(ctx.create(tkns[offset]))
+        .exit()
+        .exit()
+        .exit();
+
+    offset++;
+
+    na
+        .enter(ctx.create(gram.ppr("Expr_Sequence_Expr"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Charset"), tkns[offset].str(), tkns[offset].pos()))
+        .attach(ctx.create(tkns[offset]))
+        .exit()
+        .exit()
+        .exit();
+
+    offset++;
+
+    na
+        .enter(ctx.create(gram.ppr("Expr_Sequence_Expr"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), tkns[offset].str(), tkns[offset].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Name"), tkns[offset].str(), tkns[offset].pos()))
+        .attach(ctx.create(tkns[offset]))
+        .exit()
+        .exit()
+        .exit();
+
+    auto expected = na.end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Expr_Sequence")(ctx, tkns);
+    
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+    
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+    
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_SKIP) {
+TEST_F(LoadTAULGrammarTests, Syntax_5) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_SKIP"));
 
-    EXPECT_EQ(gram.lpr("KW_SKIP").qualifer, taul::qualifier::none);
+    // this tests the syntax of group exprs
 
-    auto lxr = gram.lexer("KW_SKIP");
 
-    EXPECT_EQ(lxr("skip"), taul::token(gram.lpr("KW_SKIP"), "skip"));
-    EXPECT_EQ(lxr("skip?"), taul::token(gram.lpr("KW_SKIP"), "skip"));
-    EXPECT_EQ(lxr("skip "), taul::token(gram.lpr("KW_SKIP"), "skip"));
-    EXPECT_EQ(lxr("skip\r\n"), taul::token(gram.lpr("KW_SKIP"), "skip"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
+    EXPECT_TRUE(gram.contains_lpr("OP_L_ROUND"));
+    EXPECT_TRUE(gram.contains_lpr("OP_R_ROUND"));
 
-    EXPECT_EQ(lxr("skipA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("skip1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("skip_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Group"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    std::string src =
+        "( any )";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 3);
+
+    taul::node_ctx ctx;
+
+
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Expr"), tkns.range_str(0, 3), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Group"), tkns.range_str(0, 3), tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("OP_L_ROUND"), "(", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr"), "any", tkns[1].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[1].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[1].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[1].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .attach(ctx.create(gram.lpr("OP_R_ROUND"), ")", tkns[2].pos()))
+        .exit()
+        .end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Expr")(ctx, tkns);
+
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_SUPPORT) {
+TEST_F(LoadTAULGrammarTests, Syntax_6) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_SUPPORT"));
 
-    EXPECT_EQ(gram.lpr("KW_SUPPORT").qualifer, taul::qualifier::none);
+    // this tests the syntax of lookahead exprs
 
-    auto lxr = gram.lexer("KW_SUPPORT");
 
-    EXPECT_EQ(lxr("support"), taul::token(gram.lpr("KW_SUPPORT"), "support"));
-    EXPECT_EQ(lxr("support?"), taul::token(gram.lpr("KW_SUPPORT"), "support"));
-    EXPECT_EQ(lxr("support "), taul::token(gram.lpr("KW_SUPPORT"), "support"));
-    EXPECT_EQ(lxr("support\r\n"), taul::token(gram.lpr("KW_SUPPORT"), "support"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
+    EXPECT_TRUE(gram.contains_lpr("OP_AMPERSAND"));
 
-    EXPECT_EQ(lxr("supportA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("support1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("support_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_LookAhead"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    std::string src =
+        "&any";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 2);
+
+    taul::node_ctx ctx;
+
+
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Expr"), tkns.range_str(0, 2), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_LookAhead"), tkns.range_str(0, 2), tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("OP_AMPERSAND"), "&", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr"), "any", tkns[1].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[1].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[1].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[1].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .exit()
+        .end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Expr")(ctx, tkns);
+
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_FL) {
+TEST_F(LoadTAULGrammarTests, Syntax_7) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_FL"));
 
-    EXPECT_EQ(gram.lpr("KW_FL").qualifer, taul::qualifier::none);
+    // this tests the syntax of lookahead-not exprs
 
-    auto lxr = gram.lexer("KW_FL");
 
-    EXPECT_EQ(lxr("fl"), taul::token(gram.lpr("KW_FL"), "fl"));
-    EXPECT_EQ(lxr("fl?"), taul::token(gram.lpr("KW_FL"), "fl"));
-    EXPECT_EQ(lxr("fl "), taul::token(gram.lpr("KW_FL"), "fl"));
-    EXPECT_EQ(lxr("fl\r\n"), taul::token(gram.lpr("KW_FL"), "fl"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
+    EXPECT_TRUE(gram.contains_lpr("OP_MINUS"));
 
-    EXPECT_EQ(lxr("flA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("fl1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("fl_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_LookAheadNot"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    std::string src =
+        "-any";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 2);
+
+    taul::node_ctx ctx;
+
+
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Expr"), tkns.range_str(0, 2), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_LookAheadNot"), tkns.range_str(0, 2), tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("OP_MINUS"), "-", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr"), "any", tkns[1].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[1].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[1].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[1].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .exit()
+        .end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Expr")(ctx, tkns);
+
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_FS) {
+TEST_F(LoadTAULGrammarTests, Syntax_8) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_FS"));
 
-    EXPECT_EQ(gram.lpr("KW_FS").qualifer, taul::qualifier::none);
+    // this tests the syntax of not exprs
 
-    auto lxr = gram.lexer("KW_FS");
 
-    EXPECT_EQ(lxr("fs"), taul::token(gram.lpr("KW_FS"), "fs"));
-    EXPECT_EQ(lxr("fs?"), taul::token(gram.lpr("KW_FS"), "fs"));
-    EXPECT_EQ(lxr("fs "), taul::token(gram.lpr("KW_FS"), "fs"));
-    EXPECT_EQ(lxr("fs\r\n"), taul::token(gram.lpr("KW_FS"), "fs"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
+    EXPECT_TRUE(gram.contains_lpr("OP_TILDE"));
 
-    EXPECT_EQ(lxr("fsA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("fs1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("fs_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Not"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    std::string src =
+        "~any";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 2);
+
+    taul::node_ctx ctx;
+
+
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Expr"), tkns.range_str(0, 2), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Not"), tkns.range_str(0, 2), tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("OP_TILDE"), "~", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr"), "any", tkns[1].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[1].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[1].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[1].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .exit()
+        .end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Expr")(ctx, tkns);
+
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_LL) {
+TEST_F(LoadTAULGrammarTests, Syntax_9) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_LL"));
 
-    EXPECT_EQ(gram.lpr("KW_LL").qualifer, taul::qualifier::none);
+    // this tests the syntax of optional exprs
 
-    auto lxr = gram.lexer("KW_LL");
 
-    EXPECT_EQ(lxr("ll"), taul::token(gram.lpr("KW_LL"), "ll"));
-    EXPECT_EQ(lxr("ll?"), taul::token(gram.lpr("KW_LL"), "ll"));
-    EXPECT_EQ(lxr("ll "), taul::token(gram.lpr("KW_LL"), "ll"));
-    EXPECT_EQ(lxr("ll\r\n"), taul::token(gram.lpr("KW_LL"), "ll"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
+    EXPECT_TRUE(gram.contains_lpr("OP_QUESTION"));
 
-    EXPECT_EQ(lxr("llA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("ll1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("ll_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Optional"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Optional_Expr"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    std::string src =
+        "any?";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 2);
+
+    taul::node_ctx ctx;
+
+
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Expr"), tkns.range_str(0, 2), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Optional"), tkns.range_str(0, 2), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Optional_Expr"), "any", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[0].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .attach(ctx.create(gram.lpr("OP_QUESTION"), "?", tkns[1].pos()))
+        .exit()
+        .end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Expr")(ctx, tkns);
+
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_LS) {
+TEST_F(LoadTAULGrammarTests, Syntax_10) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_LS"));
 
-    EXPECT_EQ(gram.lpr("KW_LS").qualifer, taul::qualifier::none);
+    // this tests the syntax of kleene-star exprs
 
-    auto lxr = gram.lexer("KW_LS");
 
-    EXPECT_EQ(lxr("ls"), taul::token(gram.lpr("KW_LS"), "ls"));
-    EXPECT_EQ(lxr("ls?"), taul::token(gram.lpr("KW_LS"), "ls"));
-    EXPECT_EQ(lxr("ls "), taul::token(gram.lpr("KW_LS"), "ls"));
-    EXPECT_EQ(lxr("ls\r\n"), taul::token(gram.lpr("KW_LS"), "ls"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
+    EXPECT_TRUE(gram.contains_lpr("OP_ASTERISK"));
 
-    EXPECT_EQ(lxr("lsA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("ls1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("ls_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_KleeneStar"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_KleeneStar_Expr"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    std::string src =
+        "any*";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 2);
+
+    taul::node_ctx ctx;
+
+
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Expr"), tkns.range_str(0, 2), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_KleeneStar"), tkns.range_str(0, 2), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_KleeneStar_Expr"), "any", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[0].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .attach(ctx.create(gram.lpr("OP_ASTERISK"), "*", tkns[1].pos()))
+        .exit()
+        .end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Expr")(ctx, tkns);
+
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_F) {
+TEST_F(LoadTAULGrammarTests, Syntax_11) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_F"));
 
-    EXPECT_EQ(gram.lpr("KW_F").qualifer, taul::qualifier::none);
+    // this tests the syntax of kleene-plus exprs
 
-    auto lxr = gram.lexer("KW_F");
 
-    EXPECT_EQ(lxr("f"), taul::token(gram.lpr("KW_F"), "f"));
-    EXPECT_EQ(lxr("f?"), taul::token(gram.lpr("KW_F"), "f"));
-    EXPECT_EQ(lxr("f "), taul::token(gram.lpr("KW_F"), "f"));
-    EXPECT_EQ(lxr("f\r\n"), taul::token(gram.lpr("KW_F"), "f"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
+    EXPECT_TRUE(gram.contains_lpr("OP_PLUS"));
 
-    EXPECT_EQ(lxr("fA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("f1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("f_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_KleenePlus"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_KleenePlus_Expr"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    std::string src =
+        "any+";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 2);
+
+    taul::node_ctx ctx;
+
+
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Expr"), tkns.range_str(0, 2), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_KleenePlus"), tkns.range_str(0, 2), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_KleenePlus_Expr"), "any", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[0].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .attach(ctx.create(gram.lpr("OP_PLUS"), "+", tkns[1].pos()))
+        .exit()
+        .end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Expr")(ctx, tkns);
+
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_L) {
+TEST_F(LoadTAULGrammarTests, Syntax_12) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_L"));
 
-    EXPECT_EQ(gram.lpr("KW_L").qualifer, taul::qualifier::none);
+    // this tests the syntax of sequence exprs
 
-    auto lxr = gram.lexer("KW_L");
 
-    EXPECT_EQ(lxr("l"), taul::token(gram.lpr("KW_L"), "l"));
-    EXPECT_EQ(lxr("l?"), taul::token(gram.lpr("KW_L"), "l"));
-    EXPECT_EQ(lxr("l "), taul::token(gram.lpr("KW_L"), "l"));
-    EXPECT_EQ(lxr("l\r\n"), taul::token(gram.lpr("KW_L"), "l"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
 
-    EXPECT_EQ(lxr("lA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("l1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("l_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Sequence"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Sequence_Expr"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+
+    std::string src =
+        "any any any";
+
+    auto tkns = taul::tokenize(gram, src);
+
+    TAUL_LOG(lgr, "{}", tkns);
+
+    ASSERT_EQ(tkns.size(), 3);
+
+    taul::node_ctx ctx;
+
+
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Expr"), tkns.range_str(0, 3), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Sequence"), tkns.range_str(0, 3), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Sequence_Expr"), "any", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[0].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .enter(ctx.create(gram.ppr("Expr_Sequence_Expr"), "any", tkns[1].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[1].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[1].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[1].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .enter(ctx.create(gram.ppr("Expr_Sequence_Expr"), "any", tkns[2].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[2].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[2].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[2].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .exit()
+        .end();
+
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
+
+
+    auto actual = gram.parser("Expr")(ctx, tkns);
+
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
+
+    ASSERT_TRUE(actual.has_value());
+
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
+
+
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 
-TEST_F(LoadTaulGrammarTests, KW_BEGIN) {
+TEST_F(LoadTAULGrammarTests, Syntax_13) {
 
-    ASSERT_TRUE(gram.contains_lpr("KW_BEGIN"));
 
-    EXPECT_EQ(gram.lpr("KW_BEGIN").qualifer, taul::qualifier::none);
+    // this tests the syntax of set exprs
 
-    auto lxr = gram.lexer("KW_BEGIN");
 
-    EXPECT_EQ(lxr("begin"), taul::token(gram.lpr("KW_BEGIN"), "begin"));
-    EXPECT_EQ(lxr("begin?"), taul::token(gram.lpr("KW_BEGIN"), "begin"));
-    EXPECT_EQ(lxr("begin "), taul::token(gram.lpr("KW_BEGIN"), "begin"));
-    EXPECT_EQ(lxr("begin\r\n"), taul::token(gram.lpr("KW_BEGIN"), "begin"));
+    EXPECT_TRUE(gram.contains_lpr("KW_ANY"));
+    EXPECT_TRUE(gram.contains_lpr("OP_VBAR"));
 
-    EXPECT_EQ(lxr("beginA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("begin1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("begin_"), taul::token::failure(""));
+    ASSERT_TRUE(gram.contains_ppr("Expr"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Primary"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Any"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Set"));
+    ASSERT_TRUE(gram.contains_ppr("Expr_Set_Expr"));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
 
-TEST_F(LoadTaulGrammarTests, KW_END) {
+    std::string src =
+        "any | any | any";
 
-    ASSERT_TRUE(gram.contains_lpr("KW_END"));
+    auto tkns = taul::tokenize(gram, src);
 
-    EXPECT_EQ(gram.lpr("KW_END").qualifer, taul::qualifier::none);
+    TAUL_LOG(lgr, "{}", tkns);
 
-    auto lxr = gram.lexer("KW_END");
+    ASSERT_EQ(tkns.size(), 5);
 
-    EXPECT_EQ(lxr("end"), taul::token(gram.lpr("KW_END"), "end"));
-    EXPECT_EQ(lxr("end?"), taul::token(gram.lpr("KW_END"), "end"));
-    EXPECT_EQ(lxr("end "), taul::token(gram.lpr("KW_END"), "end"));
-    EXPECT_EQ(lxr("end\r\n"), taul::token(gram.lpr("KW_END"), "end"));
+    taul::node_ctx ctx;
 
-    EXPECT_EQ(lxr("endA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("end1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("end_"), taul::token::failure(""));
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
+    auto expected =
+        taul::node_assembler()
+        .begin(ctx.create(gram.ppr("Expr"), tkns.range_str(0, 5), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Set"), tkns.range_str(0, 5), tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Set_Expr"), "any", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[0].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[0].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[0].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .attach(ctx.create(gram.lpr("OP_VBAR"), "|", tkns[1].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Set_Expr"), "any", tkns[2].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[2].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[2].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[2].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .attach(ctx.create(gram.lpr("OP_VBAR"), "|", tkns[3].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Set_Expr"), "any", tkns[4].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Primary"), "any", tkns[4].pos()))
+        .enter(ctx.create(gram.ppr("Expr_Any"), "any", tkns[4].pos()))
+        .attach(ctx.create(gram.lpr("KW_ANY"), "any", tkns[4].pos()))
+        .exit()
+        .exit()
+        .exit()
+        .exit()
+        .end();
 
-TEST_F(LoadTaulGrammarTests, KW_ANY) {
+    TAUL_LOG(lgr, "expected:\n{}", expected.fmt_tree());
 
-    ASSERT_TRUE(gram.contains_lpr("KW_ANY"));
 
-    EXPECT_EQ(gram.lpr("KW_ANY").qualifer, taul::qualifier::none);
+    auto actual = gram.parser("Expr")(ctx, tkns);
 
-    auto lxr = gram.lexer("KW_ANY");
+    TAUL_LOG(lgr, "actual.has_value() == {}", actual.has_value());
 
-    EXPECT_EQ(lxr("any"), taul::token(gram.lpr("KW_ANY"), "any"));
-    EXPECT_EQ(lxr("any?"), taul::token(gram.lpr("KW_ANY"), "any"));
-    EXPECT_EQ(lxr("any "), taul::token(gram.lpr("KW_ANY"), "any"));
-    EXPECT_EQ(lxr("any\r\n"), taul::token(gram.lpr("KW_ANY"), "any"));
+    ASSERT_TRUE(actual.has_value());
 
-    EXPECT_EQ(lxr("anyA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("any1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("any_"), taul::token::failure(""));
+    TAUL_LOG(lgr, "actual:\n{}", actual->fmt_tree());
 
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
 
-TEST_F(LoadTaulGrammarTests, KW_TOKEN) {
-
-    ASSERT_TRUE(gram.contains_lpr("KW_TOKEN"));
-
-    EXPECT_EQ(gram.lpr("KW_TOKEN").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("KW_TOKEN");
-
-    EXPECT_EQ(lxr("token"), taul::token(gram.lpr("KW_TOKEN"), "token"));
-    EXPECT_EQ(lxr("token?"), taul::token(gram.lpr("KW_TOKEN"), "token"));
-    EXPECT_EQ(lxr("token "), taul::token(gram.lpr("KW_TOKEN"), "token"));
-    EXPECT_EQ(lxr("token\r\n"), taul::token(gram.lpr("KW_TOKEN"), "token"));
-
-    EXPECT_EQ(lxr("tokenA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("token1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("token_"), taul::token::failure(""));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, KW_FAILURE) {
-
-    ASSERT_TRUE(gram.contains_lpr("KW_FAILURE"));
-
-    EXPECT_EQ(gram.lpr("KW_FAILURE").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("KW_FAILURE");
-
-    EXPECT_EQ(lxr("failure"), taul::token(gram.lpr("KW_FAILURE"), "failure"));
-    EXPECT_EQ(lxr("failure?"), taul::token(gram.lpr("KW_FAILURE"), "failure"));
-    EXPECT_EQ(lxr("failure "), taul::token(gram.lpr("KW_FAILURE"), "failure"));
-    EXPECT_EQ(lxr("failure\r\n"), taul::token(gram.lpr("KW_FAILURE"), "failure"));
-
-    EXPECT_EQ(lxr("failureA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("failure1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("failure_"), taul::token::failure(""));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, KW_LOCALEND) {
-
-    ASSERT_TRUE(gram.contains_lpr("KW_LOCALEND"));
-
-    EXPECT_EQ(gram.lpr("KW_LOCALEND").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("KW_LOCALEND");
-
-    EXPECT_EQ(lxr("localend"), taul::token(gram.lpr("KW_LOCALEND"), "localend"));
-    EXPECT_EQ(lxr("localend?"), taul::token(gram.lpr("KW_LOCALEND"), "localend"));
-    EXPECT_EQ(lxr("localend "), taul::token(gram.lpr("KW_LOCALEND"), "localend"));
-    EXPECT_EQ(lxr("localend\r\n"), taul::token(gram.lpr("KW_LOCALEND"), "localend"));
-
-    EXPECT_EQ(lxr("localendA"), taul::token::failure(""));
-    EXPECT_EQ(lxr("localend1"), taul::token::failure(""));
-    EXPECT_EQ(lxr("localend_"), taul::token::failure(""));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_PERIOD) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_PERIOD"));
-
-    EXPECT_EQ(gram.lpr("OP_PERIOD").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_PERIOD");
-
-    EXPECT_EQ(lxr(".abc"), taul::token(gram.lpr("OP_PERIOD"), "."));
-    EXPECT_EQ(lxr(".123"), taul::token(gram.lpr("OP_PERIOD"), "."));
-    EXPECT_EQ(lxr(".!@#"), taul::token(gram.lpr("OP_PERIOD"), "."));
-    EXPECT_EQ(lxr(". "), taul::token(gram.lpr("OP_PERIOD"), "."));
-    EXPECT_EQ(lxr(".\t"), taul::token(gram.lpr("OP_PERIOD"), "."));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_COMMA) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_COMMA"));
-
-    EXPECT_EQ(gram.lpr("OP_COMMA").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_COMMA");
-
-    EXPECT_EQ(lxr(",abc"), taul::token(gram.lpr("OP_COMMA"), ","));
-    EXPECT_EQ(lxr(",123"), taul::token(gram.lpr("OP_COMMA"), ","));
-    EXPECT_EQ(lxr(",!@#"), taul::token(gram.lpr("OP_COMMA"), ","));
-    EXPECT_EQ(lxr(", "), taul::token(gram.lpr("OP_COMMA"), ","));
-    EXPECT_EQ(lxr(",\t"), taul::token(gram.lpr("OP_COMMA"), ","));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_COLON) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_COLON"));
-
-    EXPECT_EQ(gram.lpr("OP_COLON").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_COLON");
-
-    EXPECT_EQ(lxr(":abc"), taul::token(gram.lpr("OP_COLON"), ":"));
-    EXPECT_EQ(lxr(":123"), taul::token(gram.lpr("OP_COLON"), ":"));
-    EXPECT_EQ(lxr(":!@#"), taul::token(gram.lpr("OP_COLON"), ":"));
-    EXPECT_EQ(lxr(": "), taul::token(gram.lpr("OP_COLON"), ":"));
-    EXPECT_EQ(lxr(":\t"), taul::token(gram.lpr("OP_COLON"), ":"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_SEMICOLON) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_SEMICOLON"));
-
-    EXPECT_EQ(gram.lpr("OP_SEMICOLON").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_SEMICOLON");
-
-    EXPECT_EQ(lxr(";abc"), taul::token(gram.lpr("OP_SEMICOLON"), ";"));
-    EXPECT_EQ(lxr(";123"), taul::token(gram.lpr("OP_SEMICOLON"), ";"));
-    EXPECT_EQ(lxr(";!@#"), taul::token(gram.lpr("OP_SEMICOLON"), ";"));
-    EXPECT_EQ(lxr("; "), taul::token(gram.lpr("OP_SEMICOLON"), ";"));
-    EXPECT_EQ(lxr(";\t"), taul::token(gram.lpr("OP_SEMICOLON"), ";"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_VBAR) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_VBAR"));
-
-    EXPECT_EQ(gram.lpr("OP_VBAR").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_VBAR");
-
-    EXPECT_EQ(lxr("|abc"), taul::token(gram.lpr("OP_VBAR"), "|"));
-    EXPECT_EQ(lxr("|123"), taul::token(gram.lpr("OP_VBAR"), "|"));
-    EXPECT_EQ(lxr("|!@#"), taul::token(gram.lpr("OP_VBAR"), "|"));
-    EXPECT_EQ(lxr("| "), taul::token(gram.lpr("OP_VBAR"), "|"));
-    EXPECT_EQ(lxr("|\t"), taul::token(gram.lpr("OP_VBAR"), "|"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_QUESTION) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_QUESTION"));
-
-    EXPECT_EQ(gram.lpr("OP_QUESTION").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_QUESTION");
-
-    EXPECT_EQ(lxr("?abc"), taul::token(gram.lpr("OP_QUESTION"), "?"));
-    EXPECT_EQ(lxr("?123"), taul::token(gram.lpr("OP_QUESTION"), "?"));
-    EXPECT_EQ(lxr("?!@#"), taul::token(gram.lpr("OP_QUESTION"), "?"));
-    EXPECT_EQ(lxr("? "), taul::token(gram.lpr("OP_QUESTION"), "?"));
-    EXPECT_EQ(lxr("?\t"), taul::token(gram.lpr("OP_QUESTION"), "?"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_ASTERISK) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_ASTERISK"));
-
-    EXPECT_EQ(gram.lpr("OP_ASTERISK").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_ASTERISK");
-
-    EXPECT_EQ(lxr("*abc"), taul::token(gram.lpr("OP_ASTERISK"), "*"));
-    EXPECT_EQ(lxr("*123"), taul::token(gram.lpr("OP_ASTERISK"), "*"));
-    EXPECT_EQ(lxr("*!@#"), taul::token(gram.lpr("OP_ASTERISK"), "*"));
-    EXPECT_EQ(lxr("* "), taul::token(gram.lpr("OP_ASTERISK"), "*"));
-    EXPECT_EQ(lxr("*\t"), taul::token(gram.lpr("OP_ASTERISK"), "*"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_PLUS) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_PLUS"));
-
-    EXPECT_EQ(gram.lpr("OP_PLUS").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_PLUS");
-
-    EXPECT_EQ(lxr("+abc"), taul::token(gram.lpr("OP_PLUS"), "+"));
-    EXPECT_EQ(lxr("+123"), taul::token(gram.lpr("OP_PLUS"), "+"));
-    EXPECT_EQ(lxr("+!@#"), taul::token(gram.lpr("OP_PLUS"), "+"));
-    EXPECT_EQ(lxr("+ "), taul::token(gram.lpr("OP_PLUS"), "+"));
-    EXPECT_EQ(lxr("+\t"), taul::token(gram.lpr("OP_PLUS"), "+"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_EXCLAM) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_EXCLAM"));
-
-    EXPECT_EQ(gram.lpr("OP_EXCLAM").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_EXCLAM");
-
-    EXPECT_EQ(lxr("!abc"), taul::token(gram.lpr("OP_EXCLAM"), "!"));
-    EXPECT_EQ(lxr("!123"), taul::token(gram.lpr("OP_EXCLAM"), "!"));
-    EXPECT_EQ(lxr("!!@#"), taul::token(gram.lpr("OP_EXCLAM"), "!"));
-    EXPECT_EQ(lxr("! "), taul::token(gram.lpr("OP_EXCLAM"), "!"));
-    EXPECT_EQ(lxr("!\t"), taul::token(gram.lpr("OP_EXCLAM"), "!"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    //EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_TILDE) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_TILDE"));
-
-    EXPECT_EQ(gram.lpr("OP_TILDE").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_TILDE");
-
-    EXPECT_EQ(lxr("~abc"), taul::token(gram.lpr("OP_TILDE"), "~"));
-    EXPECT_EQ(lxr("~123"), taul::token(gram.lpr("OP_TILDE"), "~"));
-    EXPECT_EQ(lxr("~!@#"), taul::token(gram.lpr("OP_TILDE"), "~"));
-    EXPECT_EQ(lxr("~ "), taul::token(gram.lpr("OP_TILDE"), "~"));
-    EXPECT_EQ(lxr("~\t"), taul::token(gram.lpr("OP_TILDE"), "~"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    //EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_AMPERSAND) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_AMPERSAND"));
-
-    EXPECT_EQ(gram.lpr("OP_AMPERSAND").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_AMPERSAND");
-
-    EXPECT_EQ(lxr("&abc"), taul::token(gram.lpr("OP_AMPERSAND"), "&"));
-    EXPECT_EQ(lxr("&123"), taul::token(gram.lpr("OP_AMPERSAND"), "&"));
-    EXPECT_EQ(lxr("&!@#"), taul::token(gram.lpr("OP_AMPERSAND"), "&"));
-    EXPECT_EQ(lxr("& "), taul::token(gram.lpr("OP_AMPERSAND"), "&"));
-    EXPECT_EQ(lxr("&\t"), taul::token(gram.lpr("OP_AMPERSAND"), "&"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_MINUS) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_MINUS"));
-
-    EXPECT_EQ(gram.lpr("OP_MINUS").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_MINUS");
-
-    EXPECT_EQ(lxr("-abc"), taul::token(gram.lpr("OP_MINUS"), "-"));
-    EXPECT_EQ(lxr("-123"), taul::token(gram.lpr("OP_MINUS"), "-"));
-    EXPECT_EQ(lxr("-!@#"), taul::token(gram.lpr("OP_MINUS"), "-"));
-    EXPECT_EQ(lxr("- "), taul::token(gram.lpr("OP_MINUS"), "-"));
-    EXPECT_EQ(lxr("-\t"), taul::token(gram.lpr("OP_MINUS"), "-"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_L_ROUND) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_L_ROUND"));
-
-    EXPECT_EQ(gram.lpr("OP_L_ROUND").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_L_ROUND");
-
-    EXPECT_EQ(lxr("(abc"), taul::token(gram.lpr("OP_L_ROUND"), "("));
-    EXPECT_EQ(lxr("(123"), taul::token(gram.lpr("OP_L_ROUND"), "("));
-    EXPECT_EQ(lxr("(!@#"), taul::token(gram.lpr("OP_L_ROUND"), "("));
-    EXPECT_EQ(lxr("( "), taul::token(gram.lpr("OP_L_ROUND"), "("));
-    EXPECT_EQ(lxr("(\t"), taul::token(gram.lpr("OP_L_ROUND"), "("));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_R_ROUND) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_R_ROUND"));
-
-    EXPECT_EQ(gram.lpr("OP_R_ROUND").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_R_ROUND");
-
-    EXPECT_EQ(lxr(")abc"), taul::token(gram.lpr("OP_R_ROUND"), ")"));
-    EXPECT_EQ(lxr(")123"), taul::token(gram.lpr("OP_R_ROUND"), ")"));
-    EXPECT_EQ(lxr(")!@#"), taul::token(gram.lpr("OP_R_ROUND"), ")"));
-    EXPECT_EQ(lxr(") "), taul::token(gram.lpr("OP_R_ROUND"), ")"));
-    EXPECT_EQ(lxr(")\t"), taul::token(gram.lpr("OP_R_ROUND"), ")"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_L_CURLY) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_L_CURLY"));
-
-    EXPECT_EQ(gram.lpr("OP_L_CURLY").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_L_CURLY");
-
-    EXPECT_EQ(lxr("{abc"), taul::token(gram.lpr("OP_L_CURLY"), "{"));
-    EXPECT_EQ(lxr("{123"), taul::token(gram.lpr("OP_L_CURLY"), "{"));
-    EXPECT_EQ(lxr("{!@#"), taul::token(gram.lpr("OP_L_CURLY"), "{"));
-    EXPECT_EQ(lxr("{ "), taul::token(gram.lpr("OP_L_CURLY"), "{"));
-    EXPECT_EQ(lxr("{\t"), taul::token(gram.lpr("OP_L_CURLY"), "{"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
-}
-
-TEST_F(LoadTaulGrammarTests, OP_R_CURLY) {
-
-    ASSERT_TRUE(gram.contains_lpr("OP_R_CURLY"));
-
-    EXPECT_EQ(gram.lpr("OP_R_CURLY").qualifer, taul::qualifier::none);
-
-    auto lxr = gram.lexer("OP_R_CURLY");
-
-    EXPECT_EQ(lxr("}abc"), taul::token(gram.lpr("OP_R_CURLY"), "}"));
-    EXPECT_EQ(lxr("}123"), taul::token(gram.lpr("OP_R_CURLY"), "}"));
-    EXPECT_EQ(lxr("}!@#"), taul::token(gram.lpr("OP_R_CURLY"), "}"));
-    EXPECT_EQ(lxr("} "), taul::token(gram.lpr("OP_R_CURLY"), "}"));
-    EXPECT_EQ(lxr("}\t"), taul::token(gram.lpr("OP_R_CURLY"), "}"));
-
-    EXPECT_EQ(lxr(""), taul::token::failure(""));
-    EXPECT_EQ(lxr("abc"), taul::token::failure(""));
-    EXPECT_EQ(lxr("123"), taul::token::failure(""));
-    EXPECT_EQ(lxr("!@#"), taul::token::failure(""));
-    EXPECT_EQ(lxr("_"), taul::token::failure(""));
-    EXPECT_EQ(lxr(" "), taul::token::failure(""));
-    EXPECT_EQ(lxr("\t"), taul::token::failure(""));
-    EXPECT_EQ(lxr("~~~"), taul::token::failure(""));
-    EXPECT_EQ(lxr("@#&"), taul::token::failure(""));
-    EXPECT_EQ(lxr("''"), taul::token::failure(""));
-    EXPECT_EQ(lxr("\"\""), taul::token::failure(""));
-    EXPECT_EQ(lxr("#abc"), taul::token::failure(""));
+    EXPECT_TRUE(expected.equiv(*actual));
 }
 

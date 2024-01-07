@@ -124,18 +124,56 @@ protected:
 };
 
 
+TEST(SpecTests, Association) {
+
+    auto src0 = std::make_shared<taul::source_code>();
+    auto src1 = std::make_shared<taul::source_code>();
+
+
+    taul::spec spec0{};
+
+
+    EXPECT_TRUE(spec0.associated(nullptr));
+    EXPECT_FALSE(spec0.associated(src0));
+    EXPECT_FALSE(spec0.associated(src1));
+
+
+    spec0.associate(src0);
+
+
+    EXPECT_FALSE(spec0.associated(nullptr));
+    EXPECT_TRUE(spec0.associated(src0));
+    EXPECT_FALSE(spec0.associated(src1));
+
+
+    spec0.associate(src1);
+
+
+    EXPECT_FALSE(spec0.associated(nullptr));
+    EXPECT_FALSE(spec0.associated(src0));
+    EXPECT_TRUE(spec0.associated(src1));
+
+
+    spec0.associate(nullptr);
+
+
+    EXPECT_TRUE(spec0.associated(nullptr));
+    EXPECT_FALSE(spec0.associated(src0));
+    EXPECT_FALSE(spec0.associated(src1));
+}
+
+
 // these tests are for spec writing/interpreting, w/ the semantics of
 // loading being beyond its scope
 
 // we'll test spec writers/interpreters as a single unit, as neither can 
 // be used in isolation
 
-// likewise, our code is such that I feel it's fine if we stuff everything
-// in a single fat unit test, as there's not too much, as it all fits
-// together quite naturally
 
+// I think it's fine if we stuff testing the *core* behaviour of specs
+// into a single fat unit test
 
-TEST(spec_tests, tests) {
+TEST(SpecTests, Core) {
 
     const auto lgr = taul::make_stderr_logger();
 
@@ -343,6 +381,101 @@ TEST(spec_tests, tests) {
     tsi.interpret(spec2);
 
     expected = "startup\n";
+    expected += "shutdown\n";
+
+    ASSERT_EQ(tsi.output, expected);
+
+    TAUL_LOG(lgr, "{}", tsi.output);
+}
+
+
+TEST(SpecTests, Concat) {
+
+    const auto lgr = taul::make_stderr_logger();
+
+    EXPECT_TRUE(lgr);
+
+
+    taul::spec_writer sw{};
+
+
+    // the two specs we're to concatenate
+
+    auto spec0 = sw
+        .lpr_decl("ABC")
+        .ppr_decl("Abc")
+        .lpr("ABC")
+        .string("abc")
+        .close()
+        .ppr("Abc")
+        .name("ABC")
+        .close()
+        .done();
+
+    auto spec1 = sw
+        .lpr_decl("DEF")
+        .ppr_decl("Def")
+        .lpr("DEF")
+        .string("def")
+        .close()
+        .ppr("Def")
+        .name("DEF")
+        .close()
+        .done();
+
+    ASSERT_FALSE(spec0.bin.empty());
+    ASSERT_FALSE(spec1.bin.empty());
+
+
+    // imbue spec0 and spec1 w/ source_code associations to test how
+    // they are affected by concat
+
+    const auto src0 = std::make_shared<taul::source_code>();
+    const auto src1 = std::make_shared<taul::source_code>();
+
+    spec0.associate(src0);
+    spec1.associate(src1);
+
+    ASSERT_TRUE(spec0.associated(src0));
+    ASSERT_TRUE(spec1.associated(src1));
+
+
+    // our concatenated spec
+
+    const auto spec2 = taul::spec::concat(spec0, spec1);
+
+    ASSERT_FALSE(spec2.bin.empty());
+
+
+    // assert expected source_code association
+
+    EXPECT_TRUE(spec2.associated(src0));
+
+
+    test_spec_interpreter tsi{};
+
+    std::string expected{};
+
+
+    tsi.interpret(spec2);
+
+    expected = "startup\n";
+    expected += "lpr-decl \"ABC\"\n";
+    expected += "ppr-decl \"Abc\"\n";
+    expected += "lpr \"ABC\" none\n";
+    expected += "string \"abc\"\n";
+    expected += "close\n";
+    expected += "ppr \"Abc\"\n";
+    expected += "name \"ABC\"\n";
+    expected += "close\n";
+    expected += "lpr-decl \"DEF\"\n";
+    expected += "ppr-decl \"Def\"\n";
+    expected += "lpr \"DEF\" none\n";
+    expected += "string \"def\"\n";
+    expected += "close\n";
+    expected += "ppr \"Def\"\n";
+    expected += "name \"DEF\"\n";
+    expected += "close\n";
     expected += "shutdown\n";
 
     ASSERT_EQ(tsi.output, expected);

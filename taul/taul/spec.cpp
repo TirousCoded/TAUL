@@ -380,3 +380,14 @@ std::string_view taul::internal::spec_read_str(const spec& s, std::size_t offset
     len += length;
     return std::string_view(ptr, length);
 }
+
+taul::spec taul::spec::concat(const spec& a, const spec& b) {
+    spec result{};
+    result.bin.resize(a.bin.size() + b.bin.size());
+    if (!result.bin.empty()) {
+        std::memcpy((void*)result.bin.data(), (void*)a.bin.data(), a.bin.size());
+        std::memcpy((void*)(result.bin.data() + a.bin.size()), (void*)b.bin.data(), b.bin.size());
+    }
+    result.associate(a.src);
+    return result;
+}

@@ -27,6 +27,7 @@
 #include "tokenize.h"
 
 #include "node.h"
+#include "node_assembler.h"
 #include "parser.h"
 
 #include "traverser.h"
