@@ -1,0 +1,10 @@
+
+
+lexer section:
+
+    LPR0        : ~any ;
+
+parser section:
+
+    PPR0        : ~any ;
+

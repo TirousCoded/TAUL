@@ -34,6 +34,7 @@ namespace taul {
         illegal_in_ppr_scope,           // illegal instruction use in ppr expr scope
         illegal_in_no_scope,            // illegal instruction use outside expr scope
         illegal_subexpr_count,          // illegal number of expr subexprs
+        illegal_qualifier,              // illegal LPR/PPR qualifier
         junction_missing,               // constraint expr has no junction
         junction_not_in_constraint,     // junction instruction may not be used outside constraint expr
         junction_misplaced,             // junction instruction may only be used following evaluation of exactly one constraint expr subexpr

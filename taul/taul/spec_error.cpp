@@ -6,7 +6,7 @@
 
 
 std::string taul::fmt_spec_error(spec_error x) {
-    static_assert(spec_errors == 19);
+    static_assert(spec_errors == 20);
     std::string result{};
     switch (x) {
     case spec_error::source_code_not_found:         result = "source-code-not-found";           break;
@@ -23,6 +23,7 @@ std::string taul::fmt_spec_error(spec_error x) {
     case spec_error::illegal_in_ppr_scope:          result = "illegal-in-ppr-scope";            break;
     case spec_error::illegal_in_no_scope:           result = "illegal-in-no-scope";             break;
     case spec_error::illegal_subexpr_count:         result = "illegal-subexpr-count";           break;
+    case spec_error::illegal_qualifier:             result = "illegal-qualifier";               break;
     case spec_error::junction_missing:              result = "junction-missing";                break;
     case spec_error::junction_not_in_constraint:    result = "junction-not-in-constraint";      break;
     case spec_error::junction_misplaced:            result = "junction-misplaced";              break;

@@ -111,6 +111,11 @@ namespace taul {
 
         class compile_traverser final : public traverser {
         public:
+            
+            std::shared_ptr<source_code> src = nullptr;
+
+            spec_error_counter* ec = nullptr;
+            std::shared_ptr<logger> lgr = nullptr;
 
             bool success = true;
             spec output;

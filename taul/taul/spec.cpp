@@ -35,9 +35,10 @@ taul::spec_writer& taul::spec_writer::lpr(std::string_view name, qualifier quali
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::ppr(std::string_view name) {
+taul::spec_writer& taul::spec_writer::ppr(std::string_view name, qualifier qualifier) {
     internal::spec_write_opcode(_temp, spec_opcode::ppr);
     internal::spec_write_str(_temp, name);
+    internal::spec_write_qualifier(_temp, qualifier);
     return *this;
 }
 
@@ -184,7 +185,8 @@ std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
     case spec_opcode::ppr:
     {
         const auto name = internal::spec_read_str(s, offset + len, len);
-        on_ppr(name);
+        const auto qualifier = internal::spec_read_qualifier(s, offset + len, len);
+        on_ppr(name, qualifier);
     }
     break;
     case spec_opcode::begin:

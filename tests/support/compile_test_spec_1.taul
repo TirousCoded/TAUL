@@ -1,18 +1,28 @@
 
 
-lexer section:
+# rules outside explicit lexer/parser section are within
+# an implicit lexer section
 
-    skip ABC	: 'abc' ;
-
-parser section:
-
-    Abc			: ABC ;
+    LPR0        : any ;
 
 lexer section:
 
-    DEF			: 'def' ;
+    LPR1	    : any ;
+    skip LPR2	: any ;
 
 parser section:
 
-    Def			: DEF ;
+    PPR0		: any ;
+
+    # syntactic, but semantically illegal
+
+    skip PPR1   : any ;
+
+lexer section:
+
+    LPR3		: any ;
+
+parser section:
+
+    PPR2        : any ;
 

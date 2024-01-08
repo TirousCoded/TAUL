@@ -71,7 +71,7 @@ namespace taul {
         spec_writer& lpr_decl(std::string_view name);
         spec_writer& ppr_decl(std::string_view name);
         spec_writer& lpr(std::string_view name, qualifier qualifier = qualifier::none);
-        spec_writer& ppr(std::string_view name);
+        spec_writer& ppr(std::string_view name, qualifier qualifier = qualifier::none);
 
         spec_writer& begin();
         spec_writer& end();
@@ -134,7 +134,7 @@ namespace taul {
         virtual void on_lpr_decl(std::string_view name) {}
         virtual void on_ppr_decl(std::string_view name) {}
         virtual void on_lpr(std::string_view name, qualifier qualifier) {}
-        virtual void on_ppr(std::string_view name) {}
+        virtual void on_ppr(std::string_view name, qualifier qualifier) {}
 
         virtual void on_begin() {}
         virtual void on_end() {}

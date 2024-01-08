@@ -3,14 +3,20 @@
 #include "load.h"
 
 #include "asserts.h"
+#include "compile.h"
 
 
-std::optional<taul::grammar> taul::load(const taul::spec& s, const std::shared_ptr<logger>& lgr) {
+std::optional<taul::grammar> taul::load(
+    const taul::spec& s, 
+    const std::shared_ptr<logger>& lgr) {
     spec_error_counter ec{};
     return load(s, ec, lgr);
 }
 
-std::optional<taul::grammar> taul::load(const taul::spec& s, taul::spec_error_counter& ec, const std::shared_ptr<logger>& lgr) {
+std::optional<taul::grammar> taul::load(
+    const taul::spec& s, 
+    taul::spec_error_counter& ec, 
+    const std::shared_ptr<logger>& lgr) {
     internal::load_spec_interpreter interp{};
     interp.ec = &ec;
     interp.lgr = lgr;
@@ -57,6 +63,138 @@ std::optional<taul::grammar> taul::load(const taul::spec& s, taul::spec_error_co
         return std::make_optional<taul::grammar>(internal::for_internal_use_tag{}, std::move(data));
     }
     else return std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    node_ctx& ctx, 
+    const std::shared_ptr<source_code>& src, 
+    spec_error_counter& ec, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(ctx, src, ec, lgr);
+    return 
+        compiled 
+        ? load(*compiled, ec, lgr) 
+        : std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    node_ctx& ctx, 
+    const std::shared_ptr<source_code>& src, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(ctx, src, lgr);
+    return
+        compiled
+        ? load(*compiled, lgr)
+        : std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    const std::shared_ptr<source_code>& src, 
+    spec_error_counter& ec, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(src, ec, lgr);
+    return
+        compiled
+        ? load(*compiled, ec, lgr)
+        : std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    const std::shared_ptr<source_code>& src, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(src, lgr);
+    return
+        compiled
+        ? load(*compiled, lgr)
+        : std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    node_ctx& ctx, 
+    const std::string& src, 
+    spec_error_counter& ec, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(ctx, src, ec, lgr);
+    return
+        compiled
+        ? load(*compiled, ec, lgr)
+        : std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    node_ctx& ctx, 
+    const std::string& src, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(ctx, src, lgr);
+    return
+        compiled
+        ? load(*compiled, lgr)
+        : std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    const std::string& src, 
+    spec_error_counter& ec, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(src, lgr);
+    return
+        compiled
+        ? load(*compiled, lgr)
+        : std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    const std::string& src, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(src, lgr);
+    return
+        compiled
+        ? load(*compiled, lgr)
+        : std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    node_ctx& ctx, 
+    const std::filesystem::path& src_path, 
+    spec_error_counter& ec, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(ctx, src_path, ec, lgr);
+    return
+        compiled
+        ? load(*compiled, ec, lgr)
+        : std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    node_ctx& ctx, 
+    const std::filesystem::path& src_path, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(ctx, src_path, lgr);
+    return
+        compiled
+        ? load(*compiled, lgr)
+        : std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    const std::filesystem::path& src_path, 
+    spec_error_counter& ec, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(src_path, lgr);
+    return
+        compiled
+        ? load(*compiled, lgr)
+        : std::nullopt;
+}
+
+std::optional<taul::grammar> taul::load(
+    const std::filesystem::path& src_path, 
+    const std::shared_ptr<logger>& lgr) {
+    const auto compiled = compile(src_path, lgr);
+    return
+        compiled
+        ? load(*compiled, lgr)
+        : std::nullopt;
 }
 
 void taul::internal::load_spec_interpreter::check_not_in_lpr_scope(spec_opcode opcode) {
@@ -129,6 +267,12 @@ void taul::internal::load_spec_interpreter::check_rule_is_not_ppr(std::string_vi
 void taul::internal::load_spec_interpreter::check_lpr_or_ppr_exists_with_name(std::string_view name) {
     if (!has_lpr_decl(name) && !has_ppr_decl(name)) {
         raise(spec_error::rule_not_found, "no lexer/parser rule found with name {}!", (std::string)name);
+    }
+}
+
+void taul::internal::load_spec_interpreter::check_ppr_has_no_qualifier(std::string_view name, qualifier qualifier) {
+    if (qualifier != qualifier::none) {
+        raise(spec_error::illegal_qualifier, "parser rule {} may not have {} qualifier!", (std::string)name, qualifier);
     }
 }
 
@@ -279,10 +423,11 @@ void taul::internal::load_spec_interpreter::on_lpr(std::string_view name, qualif
     push_lexer_pat<toplevel_lexer_pat>(entry.index);
 }
 
-void taul::internal::load_spec_interpreter::on_ppr(std::string_view name) {
+void taul::internal::load_spec_interpreter::on_ppr(std::string_view name, qualifier qualifier) {
     check_ppr_was_declared(name);
     check_ppr_not_already_defined(name);
     check_not_in_lpr_nor_ppr_scope(spec_opcode::ppr);
+    check_ppr_has_no_qualifier(name, qualifier);
     add_ppr_def(name);
     ess_entry entry{ spec_opcode::ppr, ets_type::parser, name, false, true };
     if (pprs.contains(name)) {

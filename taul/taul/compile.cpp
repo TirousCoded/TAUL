@@ -33,6 +33,9 @@ std::optional<taul::spec> taul::compile(
     TAUL_ASSERT((bool)ast);
     // traverse AST
     internal::compile_traverser ct{};
+    ct.src = src;
+    ct.ec = &ec;
+    ct.lgr = lgr;
     ct.traverse(*ast);
     // if syntax or other error arose, fail and return nullopt
     if (!ct.success) {
@@ -163,7 +166,16 @@ void taul::internal::compile_traverser::on_enter(const node& nd, bool& skip_chil
         //
     }
     else if (nd.is_syntactic()) {
-        if (nd.ppr().name == "Clause_LexerSection") {
+        if (nd.ppr().name == "Spec_SyntaxError") {
+            success = false;
+            internal::raise_spec_error(
+                ec, 
+                spec_error::syntax_error, 
+                lgr, 
+                "syntax error at {}!", 
+                *src->location_at(nd.pos()));
+        }
+        else if (nd.ppr().name == "Clause_LexerSection") {
             lexerSection = true;
         }
         else if (nd.ppr().name == "Clause_ParserSection") {
@@ -186,8 +198,7 @@ void taul::internal::compile_traverser::on_enter(const node& nd, bool& skip_chil
             }
             else {
                 swForDecls.ppr_decl(ruleName);
-                // TODO: add in semantic error if ppr has qualifier
-                swForDefs.ppr(ruleName);
+                swForDefs.ppr(ruleName, ruleSkip ? qualifier::skip : qualifier::none);
             }
         }
         else if (nd.ppr().name == "Expr_Begin") {
@@ -216,6 +227,36 @@ void taul::internal::compile_traverser::on_enter(const node& nd, bool& skip_chil
         else if (nd.ppr().name == "Expr_Name") {
             swForDefs.name(nd.str());
         }
+        else if (nd.ppr().name == "Expr_Group") {
+            //
+        }
+        else if (nd.ppr().name == "Expr_LookAhead") {
+            swForDefs.assertion();
+        }
+        else if (nd.ppr().name == "Expr_LookAheadNot") {
+            swForDefs.assertion(polarity::negative);
+        }
+        else if (nd.ppr().name == "Expr_Not") {
+            swForDefs
+                .constraint(polarity::negative)
+                .any()
+                .junction();
+        }
+        else if (nd.ppr().name == "Expr_Optional") {
+            swForDefs.modifier(0, 1);
+        }
+        else if (nd.ppr().name == "Expr_KleeneStar") {
+            swForDefs.modifier(0, 0);
+        }
+        else if (nd.ppr().name == "Expr_KleenePlus") {
+            swForDefs.modifier(1, 0);
+        }
+        else if (nd.ppr().name == "Expr_Sequence") {
+            swForDefs.sequence();
+        }
+        else if (nd.ppr().name == "Expr_Set") {
+            swForDefs.set(bias::f);
+        }
     }
     else TAUL_DEADEND;
 }
@@ -232,6 +273,33 @@ void taul::internal::compile_traverser::on_exit(const taul::node& nd) {
             lexerSection = false;
         }
         else if (nd.ppr().name == "Clause_Rule_Expr") {
+            swForDefs.close();
+        }
+        else if (nd.ppr().name == "Expr_Group") {
+            //
+        }
+        else if (nd.ppr().name == "Expr_LookAhead") {
+            swForDefs.close();
+        }
+        else if (nd.ppr().name == "Expr_LookAheadNot") {
+            swForDefs.close();
+        }
+        else if (nd.ppr().name == "Expr_Not") {
+            swForDefs.close();
+        }
+        else if (nd.ppr().name == "Expr_Optional") {
+            swForDefs.close();
+        }
+        else if (nd.ppr().name == "Expr_KleeneStar") {
+            swForDefs.close();
+        }
+        else if (nd.ppr().name == "Expr_KleenePlus") {
+            swForDefs.close();
+        }
+        else if (nd.ppr().name == "Expr_Sequence") {
+            swForDefs.close();
+        }
+        else if (nd.ppr().name == "Expr_Set") {
             swForDefs.close();
         }
     }

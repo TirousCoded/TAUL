@@ -12,7 +12,7 @@ std::string taul::fmt_pos(source_pos pos) {
 }
 
 std::string taul::source_location::fmt() const {
-    return std::format("[ln {}, ch {}] {}", line, chr, origin);
+    return std::format("[ln {}, ch {}] \"{}\"", line, chr, origin);
 }
 
 taul::source_code::source_code(source_code&& x) noexcept {

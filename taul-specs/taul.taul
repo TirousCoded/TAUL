@@ -1,5 +1,9 @@
 
 
+# TODO: remember that we're gonna have it be that rules defined prior to the
+#       first '[lexer/parser] section:' syntax are considered to be in an
+#       implicit lexer section which exists prior to any explicit section
+
 lexer section:
 
     # TODO: w/ our new LL(1) design, take note of how the below KW_*** LPRs
@@ -89,7 +93,6 @@ parser section:
     #       - string
     #       - charset
     #       - name
-    #       - integer           <- expr, but not lexer/parser pattern
     #       (non-primary)
     #       - group             <- the expr "( abc )", where 'abc' is the nested expr
     #       - lookahead         <- &x
@@ -135,7 +138,13 @@ parser section:
     Expr_Charset                    : CHARSET ;
     Expr_Name                       : IDENTIFIER ;
 
+    # group exprs are just here to help contain a single nested subexpr
+    # syntactically (importantly, the implicit sequence/set exprs), and
+    # so have no corresponding spec expr, as instead this single nested
+    # subexpr can just be used directly
+
     Expr_Group                      : OP_L_ROUND Expr OP_R_ROUND ;
+
     Expr_LookAhead                  : OP_AMPERSAND Expr ;
     Expr_LookAheadNot               : OP_MINUS Expr ;
     Expr_Not                        : OP_TILDE Expr ;

@@ -1,23 +1,19 @@
 
 
+# TODO: currently our grammar doesn't allow exprs outside LPR/PPR scope,
+#       which MAYBE we could instead make merely a semantic error
+
+
 lexer section:
 
-    # define 'name' testing LPR first to test order independence
+    # token, failure, and PPR name PPR0, are semantically illegal in LPR,
+    # but may syntactically be put there
 
-    LPR0            : LPR3 LPR3 LPR3 ;
-
-    LPR1            : begin 'abc' end ;
-    LPR2            : any any any ;
-    LPR3            : 'a' [bd] 'c' ;
+    LPR0            : begin end any 'abc' [abc] token failure LPR0 PPR0 ;
 
 parser section:
 
-    # define 'name' testing PPR first to test order independence
+    # charset is illegal in PPR, but may syntactically be put there
 
-    PPR0            : PPR3 PPR4 PPR3 ;
-
-    PPR1            : begin 'abc' end ;
-    PPR2            : any any any ;
-    PPR3            : token ;
-    PPR4            : failure ;
+    PPR0            : begin end any 'abc' [abc] token failure LPR0 PPR0 ;
 

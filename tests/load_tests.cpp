@@ -572,7 +572,7 @@ TEST(load_tests, success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage) {
 // the below detail what errors each instruction can raise, and thus which must
 // be unit tested, and being specified *in order*
 
-static_assert(taul::spec_errors == 19);
+static_assert(taul::spec_errors == 20);
 
 // grammar-bias
 //      illegal-in-lpr-scope
@@ -616,7 +616,7 @@ TEST(load_tests, grammar_bias_forErr_illegal_in_ppr_scope) {
     EXPECT_FALSE(gram);
 }
 
-// close                        <- most will be associated w/ opening instruction instead
+// close                        <- most errors will be associated w/ opening instruction instead
 //      stray-close
 
 TEST(load_tests, close_forErr_stray_close) {
@@ -928,6 +928,8 @@ TEST(load_tests, lpr_forErr_illegal_in_ppr_scope) {
 //      rule-never-declared
 //      illegal-in-lpr-scope
 //      illegal-in-ppr-scope
+//      illegal-qualifier (for skip)    <- PPRs may not have any qualifiers
+//      illegal-qualifier (for support) <- PPRs may not have any qualifiers
 
 TEST(load_tests, ppr_forErr_scope_not_closed) {
     const auto lgr = taul::make_stderr_logger();
@@ -1002,6 +1004,42 @@ TEST(load_tests, ppr_forErr_illegal_in_ppr_scope) {
 
     //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
     EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, ppr_forErr_illegal_qualifier_forSkip) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr("ppr0", taul::qualifier::skip)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_qualifier), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, ppr_forErr_illegal_qualifier_forSupport) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr("ppr0", taul::qualifier::support)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_qualifier), 1);
     EXPECT_FALSE(gram);
 }
 
