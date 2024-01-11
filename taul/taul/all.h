@@ -14,6 +14,8 @@
 #include "polarity.h"
 #include "qualifier.h"
 
+#include "string_and_charset.h"
+
 #include "spec_error.h"
 #include "spec_opcode.h"
 #include "spec.h"

@@ -31,9 +31,15 @@ namespace taul {
         // within pprs, string matches a single non-failure token w/ a matched string
         // which matches the string instruction's oprand exactly
 
+        // string exprs use taul::parse_taul_string to allow for use of escape sequence 
+        // syntax in their oprands
+
         string,         // lexer/parser
 
         // charset matches a single character which is present in its oprand string
+
+        // charset exprs use taul::parse_taul_charset to allow for use of escape sequence 
+        // and char range syntax in their oprands
 
         charset,        // lexer-only
 

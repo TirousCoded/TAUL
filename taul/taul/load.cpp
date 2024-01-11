@@ -3,6 +3,7 @@
 #include "load.h"
 
 #include "asserts.h"
+#include "string_and_charset.h"
 #include "compile.h"
 
 
@@ -457,14 +458,17 @@ void taul::internal::load_spec_interpreter::on_any() {
 
 void taul::internal::load_spec_interpreter::on_string(std::string_view s) {
     check_in_lpr_or_ppr_scope(spec_opcode::string);
-    if (in_lpr()) bind_lexer_pat<string_lexer_pat>((std::string)s);
-    if (in_ppr()) bind_parser_pat<string_parser_pat>((std::string)s);
+    const auto ss = parse_taul_string(s);
+    if (in_lpr()) bind_lexer_pat<string_lexer_pat>(ss);
+    if (in_ppr()) bind_parser_pat<string_parser_pat>(ss);
 }
 
 void taul::internal::load_spec_interpreter::on_charset(std::string_view s) {
     check_not_in_ppr_scope(spec_opcode::charset);
     check_in_lpr_or_ppr_scope(spec_opcode::charset);
-    if (in_lpr()) bind_lexer_pat<charset_lexer_pat>((std::string)s);
+    const auto ss0 = parse_taul_charset(s);
+    const auto ss1 = optimize_charset_str(ss0);
+    if (in_lpr()) bind_lexer_pat<charset_lexer_pat>(ss1);
     if (in_ppr()) (void)0;
 }
 

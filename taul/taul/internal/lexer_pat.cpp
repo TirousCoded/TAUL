@@ -3,6 +3,7 @@
 #include "lexer_pat.h"
 
 #include "../asserts.h"
+#include "../string_and_charset.h"
 
 
 taul::token taul::internal::pat_lexer_fn(
@@ -106,12 +107,7 @@ taul::internal::lexer_match taul::internal::charset_lexer_pat::eval(const gramma
     const auto _substr = txt.substr(offset, 1);
     bool success = false;
     if (!_substr.empty()) {
-        for (const auto& I : s) {
-            if (_substr[0] == I) {
-                success = true;
-                break;
-            }
-        }
+        success = in_charset_str(_substr[0], s);
     }
     return
         success

@@ -158,8 +158,8 @@ TEST_F(CompileTests, PrimaryExprs) {
     expected += "begin\n";
     expected += "end\n";
     expected += "any\n";
-    expected += "string \"abc\"\n";
-    expected += "charset \"abc\"\n";
+    expected += "string \"abc\\n\\fdef\"\n";
+    expected += "charset \"-abc1-49-6A\\-Z-\"\n";
     expected += "token\n";
     expected += "failure\n";
     expected += "name \"LPR0\"\n";
@@ -171,8 +171,8 @@ TEST_F(CompileTests, PrimaryExprs) {
     expected += "begin\n";
     expected += "end\n";
     expected += "any\n";
-    expected += "string \"abc\"\n";
-    expected += "charset \"abc\"\n";
+    expected += "string \"abc\\n\\fdef\"\n";
+    expected += "charset \"-abc1-49-6A\\-Z-\"\n";
     expected += "token\n";
     expected += "failure\n";
     expected += "name \"LPR0\"\n";

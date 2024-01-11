@@ -1711,13 +1711,21 @@ TEST_F(GrammarUsageTests, parserExpr_any) {
     }
 }
 
+// the below test presumes usage of string_and_charset.h/cpp code, w/
+// regards to escape sequences, and will thus test for this behaviour
+// in summary
+
 TEST_F(GrammarUsageTests, lexerExpr_string) {
 
     const auto spec =
         taul::spec_writer()
-        .lpr_decl("f")
-        .lpr("f")
+        .lpr_decl("f0")
+        .lpr_decl("f1")
+        .lpr("f0")
         .string("abc")
+        .close()
+        .lpr("f1")
+        .string("\\A\\r\\n\\B")
         .close()
         .done();
 
@@ -1726,49 +1734,67 @@ TEST_F(GrammarUsageTests, lexerExpr_string) {
     ASSERT_TRUE(loaded);
 
     const taul::grammar gram = std::move(*loaded);
-    const auto& lpr = gram.lpr("f");
-    const auto lex = gram.lexer("f");
+    const auto& lpr0 = gram.lpr("f0");
+    const auto& lpr1 = gram.lpr("f1");
+    const auto lex0 = gram.lexer("f0");
+    const auto lex1 = gram.lexer("f1");
 
 
     // test w/out offset
 
     // success
 
-    EXPECT_EQ(lex("abc", lgr), taul::token(lpr, "abc"));
-    EXPECT_EQ(lex("abc123", lgr), taul::token(lpr, "abc"));
-    EXPECT_EQ(lex("abc&^!", lgr), taul::token(lpr, "abc"));
-    EXPECT_EQ(lex("abc\r\n\t", lgr), taul::token(lpr, "abc"));
+    EXPECT_EQ(lex0("abc", lgr), taul::token(lpr0, "abc"));
+    EXPECT_EQ(lex0("abc123", lgr), taul::token(lpr0, "abc"));
+    EXPECT_EQ(lex0("abc&^!", lgr), taul::token(lpr0, "abc"));
+    EXPECT_EQ(lex0("abc\r\n\t", lgr), taul::token(lpr0, "abc"));
+
+    EXPECT_EQ(lex1("A\r\nB", lgr), taul::token(lpr1, "A\r\nB"));
+    EXPECT_EQ(lex1("A\r\nBabc", lgr), taul::token(lpr1, "A\r\nB"));
 
     // failure
 
-    EXPECT_EQ(lex("", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex("a", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex("ab", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex("def", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex("&^!", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex("\r\n\t", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex(" abc", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("a", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("ab", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("def", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("&^!", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("\r\n\t", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0(" abc", lgr), taul::token::failure(""));
+
+    EXPECT_EQ(lex1("A\r\nC", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("A\r\n", lgr), taul::token::failure(""));
 
 
     // test w/ offset
 
     // success
 
-    EXPECT_EQ(lex("abcabc", 3, lgr), taul::token(lpr, "abc", 3));
-    EXPECT_EQ(lex("abcabc123", 3, lgr), taul::token(lpr, "abc", 3));
-    EXPECT_EQ(lex("abcabc&^!", 3, lgr), taul::token(lpr, "abc", 3));
-    EXPECT_EQ(lex("abcabc\r\n\t", 3, lgr), taul::token(lpr, "abc", 3));
+    EXPECT_EQ(lex0("abcabc", 3, lgr), taul::token(lpr0, "abc", 3));
+    EXPECT_EQ(lex0("abcabc123", 3, lgr), taul::token(lpr0, "abc", 3));
+    EXPECT_EQ(lex0("abcabc&^!", 3, lgr), taul::token(lpr0, "abc", 3));
+    EXPECT_EQ(lex0("abcabc\r\n\t", 3, lgr), taul::token(lpr0, "abc", 3));
+
+    EXPECT_EQ(lex1("___A\r\nB", 3, lgr), taul::token(lpr1, "A\r\nB", 3));
+    EXPECT_EQ(lex1("___A\r\nBabc", 3, lgr), taul::token(lpr1, "A\r\nB", 3));
 
     // failure
 
-    EXPECT_EQ(lex("abc", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abca", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abcab", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abcdef", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abc&^!", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abc\r\n\t", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abc abc", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abca", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abcab", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abcdef", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc&^!", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc\r\n\t", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc abc", 3, lgr), taul::token::failure("", 3));
+
+    EXPECT_EQ(lex1("___A\r\nC", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___A\r\n", 3, lgr), taul::token::failure("", 3));
 }
+
+// the below test presumes usage of string_and_charset.h/cpp code, w/
+// regards to escape sequences, and will thus test for this behaviour
+// in summary
 
 TEST_F(GrammarUsageTests, parserExpr_string) {
 
@@ -1783,7 +1809,7 @@ TEST_F(GrammarUsageTests, parserExpr_string) {
         .lpr_decl("chr")
         .ppr_decl("f0")
         .lpr("ws", taul::qualifier::skip)
-        .string(" ")
+        .string("\\x20") // <- test escape seq w/ '\x20' == ' '
         .close()
         .lpr("chr")
         .any()
@@ -1791,7 +1817,7 @@ TEST_F(GrammarUsageTests, parserExpr_string) {
         .ppr("f0")
         .string("a")
         .any()
-        .string("c")
+        .string("\\c") // <- test escape seq
         .close()
         .done();
 
@@ -1889,74 +1915,141 @@ TEST_F(GrammarUsageTests, parserExpr_string) {
     }
 }
 
+// the below test presumes usage of string_and_charset.h/cpp code, w/
+// regards to charset strings, and will thus test for this behaviour
+// in summary
+
 TEST_F(GrammarUsageTests, lexerExpr_charset) {
 
     const auto spec =
         taul::spec_writer()
-        .lpr_decl("f")
-        .lpr("f")
-        .charset("abc")
+        .lpr_decl("f0")
+        .lpr_decl("f1")
+        .lpr("f0")
+        .charset("ab\\c") // <- test escape seq w/ c
+        .close()
+        .lpr("f1")
+        .charset("1a-c2z-x3") // <- expect charset string parsing by load
         .close()
         .done();
+
+    TAUL_LOG(lgr, "taul::parse_taul_charset(\"1a-c2z-x3\") == {}", taul::parse_taul_charset("1a-c2z-x3"));
 
     auto loaded = taul::load(spec, lgr);
 
     ASSERT_TRUE(loaded);
 
     const taul::grammar gram = std::move(*loaded);
-    const auto& lpr = gram.lpr("f");
-    const auto lex = gram.lexer("f");
+    const auto& lpr0 = gram.lpr("f0");
+    const auto& lpr1 = gram.lpr("f1");
+    const auto lex0 = gram.lexer("f0");
+    const auto lex1 = gram.lexer("f1");
 
 
     // test w/out offset
 
     // success
 
-    EXPECT_EQ(lex("a", lgr), taul::token(lpr, "a"));
-    EXPECT_EQ(lex("b", lgr), taul::token(lpr, "b"));
-    EXPECT_EQ(lex("c", lgr), taul::token(lpr, "c"));
-    EXPECT_EQ(lex("a123", lgr), taul::token(lpr, "a"));
-    EXPECT_EQ(lex("b&^!", lgr), taul::token(lpr, "b"));
-    EXPECT_EQ(lex("c\r\n\t", lgr), taul::token(lpr, "c"));
+    EXPECT_EQ(lex0("a", lgr), taul::token(lpr0, "a"));
+    EXPECT_EQ(lex0("b", lgr), taul::token(lpr0, "b"));
+    EXPECT_EQ(lex0("c", lgr), taul::token(lpr0, "c"));
+    EXPECT_EQ(lex0("a123", lgr), taul::token(lpr0, "a"));
+    EXPECT_EQ(lex0("b&^!", lgr), taul::token(lpr0, "b"));
+    EXPECT_EQ(lex0("c\r\n\t", lgr), taul::token(lpr0, "c"));
+
+    EXPECT_EQ(lex1("aa", lgr), taul::token(lpr1, "a"));
+    EXPECT_EQ(lex1("ba", lgr), taul::token(lpr1, "b"));
+    EXPECT_EQ(lex1("ca", lgr), taul::token(lpr1, "c"));
+    EXPECT_EQ(lex1("xa", lgr), taul::token(lpr1, "x"));
+    EXPECT_EQ(lex1("ya", lgr), taul::token(lpr1, "y"));
+    EXPECT_EQ(lex1("za", lgr), taul::token(lpr1, "z"));
+    EXPECT_EQ(lex1("1a", lgr), taul::token(lpr1, "1"));
+    EXPECT_EQ(lex1("2a", lgr), taul::token(lpr1, "2"));
+    EXPECT_EQ(lex1("3a", lgr), taul::token(lpr1, "3"));
 
     // failure
 
-    EXPECT_EQ(lex("", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex("d", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex("da", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex("db", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex("dc", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex("&^!", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex("\r\n\t", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex(" a", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex(" b", lgr), taul::token::failure(""));
-    EXPECT_EQ(lex(" c", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("d", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("da", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("db", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("dc", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("&^!", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0("\r\n\t", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0(" a", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0(" b", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex0(" c", lgr), taul::token::failure(""));
+
+    EXPECT_EQ(lex1("da", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("ea", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("fa", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("ua", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("va", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("wa", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("4a", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("5a", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("6a", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("!a", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("@a", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("#a", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("\ra", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("\na", lgr), taul::token::failure(""));
+    EXPECT_EQ(lex1("\ta", lgr), taul::token::failure(""));
 
 
     // test w/ offset
 
     // success
 
-    EXPECT_EQ(lex("abca", 3, lgr), taul::token(lpr, "a", 3));
-    EXPECT_EQ(lex("abcb", 3, lgr), taul::token(lpr, "b", 3));
-    EXPECT_EQ(lex("abcc", 3, lgr), taul::token(lpr, "c", 3));
-    EXPECT_EQ(lex("abca123", 3, lgr), taul::token(lpr, "a", 3));
-    EXPECT_EQ(lex("abcb&^!", 3, lgr), taul::token(lpr, "b", 3));
-    EXPECT_EQ(lex("abcc\r\n\t", 3, lgr), taul::token(lpr, "c", 3));
+    EXPECT_EQ(lex0("abca", 3, lgr), taul::token(lpr0, "a", 3));
+    EXPECT_EQ(lex0("abcb", 3, lgr), taul::token(lpr0, "b", 3));
+    EXPECT_EQ(lex0("abcc", 3, lgr), taul::token(lpr0, "c", 3));
+    EXPECT_EQ(lex0("abca123", 3, lgr), taul::token(lpr0, "a", 3));
+    EXPECT_EQ(lex0("abcb&^!", 3, lgr), taul::token(lpr0, "b", 3));
+    EXPECT_EQ(lex0("abcc\r\n\t", 3, lgr), taul::token(lpr0, "c", 3));
+
+    EXPECT_EQ(lex1("___aa", 3, lgr), taul::token(lpr1, "a", 3));
+    EXPECT_EQ(lex1("___ba", 3, lgr), taul::token(lpr1, "b", 3));
+    EXPECT_EQ(lex1("___ca", 3, lgr), taul::token(lpr1, "c", 3));
+    EXPECT_EQ(lex1("___xa", 3, lgr), taul::token(lpr1, "x", 3));
+    EXPECT_EQ(lex1("___ya", 3, lgr), taul::token(lpr1, "y", 3));
+    EXPECT_EQ(lex1("___za", 3, lgr), taul::token(lpr1, "z", 3));
+    EXPECT_EQ(lex1("___1a", 3, lgr), taul::token(lpr1, "1", 3));
+    EXPECT_EQ(lex1("___2a", 3, lgr), taul::token(lpr1, "2", 3));
+    EXPECT_EQ(lex1("___3a", 3, lgr), taul::token(lpr1, "3", 3));
 
     // failure
 
-    EXPECT_EQ(lex("abc", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abcd", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abcda", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abcdb", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abcdc", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abc&^!", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abc\r\n\t", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abc a", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abc b", 3, lgr), taul::token::failure("", 3));
-    EXPECT_EQ(lex("abc c", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abcd", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abcda", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abcdb", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abcdc", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc&^!", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc\r\n\t", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc a", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc b", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex0("abc c", 3, lgr), taul::token::failure("", 3));
+
+    EXPECT_EQ(lex1("___da", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___ea", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___fa", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___ua", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___va", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___wa", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___4a", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___5a", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___6a", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___!a", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___@a", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___#a", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___\ra", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___\na", 3, lgr), taul::token::failure("", 3));
+    EXPECT_EQ(lex1("___\ta", 3, lgr), taul::token::failure("", 3));
 }
+
+// TODO: if we ever re-use the code below, we'll need to revise it to
+//       account for things like charset string char ranges
 
 /*TEST_F(GrammarUsageTests, parserExpr_charset) {
 

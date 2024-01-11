@@ -43,7 +43,7 @@ lexer section:
 
     # general
 
-    # TODO: don't forget that [!..~] is the range of all visible ASCII characters
+    # TODO: don't forget that [ ..~] is the range of all visible ASCII characters
     #
     #       https://en.wikipedia.org/wiki/ASCII
     
@@ -56,7 +56,70 @@ lexer section:
     #       a single char which is NOT in said set
 
     IDENTIFIER                      : [a-zA-Z_] [0-9a-zA-Z_]* ;
+
+    !#
+        TAUL ESCAPE SEQUENCES
+
+        \0              <- Null
+        \a				<- Bell (Alert)
+        \b				<- Backspace
+        \f				<- Form Feed
+        \n				<- New Line
+        \r				<- Carriage Return
+        \t				<- Horizontal Tab
+        \v				<- Vertical Tab
+        \'				<- Single Quotation			<- TAUL doesn't need '\"' escape sequence
+        \]				<- Right Square Bracket		<- for charsets
+        \-				<- Minus					<- for ranges in charsets
+        \\				<- Backslash
+        \xhh			<- Hex Literal (8-bit)		<- TODO: add 16-bit and 32-bit version when we add encodings
+
+        escaped characters which do not form any of the above are *literalized*,
+        meaning the opening '\' is simply removed
+
+        TAUL doesn't need, and so doesn't support, octal literal escape sequences
+
+        TAUL hex literal escape sequences are *case-insensitive*
+
+        TAUL hex literals which are malformed are interpreted as literalized 'x' chars
+    #!
+
+    # TODO: maybe make it so that TAUL strings/charsets remove non-visible chars
+    #       from string/charset literals (escaped control chars are fine, the problem
+    #       arises from the source code containing improperly placed control chars)
+
     STRING                          : '\'' ( ~'\'' | '\\' any )* '\'' ;
+
+    !#
+        TAUL will support ANTLR-style ranges in charsets, w/ escaping the '-' within
+        forms like [a-b] being required to interpret the '-' as part of the charset's
+        character set
+
+        like ANTLR, an exception is made for charsets like [-abc-], where the '-'
+        characters are at the vary start or vary end of the charset, in which case
+        they are interpreted as part of the character set of the charset, w/out need
+        of escaping them
+
+        another little nuance is that in forms where an unescaped '-' is used to form
+        a char range, but the right char of the char range is an unescaped '-', and
+        one not at the vary start/end of the charset, such as in [aA--b], in these
+        cases the right unescaped '-' is allowed to be used to specify the high codepoint
+        of the range, w/out escaping
+
+        TODO: wouldn't the two rules above mean that the right char in the char range
+              is *in general* exempt from needing to be escaped?
+
+        '-' chars which are described explicitly in the form '\x2d' or '\x2D' do not
+        form char ranges
+
+        TAUL char ranges within charsets will treat escaped chars, in general, as
+        being equivalent to regular chars regarding forming char ranges (eg. [ab\]-\-cd])
+
+        TAUL char ranges within charsets will treat forms like [z-a], in which the
+        higher codepoint character appears first, as equivalent to char ranges where
+        they are flipped around (eg. [z-a] -> [a-z])
+    #!
+
     CHARSET                         : '[' ( ~']' | '\\' any )* ']' ;
 
     skip WHITESPACE                 : [ \t] ;
