@@ -3,11 +3,10 @@
 #pragma once
 
 
-#include "../bias.h"
-#include "../polarity.h"
 #include "../grammar.h"
 #include "../token.h"
-#include "../lexer.h"
+
+#include "migrated/lexer.h"
 
 
 namespace taul {
@@ -226,10 +225,21 @@ namespace taul {
         class set_lexer_pat final : public lexer_pat {
         public:
 
-            bias b;
+            set_lexer_pat();
 
 
-            set_lexer_pat(bias b);
+            lexer_match eval(
+                const grammar_data& gramdat,
+                std::string_view txt,
+                source_pos offset,
+                const source_pos localend_offset,
+                const std::shared_ptr<taul::logger>& lgr) override final;
+        };
+
+        class not_lexer_pat final : public lexer_pat {
+        public:
+
+            not_lexer_pat();
 
 
             lexer_match eval(
@@ -260,41 +270,10 @@ namespace taul {
         class assertion_lexer_pat final : public lexer_pat {
         public:
 
-            taul::polarity p;
+            bool positive;
 
 
-            assertion_lexer_pat(taul::polarity p);
-
-
-            lexer_match eval(
-                const grammar_data& gramdat,
-                std::string_view txt,
-                source_pos offset,
-                const source_pos localend_offset,
-                const std::shared_ptr<taul::logger>& lgr) override final;
-        };
-
-        class constraint_lexer_pat final : public lexer_pat {
-        public:
-
-            taul::polarity p;
-
-
-            constraint_lexer_pat(taul::polarity p);
-
-
-            lexer_match eval(
-                const grammar_data& gramdat,
-                std::string_view txt,
-                source_pos offset,
-                const source_pos localend_offset,
-                const std::shared_ptr<taul::logger>& lgr) override final;
-        };
-
-        class localend_lexer_pat final : public lexer_pat {
-        public:
-
-            localend_lexer_pat();
+            assertion_lexer_pat(bool positive);
 
 
             lexer_match eval(

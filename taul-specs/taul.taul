@@ -17,6 +17,7 @@ lexer section:
     KW_SECTION                      : 'section' -[0-9a-zA-Z_] ;
 
     KW_SKIP                         : 'skip' -[0-9a-zA-Z_] ;
+    KW_SUPPORT                      : 'support' -[0-9a-zA-Z_] ;
     
     KW_BEGIN                        : 'begin' -[0-9a-zA-Z_] ;
     KW_END                          : 'end' -[0-9a-zA-Z_] ;
@@ -88,7 +89,7 @@ lexer section:
     #       from string/charset literals (escaped control chars are fine, the problem
     #       arises from the source code containing improperly placed control chars)
 
-    STRING                          : '\'' ( ~'\'' | '\\' any )* '\'' ;
+    STRING                          : '\'' ( '\\' any | ~'\'' )* '\'' ;
 
     !#
         TAUL will support ANTLR-style ranges in charsets, w/ escaping the '-' within
@@ -120,17 +121,17 @@ lexer section:
         they are flipped around (eg. [z-a] -> [a-z])
     #!
 
-    CHARSET                         : '[' ( ~']' | '\\' any )* ']' ;
+    CHARSET                         : '[' ( '\\' any | ~']' )* ']' ;
 
     skip WHITESPACE                 : [ \t] ;
-    skip NEWLINE                    : '\r\n' | [\r\n] ;
+    skip NEWLINE                    : '\n' | '\r' '\n'? ;
 
     skip SL_COMMENT                 : '#' ~[\r\n]* ;
     skip ML_COMMENT                 : '!#' ( ~'#' | '#' -'!' )* '#!'? ;
 
 parser section:
 
-    Spec                            : begin Clause* ( end | Spec_SyntaxError ) ;
+    Spec                            : Clause* ( end | Spec_SyntaxError ) ;
 
     # TODO: replace later w/ proper error handling/recovery
 
@@ -141,10 +142,15 @@ parser section:
                                     | Clause_Rule ;
     Clause_LexerSection             : KW_LEXER KW_SECTION OP_COLON ;
     Clause_ParserSection            : KW_PARSER KW_SECTION OP_COLON ;
-    Clause_Rule                     : Clause_Rule_Skip? Clause_Rule_Name OP_COLON Clause_Rule_Expr OP_SEMICOLON ;
-    Clause_Rule_Skip                : KW_SKIP ;
+    Clause_Rule                     : Clause_Rule_Qualifier? Clause_Rule_Name OP_COLON Clause_Rule_Expr OP_SEMICOLON ;
+    Clause_Rule_Qualifier           : Qualifier ;
     Clause_Rule_Name                : IDENTIFIER ;
     Clause_Rule_Expr                : Expr ;
+
+    Qualifier                       : Qualifier_Skip
+                                    | Qualifier_Support ;
+    Qualifier_Skip                  : KW_SKIP ;
+    Qualifier_Support               : KW_SUPPORT ;
     
     # expr precedence (ordered highest to lowest)
     #       (primary)

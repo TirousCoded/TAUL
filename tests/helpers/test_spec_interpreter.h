@@ -33,11 +33,7 @@ protected:
         output += "shutdown\n";
     }
 
-    static_assert(taul::spec_opcodes == 22);
-
-    inline void on_grammar_bias(taul::bias b) override final {
-        output += std::format("grammar-bias {}\n", b);
-    }
+    static_assert(taul::spec_opcodes == 20);
 
     inline void on_close() override final {
         output += "close\n";
@@ -59,10 +55,6 @@ protected:
         output += std::format("ppr \"{}\" {}\n", name, qualifier);
     }
 
-    inline void on_begin() override final {
-        output += std::format("begin\n");
-    }
-
     inline void on_end() override final {
         output += std::format("end\n");
     }
@@ -77,10 +69,6 @@ protected:
 
     inline void on_charset(std::string_view s) override final {
         output += std::format("charset \"{}\"\n", s);
-    }
-
-    inline void on_range(char a, char b) override final {
-        output += std::format("range \'{}\' \'{}\'\n", a, b);
     }
 
     inline void on_token() override final {
@@ -99,28 +87,32 @@ protected:
         output += std::format("sequence\n");
     }
 
-    inline void on_set(taul::bias b) override final {
-        output += std::format("set {}\n", b);
+    inline void on_set() override final {
+        output += std::format("set\n");
     }
 
-    inline void on_modifier(std::uint16_t min, std::uint16_t max) override final {
-        output += std::format("modifier {}, {}\n", min, max);
+    inline void on_lookahead() override final {
+        output += std::format("lookahead\n");
     }
 
-    inline void on_assertion(taul::polarity p) override final {
-        output += std::format("assertion {}\n", p);
+    inline void on_lookahead_not() override final {
+        output += std::format("lookahead-not\n");
     }
 
-    inline void on_constraint(taul::polarity p) override final {
-        output += std::format("constraint {}\n", p);
+    inline void on_not() override final {
+        output += std::format("not\n");
     }
 
-    inline void on_junction() override final {
-        output += std::format("junction\n");
+    inline void on_optional() override final {
+        output += std::format("optional\n");
     }
 
-    inline void on_localend() override final {
-        output += std::format("localend\n");
+    inline void on_kleene_star() override final {
+        output += std::format("kleene-star\n");
+    }
+
+    inline void on_kleene_plus() override final {
+        output += std::format("kleene-plus\n");
     }
 };
 

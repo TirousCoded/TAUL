@@ -138,7 +138,7 @@ namespace taul {
             bool lexerSection = true;
 
             std::string ruleName;
-            bool ruleSkip = false;
+            qualifier ruleQualifier = qualifier::none;
 
             spec_writer swForDecls;
             spec_writer swForDefs;

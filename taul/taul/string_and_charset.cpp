@@ -297,7 +297,7 @@ bool taul::in_charset_str(char x, std::string_view charset) noexcept {
 
 std::string taul::optimize_charset_str(std::string_view x) {
     TAUL_ASSERT(x.length() % 2 == 0);
-    TAUL_LOG(make_stderr_logger(), "x == {} (length == {})", (std::string)x, x.length());
+    //TAUL_LOG(make_stderr_logger(), "x == {} (length == {})", (std::string)x, x.length());
     // using these to ensure we don't get potential strangeness below regarding
     // *merging* when we're at ASCII codepoint boundaries
     //constexpr char first_ascii = (char)0;

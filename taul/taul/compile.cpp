@@ -3,11 +3,11 @@
 #include "compile.h"
 
 #include "grammar.h"
-#include "lexer.h"
-#include "tokenize.h"
 #include "load_taul_grammar.h"
 
 #include "internal/util.h"
+#include "internal/migrated/lexer.h"
+#include "internal/migrated/tokenize.h"
 
 
 std::optional<taul::spec> taul::compile(
@@ -27,7 +27,7 @@ std::optional<taul::spec> taul::compile(
     grammar taul_gram = load_taul_grammar();
     TAUL_ASSERT(taul_gram.contains_ppr("Spec"));
     // tokenize input
-    auto tkns = tokenize(taul_gram, src->str());
+    auto tkns = internal::tokenize(taul_gram.full_lexer(), src->str());
     // parse AST
     auto ast = taul_gram.parser("Spec")(ctx, tkns);
     TAUL_ASSERT((bool)ast);
@@ -152,7 +152,7 @@ taul::internal::compile_traverser::compile_traverser()
     : traverser() {}
 
 void taul::internal::compile_traverser::on_begin() {
-    swForDecls.grammar_bias(bias::f);
+    //
 }
 
 void taul::internal::compile_traverser::on_end() {
@@ -168,7 +168,7 @@ void taul::internal::compile_traverser::on_enter(const node& nd, bool& skip_chil
     else if (nd.is_syntactic()) {
         if (nd.ppr().name == "Spec_SyntaxError") {
             success = false;
-            internal::raise_spec_error(
+            raise_spec_error(
                 ec, 
                 spec_error::syntax_error, 
                 lgr, 
@@ -183,10 +183,7 @@ void taul::internal::compile_traverser::on_enter(const node& nd, bool& skip_chil
         }
         else if (nd.ppr().name == "Clause_Rule") {
             ruleName = "";
-            ruleSkip = false;
-        }
-        else if (nd.ppr().name == "Clause_Rule_Skip") {
-            ruleSkip = true;
+            ruleQualifier = qualifier::none;
         }
         else if (nd.ppr().name == "Clause_Rule_Name") {
             ruleName = nd.str();
@@ -194,15 +191,18 @@ void taul::internal::compile_traverser::on_enter(const node& nd, bool& skip_chil
         else if (nd.ppr().name == "Clause_Rule_Expr") {
             if (lexerSection) {
                 swForDecls.lpr_decl(ruleName);
-                swForDefs.lpr(ruleName, ruleSkip ? qualifier::skip : qualifier::none);
+                swForDefs.lpr(ruleName, ruleQualifier);
             }
             else {
                 swForDecls.ppr_decl(ruleName);
-                swForDefs.ppr(ruleName, ruleSkip ? qualifier::skip : qualifier::none);
+                swForDefs.ppr(ruleName, ruleQualifier);
             }
         }
-        else if (nd.ppr().name == "Expr_Begin") {
-            swForDefs.begin();
+        else if (nd.ppr().name == "Qualifier_Skip") {
+            ruleQualifier = qualifier::skip;
+        }
+        else if (nd.ppr().name == "Qualifier_Support") {
+            ruleQualifier = qualifier::support;
         }
         else if (nd.ppr().name == "Expr_End") {
             swForDefs.end();
@@ -231,31 +231,28 @@ void taul::internal::compile_traverser::on_enter(const node& nd, bool& skip_chil
             //
         }
         else if (nd.ppr().name == "Expr_LookAhead") {
-            swForDefs.assertion();
+            swForDefs.lookahead();
         }
         else if (nd.ppr().name == "Expr_LookAheadNot") {
-            swForDefs.assertion(polarity::negative);
+            swForDefs.lookahead_not();
         }
         else if (nd.ppr().name == "Expr_Not") {
-            swForDefs
-                .constraint(polarity::negative)
-                .any()
-                .junction();
+            swForDefs.not0();
         }
         else if (nd.ppr().name == "Expr_Optional") {
-            swForDefs.modifier(0, 1);
+            swForDefs.optional();
         }
         else if (nd.ppr().name == "Expr_KleeneStar") {
-            swForDefs.modifier(0, 0);
+            swForDefs.kleene_star();
         }
         else if (nd.ppr().name == "Expr_KleenePlus") {
-            swForDefs.modifier(1, 0);
+            swForDefs.kleene_plus();
         }
         else if (nd.ppr().name == "Expr_Sequence") {
             swForDefs.sequence();
         }
         else if (nd.ppr().name == "Expr_Set") {
-            swForDefs.set(bias::f);
+            swForDefs.set();
         }
     }
     else TAUL_DEADEND;

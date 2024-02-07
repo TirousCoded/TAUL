@@ -8,8 +8,9 @@
 #include <string>
 
 #include "qualifier.h"
-#include "lexer.h"
-#include "parser.h"
+
+#include "internal/migrated/lexer.h"
+#include "internal/migrated/parser.h"
 
 
 namespace taul {
@@ -37,25 +38,15 @@ namespace taul {
         std::string     name;
         std::size_t     index       = -1;
         taul::qualifier qualifer    = taul::qualifier::none;
-        taul::lexer     fnobj;                                  // the lexer function object of the lexer rule
 
-
-        // TODO: the behaviour of fnobj is tested in grammar_usage_tests.cpp, but this
-        //       method is otherwise not *directly* been unit tested yet
-
-        constexpr const taul::lexer& lexer() const noexcept { return fnobj; }
+        taul::internal::lexer fnobj; // internal, do not use
     };
 
     struct parser_rule final {
         std::string     name;
-        std::size_t     index       = -1;
-        taul::parser    fnobj;                                  // the parser function object of the parser rule
+        std::size_t     index = -1;
 
-
-        // TODO: the behaviour of fnobj is tested in grammar_usage_tests.cpp, but this
-        //       method is otherwise not *directly* been unit tested yet
-
-        constexpr const taul::parser& parser() const noexcept { return fnobj; }
+        taul::internal::parser fnobj; // internal, do not use
     };
 }
 

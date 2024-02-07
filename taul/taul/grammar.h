@@ -11,15 +11,17 @@
 #include <span>
 
 #include "logger.h"
-#include "bias.h"
 #include "rules.h"
-#include "lexer.h"
-#include "parser.h"
 
 #include "internal/util.h"
+#include "internal/migrated/lexer.h"
+#include "internal/migrated/parser.h"
 
 
 namespace taul {
+
+
+    struct spec;
 
 
     namespace internal {
@@ -30,8 +32,34 @@ namespace taul {
     }
 
 
+    class lpr_not_found_error final : public std::logic_error {
+    public:
+
+        inline explicit lpr_not_found_error(const std::string& msg) : logic_error(msg) {}
+        inline explicit lpr_not_found_error(const char* msg) : logic_error(msg) {}
+    };
+
+    class ppr_not_found_error final : public std::logic_error {
+    public:
+
+        inline explicit ppr_not_found_error(const std::string& msg) : logic_error(msg) {}
+        inline explicit ppr_not_found_error(const char* msg) : logic_error(msg) {}
+    };
+
+
+    // grammars are handles to shared underlying state
+
     class grammar final {
     public:
+
+        friend class context;
+
+        friend std::optional<spec> compile(
+            node_ctx& ctx,
+            const std::shared_ptr<source_code>& src,
+            spec_error_counter& ec,
+            const std::shared_ptr<logger>& lgr);
+
 
         grammar();
         grammar(const grammar& x);
@@ -49,9 +77,6 @@ namespace taul {
             std::shared_ptr<internal::grammar_data> data);
 
 
-        bias bias() const noexcept;
-
-
         std::span<const lexer_rule> lprs() const noexcept;
         std::span<const parser_rule> pprs() const noexcept;
 
@@ -59,7 +84,8 @@ namespace taul {
         // for code below w/ 'const char* name', behaviour is undefined if name == nullptr
 
 
-        // the below throw std::out_of_range if there is no LPR/PPR w/ name
+        // the below throw taul::lpr_not_found_error/taul::ppr_not_found_error if 
+        // there is no LPR/PPR w/ name
 
         const lexer_rule& lpr(const std::string& name) const;
         const lexer_rule& lpr(std::string_view name) const;
@@ -68,27 +94,6 @@ namespace taul {
         const parser_rule& ppr(const std::string& name) const;
         const parser_rule& ppr(std::string_view name) const;
         const parser_rule& ppr(const char* name) const;
-
-
-        // this returns a "grammar-wide lexer" which evaluates w/ all LPRs
-        // in the grammar
-
-        taul::lexer full_lexer(bool cut_skip_tokens = true) const;
-
-        operator taul::lexer() const;
-
-
-        // these are used to get lexers/parsers associated w/ LPRs/PPRs
-
-        // the below throw std::out_of_range if there is no LPR/PPR w/ name
-
-        taul::lexer lexer(const std::string& name) const;
-        taul::lexer lexer(std::string_view name) const;
-        taul::lexer lexer(const char* name) const;
-
-        taul::parser parser(const std::string& name) const;
-        taul::parser parser(std::string_view name) const;
-        taul::parser parser(const char* name) const;
 
 
         // contains returns if *either* and LPR or a PPR exists w/ name, w/
@@ -118,6 +123,19 @@ namespace taul {
     private:
 
         std::shared_ptr<internal::grammar_data> _data;
+
+
+        // IMPORTANT: this was part of the frontend, but I've moved this to the backend
+
+        taul::internal::lexer full_lexer(bool cut_skip_tokens = true) const;
+
+        taul::internal::lexer lexer(const std::string& name) const;
+        taul::internal::lexer lexer(std::string_view name) const;
+        taul::internal::lexer lexer(const char* name) const;
+
+        taul::internal::parser parser(const std::string& name) const;
+        taul::internal::parser parser(std::string_view name) const;
+        taul::internal::parser parser(const char* name) const;
     };
 }
 
@@ -149,8 +167,6 @@ namespace taul::internal {
         // building grammar objects, but in case we ever change it, do 
         // keep this in mind
 
-        taul::bias _bias;
-
         std::vector<lexer_rule> _lprs;
         std::vector<parser_rule> _pprs;
 
@@ -181,10 +197,9 @@ namespace taul::internal {
     //            taul::internal::grammar_data, as doing so will result in
     //            a strong reference cycle!!!
 
-    class grammar_wide_lexer_state final : public taul::lexer_state {
+    class grammar_wide_lexer_state final : public lexer_state {
     public:
 
-        taul::bias _bias;
         std::span<const lexer_rule> _lprs;
 
 

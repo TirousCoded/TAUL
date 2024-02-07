@@ -77,10 +77,9 @@ TEST(SpecTests, Core) {
 
     // test done w/ main usage
 
-    static_assert(taul::spec_opcodes == 22);
+    static_assert(taul::spec_opcodes == 20);
 
     const auto spec1 = sw
-        .grammar_bias(taul::bias::ls)
         .lpr_decl("test_none_qualifier")
         .lpr_decl("test_skip_qualifier")
         .lpr_decl("test_support_qualifier")
@@ -93,35 +92,36 @@ TEST(SpecTests, Core) {
         .lpr_decl("lpr0")
         .ppr_decl("ppr0")
         .lpr("lpr0")
-        .begin()
         .end()
         .any()
         .string("abc")
         .charset("abc")
-        .range('A', 'Z')
         .sequence()
-        .set(taul::bias::ls)
+        .set()
         .any()
         .name("lpr0")
         .close()
         .close()
-        .assertion(taul::polarity::negative)
-        .modifier(3, 4)
+        .lookahead()
         .any()
         .close()
-        .close()
-        .constraint(taul::polarity::negative)
+        .lookahead_not()
         .any()
-        .junction()
-        .sequence()
-        .string("a")
-        .localend()
-        .string("bc")
         .close()
+        .not0()
+        .any()
+        .close()
+        .optional()
+        .any()
+        .close()
+        .kleene_star()
+        .any()
+        .close()
+        .kleene_plus()
+        .any()
         .close()
         .close()
         .ppr("ppr0", taul::qualifier::skip) // <- semantically illegal, but can still appear in syntax
-        .begin()
         .end()
         .any()
         .string("abc")
@@ -134,19 +134,23 @@ TEST(SpecTests, Core) {
         .name("ppr0")
         .close()
         .close()
-        .assertion()
-        .modifier(3, 0)
+        .lookahead()
         .any()
         .close()
-        .close()
-        .constraint()
+        .lookahead_not()
         .any()
-        .junction()
-        .sequence()
-        .string("a")
-        .localend()
-        .string("bc")
         .close()
+        .not0()
+        .any()
+        .close()
+        .optional()
+        .any()
+        .close()
+        .kleene_star()
+        .any()
+        .close()
+        .kleene_plus()
+        .any()
         .close()
         .close()
         .done();
@@ -184,7 +188,6 @@ TEST(SpecTests, Core) {
     tsi.interpret(spec1);
 
     expected = "startup\n";
-    expected += "grammar-bias last-shortest\n";
     expected += "lpr-decl \"test_none_qualifier\"\n";
     expected += "lpr-decl \"test_skip_qualifier\"\n";
     expected += "lpr-decl \"test_support_qualifier\"\n";
@@ -197,60 +200,65 @@ TEST(SpecTests, Core) {
     expected += "lpr-decl \"lpr0\"\n";
     expected += "ppr-decl \"ppr0\"\n";
     expected += "lpr \"lpr0\" none\n";
-    expected += "begin\n";
     expected += "end\n";
     expected += "any\n";
     expected += "string \"abc\"\n";
     expected += "charset \"abc\"\n";
-    expected += "range \'A\' \'Z\'\n";
     expected += "sequence\n";
-    expected += "set last-shortest\n";
+    expected += "set\n";
     expected += "any\n";
     expected += "name \"lpr0\"\n";
     expected += "close\n";
     expected += "close\n";
-    expected += "assertion negative\n";
-    expected += "modifier 3, 4\n";
+    expected += "lookahead\n";
     expected += "any\n";
     expected += "close\n";
-    expected += "close\n";
-    expected += "constraint negative\n";
+    expected += "lookahead-not\n";
     expected += "any\n";
-    expected += "junction\n";
-    expected += "sequence\n";
-    expected += "string \"a\"\n";
-    expected += "localend\n";
-    expected += "string \"bc\"\n";
     expected += "close\n";
+    expected += "not\n";
+    expected += "any\n";
+    expected += "close\n";
+    expected += "optional\n";
+    expected += "any\n";
+    expected += "close\n";
+    expected += "kleene-star\n";
+    expected += "any\n";
+    expected += "close\n";
+    expected += "kleene-plus\n";
+    expected += "any\n";
     expected += "close\n";
     expected += "close\n";
     expected += "ppr \"ppr0\" skip\n";
-    expected += "begin\n";
     expected += "end\n";
     expected += "any\n";
     expected += "string \"abc\"\n";
     expected += "token\n";
     expected += "failure\n";
     expected += "sequence\n";
-    expected += "set first-longest\n";
+    expected += "set\n";
     expected += "any\n";
     expected += "name \"lpr0\"\n";
     expected += "name \"ppr0\"\n";
     expected += "close\n";
     expected += "close\n";
-    expected += "assertion positive\n";
-    expected += "modifier 3, 0\n";
+    expected += "lookahead\n";
     expected += "any\n";
     expected += "close\n";
-    expected += "close\n";
-    expected += "constraint positive\n";
+    expected += "lookahead-not\n";
     expected += "any\n";
-    expected += "junction\n";
-    expected += "sequence\n";
-    expected += "string \"a\"\n";
-    expected += "localend\n";
-    expected += "string \"bc\"\n";
     expected += "close\n";
+    expected += "not\n";
+    expected += "any\n";
+    expected += "close\n";
+    expected += "optional\n";
+    expected += "any\n";
+    expected += "close\n";
+    expected += "kleene-star\n";
+    expected += "any\n";
+    expected += "close\n";
+    expected += "kleene-plus\n";
+    expected += "any\n";
     expected += "close\n";
     expected += "close\n";
     expected += "shutdown\n";

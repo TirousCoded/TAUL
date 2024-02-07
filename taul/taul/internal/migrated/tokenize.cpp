@@ -2,26 +2,26 @@
 
 #include "tokenize.h"
 
-#include "asserts.h"
-#include "grammar.h"
+#include "../../asserts.h"
+#include "../../grammar.h"
 
 
-void taul::tokenize_into(token_seq& target, const lexer& f, std::string_view txt, const std::shared_ptr<logger>& lgr) {
+void taul::internal::tokenize_into(token_seq& target, const lexer& f, std::string_view txt, const std::shared_ptr<logger>& lgr) {
     tokenize_into(target, f, txt, 0, lgr);
 }
 
-void taul::tokenize_into(token_seq& target, const lexer& f, std::string_view txt, source_pos offset, const std::shared_ptr<logger>& lgr) {
+void taul::internal::tokenize_into(token_seq& target, const lexer& f, std::string_view txt, source_pos offset, const std::shared_ptr<logger>& lgr) {
     TAUL_ASSERT(offset <= txt.length());
     TAUL_LOG(lgr, "tokenizing \"{}\" (offset=={})...", (std::string)txt, offset);
     target.reset(txt);
     target.skip(offset);
-    const bool cut_skip_tokens = internal::get_lexer_f(f) == internal::grammar_wide_lexer_function_cut_skip_tokens;
+    const bool cut_skip_tokens = get_lexer_f(f) == grammar_wide_lexer_function_cut_skip_tokens;
     bool backIsFail = false;
     do {
         const auto tkn = f(target.str(), target.read_pos(), lgr);
         TAUL_LOG(lgr, "tokenized {}", tkn);
         if ((bool)tkn) {
-            // special check made to account for cutting skip tokens for grammar-wide lexers
+            // special check made to account for cutting skip tokens for grammar-wide lexing
             if (!cut_skip_tokens || tkn.lpr().qualifer != qualifier::skip) {
                 target.push(tkn.lpr(), (std::uint32_t)tkn.str().length());
             }
@@ -55,7 +55,7 @@ void taul::tokenize_into(token_seq& target, const lexer& f, std::string_view txt
     const auto tkn = f(target.str(), target.read_pos(), lgr);
     TAUL_LOG(lgr, "tokenized {}", tkn);
     if ((bool)tkn) {
-        // special check made to account for cutting skip tokens for grammar-wide lexers
+        // special check made to account for cutting skip tokens for grammar-wide lexing
         if (!cut_skip_tokens || tkn.lpr().qualifer != qualifier::skip) {
             target.push(tkn.lpr(), (std::uint32_t)tkn.str().length());
         }
@@ -70,11 +70,11 @@ void taul::tokenize_into(token_seq& target, const lexer& f, std::string_view txt
     TAUL_LOG(lgr, "tokenization complete!");
 }
 
-taul::token_seq taul::tokenize(const lexer& f, std::string_view txt, const std::shared_ptr<logger>& lgr) {
+taul::token_seq taul::internal::tokenize(const lexer& f, std::string_view txt, const std::shared_ptr<logger>& lgr) {
     return tokenize(f, txt, 0, lgr);
 }
 
-taul::token_seq taul::tokenize(const lexer& f, std::string_view txt, source_pos offset, const std::shared_ptr<logger>& lgr) {
+taul::token_seq taul::internal::tokenize(const lexer& f, std::string_view txt, source_pos offset, const std::shared_ptr<logger>& lgr) {
     TAUL_ASSERT(offset <= txt.length());
     token_seq result(txt); // <- dummy
     tokenize_into(result, f, txt, offset, lgr);

@@ -4,6 +4,8 @@
 
 #include "../asserts.h"
 
+#include "migrated/parser.h"
+
 
 taul::source_pos taul::internal::map_tkn_to_src_pos(
     const taul::token_seq& tkns,
@@ -220,7 +222,8 @@ taul::internal::parser_match taul::internal::end_parser_pat::eval(
             node::iterator{});
 }
 
-taul::internal::any_parser_pat::any_parser_pat() {}
+taul::internal::any_parser_pat::any_parser_pat()
+    : parser_pat() {}
 
 taul::internal::parser_match taul::internal::any_parser_pat::eval(
     node_ctx& ctx,
@@ -329,7 +332,8 @@ taul::internal::parser_match taul::internal::charset_parser_pat::eval(
     }
 }*/
 
-taul::internal::token_parser_pat::token_parser_pat() {}
+taul::internal::token_parser_pat::token_parser_pat()
+    : parser_pat() {}
 
 taul::internal::parser_match taul::internal::token_parser_pat::eval(
     node_ctx& ctx, 
@@ -362,7 +366,8 @@ taul::internal::parser_match taul::internal::token_parser_pat::eval(
     }
 }
 
-taul::internal::failure_parser_pat::failure_parser_pat() {}
+taul::internal::failure_parser_pat::failure_parser_pat()
+    : parser_pat() {}
 
 taul::internal::parser_match taul::internal::failure_parser_pat::eval(
     node_ctx& ctx, 
@@ -422,7 +427,7 @@ taul::internal::parser_match taul::internal::name_parser_pat::eval(
     }
     else {
         // perform this code if we name a ppr
-        const auto& psr = gramdat._pprs[ruleIndOfRef].parser();
+        const auto& psr = gramdat._pprs[ruleIndOfRef].fnobj;
         const auto toplevel = get_parser_state_as<toplevel_parser_pat>(psr);
         TAUL_ASSERT(toplevel);
         taul::node nd0 =
@@ -467,7 +472,8 @@ taul::internal::parser_match taul::internal::name_parser_pat::eval(
     }
 }
 
-taul::internal::sequence_parser_pat::sequence_parser_pat() {}
+taul::internal::sequence_parser_pat::sequence_parser_pat()
+    : parser_pat() {}
 
 taul::internal::parser_match taul::internal::sequence_parser_pat::eval(
     node_ctx& ctx, 
@@ -521,8 +527,8 @@ taul::internal::parser_match taul::internal::sequence_parser_pat::eval(
     }
 }
 
-taul::internal::set_parser_pat::set_parser_pat(bias b) 
-    : b(b) {}
+taul::internal::set_parser_pat::set_parser_pat() 
+    : parser_pat() {}
 
 taul::internal::parser_match taul::internal::set_parser_pat::eval(
     node_ctx& ctx,
@@ -550,48 +556,64 @@ taul::internal::parser_match taul::internal::set_parser_pat::eval(
                 offset, 
                 localend_offset, 
                 lgr);
-        // skip if fails
-        if (!matched.success) {
-            continue;
-        }
         // select first successful match no matter what
-        bool select = !selection.success;
-        // otherwise, select if new match is preferrable
-        if (!select) {
-            switch (b) {
-            case bias::fl:  select = matched.tkns.size() > selection.tkns.size();   break;
-            case bias::fs:  select = matched.tkns.size() < selection.tkns.size();   break;
-            case bias::ll:  select = matched.tkns.size() >= selection.tkns.size();  break;
-            case bias::ls:  select = matched.tkns.size() <= selection.tkns.size();  break;
-            case bias::f:   select = false;                                         break;
-            case bias::l:   select = true;                                          break;
-            default:        TAUL_DEADEND;                                           break;
-            }
-        }
-        // if above two make select == true, select matched
-        if (select) {
-            if (selection.first != node::iterator{}) {
-                // gotta not forget to call detach_range
-                nd.detach_range(
-                    selection.first,
-                    std::next(selection.last_notpte));
-            }
+        if (matched.success) {
+            // assert here to make sure don't need to detach anything
+            TAUL_ASSERT(selection.first == node::iterator{});
             selection = std::move(matched);
-        }
-        else {
-            if (matched.first != node::iterator{}) {
-                // gotta not forget to call detach_range
-                nd.detach_range(
-                    matched.first,
-                    std::next(matched.last_notpte));
-            }
-        }
-        // if our bias is 'first', then we may exit early
-        if (select && b == bias::f) {
             break;
         }
     }
     return selection;
+}
+
+taul::internal::not_parser_pat::not_parser_pat()
+    : parser_pat() {}
+
+taul::internal::parser_match taul::internal::not_parser_pat::eval(
+    node_ctx& ctx, 
+    node& nd, 
+    const grammar_data& gramdat, 
+    const taul::token_seq& tkns, 
+    std::size_t offset, 
+    const std::size_t localend_offset, 
+    const std::shared_ptr<taul::logger>& lgr) {
+    TAUL_ASSERT(children.size() == 1);
+    parser_match matched =
+        children.back()->eval(
+            ctx,
+            nd,
+            gramdat,
+            tkns,
+            offset,
+            localend_offset,
+            lgr);
+    if (matched.success && matched.first != node::iterator{}) {
+        // cleanup if matched succeeded, as we won't need these nodes anyway
+        nd.detach_range(matched.begin(), matched.end());
+    }
+    const bool success =
+        !matched.success && 
+        tkns.size() > offset;
+    if (success) {
+        nd.attach(ctx.create(tkns[offset]));
+        return
+            make_parser_match(
+                true,
+                std::span<const token>(std::next(tkns.begin(), offset), 1),
+                offset,
+                std::prev(nd.end()),
+                std::prev(nd.end()));
+    }
+    else {
+        return
+            make_parser_match(
+                false,
+                std::span<const token>(std::next(tkns.begin(), offset), 0),
+                offset,
+                node::iterator{},
+                node::iterator{});
+    }
 }
 
 taul::internal::modifier_parser_pat::modifier_parser_pat(std::uint16_t min, std::uint16_t max)
@@ -664,8 +686,8 @@ taul::internal::parser_match taul::internal::modifier_parser_pat::eval(
     }
 }
 
-taul::internal::assertion_parser_pat::assertion_parser_pat(taul::polarity p) 
-    : p(p) {}
+taul::internal::assertion_parser_pat::assertion_parser_pat(bool positive) 
+    : positive(positive) {}
 
 taul::internal::parser_match taul::internal::assertion_parser_pat::eval(
     node_ctx& ctx,
@@ -686,7 +708,7 @@ taul::internal::parser_match taul::internal::assertion_parser_pat::eval(
             localend_offset, 
             lgr);
     const bool success =
-        p == polarity::positive
+        positive
         ? matched.success
         : !matched.success;
     if (matched.success) {
@@ -698,92 +720,6 @@ taul::internal::parser_match taul::internal::assertion_parser_pat::eval(
     return
         make_parser_match(
             success,
-            std::span<const token>(std::next(tkns.begin(), offset), 0),
-            offset,
-            node::iterator{},
-            node::iterator{});
-}
-
-taul::internal::constraint_parser_pat::constraint_parser_pat(taul::polarity p)
-    : p(p) {}
-
-taul::internal::parser_match taul::internal::constraint_parser_pat::eval(
-    node_ctx& ctx,
-    node& nd,
-    const grammar_data& gramdat,
-    const taul::token_seq& tkns,
-    std::size_t offset,
-    const std::size_t localend_offset,
-    const std::shared_ptr<taul::logger>& lgr) {
-    TAUL_ASSERT(children.size() == 2);
-    bool success{};
-    parser_match constrained = 
-        children[0]->eval(
-            ctx, 
-            nd, 
-            gramdat, 
-            tkns, 
-            offset, 
-            localend_offset, 
-            lgr);
-    if (constrained.success) {
-        // putting this in an if-statement so we can skip evaluating it if constrained fails
-        parser_match constraining = 
-            children[1]->eval(
-                ctx,
-                nd,
-                gramdat,
-                tkns,
-                offset,
-                offset + constrained.tkns.size(),
-                lgr);
-        success =
-            p == polarity::positive
-            ? constraining.success
-            : !constraining.success;
-        if (constraining.success) {
-            if (constraining.first != node::iterator{}) {
-                // cleanup if matched succeeded, as we won't need these nodes anyway
-                nd.detach_range(constraining.begin(), constraining.end());
-            }
-        }
-    }
-    else {
-        success = false;
-    }
-    if (success) {
-        return constrained;
-    }
-    else {
-        // it's possible failure could be due to constraining expr, so we'll need to do cleanup then
-        if (constrained.success) {
-            if (constrained.first != node::iterator{}) {
-                nd.detach_range(constrained.begin(), constrained.end());
-            }
-        }
-        return
-            make_parser_match(
-                false,
-                std::span<const token>(std::next(tkns.begin(), offset), 0),
-                offset,
-                node::iterator{},
-                node::iterator{});
-    }
-}
-
-taul::internal::localend_parser_pat::localend_parser_pat() {}
-
-taul::internal::parser_match taul::internal::localend_parser_pat::eval(
-    node_ctx& ctx,
-    node& nd,
-    const grammar_data& gramdat,
-    const taul::token_seq& tkns,
-    std::size_t offset,
-    const std::size_t localend_offset,
-    const std::shared_ptr<taul::logger>& lgr) {
-    return
-        make_parser_match(
-            offset == localend_offset,
             std::span<const token>(std::next(tkns.begin(), offset), 0),
             offset,
             node::iterator{},

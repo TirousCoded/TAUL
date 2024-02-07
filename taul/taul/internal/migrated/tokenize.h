@@ -3,11 +3,14 @@
 #pragma once
 
 
-#include "token_seq.h"
+// IMPORTANT: this was part of the frontend, but I've moved this to the backend
+
+
+#include "../../token_seq.h"
 #include "lexer.h"
 
 
-namespace taul {
+namespace taul::internal {
 
 
     // TODO: be sure to incorporate the below into our *official* documentation later

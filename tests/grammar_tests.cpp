@@ -14,28 +14,16 @@ TEST(grammar_tests, defaultCtor) {
 
     TAUL_LOG(lgr, "{}", gram);
 
-    EXPECT_EQ(gram.bias(), taul::bias::fl);
     EXPECT_TRUE(gram.lprs().empty());
     EXPECT_TRUE(gram.pprs().empty());
 
-    EXPECT_THROW(gram.lpr(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lpr(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lpr("missing"), std::out_of_range);
+    EXPECT_THROW(gram.lpr(std::string("missing")), taul::lpr_not_found_error);
+    EXPECT_THROW(gram.lpr(std::string_view("missing")), taul::lpr_not_found_error);
+    EXPECT_THROW(gram.lpr("missing"), taul::lpr_not_found_error);
 
-    EXPECT_THROW(gram.ppr(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.ppr(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.ppr("missing"), std::out_of_range);
-
-    EXPECT_NO_THROW(gram.full_lexer());
-    EXPECT_NO_THROW((taul::lexer)gram);
-
-    EXPECT_THROW(gram.lexer(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
-
-    EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.parser("missing"), std::out_of_range);
+    EXPECT_THROW(gram.ppr(std::string("missing")), taul::ppr_not_found_error);
+    EXPECT_THROW(gram.ppr(std::string_view("missing")), taul::ppr_not_found_error);
+    EXPECT_THROW(gram.ppr("missing"), taul::ppr_not_found_error);
 
     EXPECT_FALSE(gram.contains(std::string("missing")));
     EXPECT_FALSE(gram.contains(std::string_view("missing")));
@@ -56,7 +44,6 @@ TEST(grammar_tests, copyCtor) {
 
     const auto spec =
         taul::spec_writer()
-        .grammar_bias(taul::bias::ll)
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
@@ -83,8 +70,6 @@ TEST(grammar_tests, copyCtor) {
 
         TAUL_LOG(lgr, "{}", *gram0);
 
-        EXPECT_EQ(gram0->bias(), taul::bias::ll);
-
         if (gram0->lprs().size() == 2) {
             EXPECT_EQ(gram0->lprs()[0].name, "lpr0");
             EXPECT_EQ(gram0->lprs()[0].index, 0);
@@ -101,13 +86,13 @@ TEST(grammar_tests, copyCtor) {
         }
         else ADD_FAILURE();
 
-        EXPECT_THROW(gram0->lpr(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram0->lpr(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram0->lpr("missing"), std::out_of_range);
+        EXPECT_THROW(gram0->lpr(std::string("missing")), taul::lpr_not_found_error);
+        EXPECT_THROW(gram0->lpr(std::string_view("missing")), taul::lpr_not_found_error);
+        EXPECT_THROW(gram0->lpr("missing"), taul::lpr_not_found_error);
 
-        EXPECT_THROW(gram0->ppr(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram0->ppr(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram0->ppr("missing"), std::out_of_range);
+        EXPECT_THROW(gram0->ppr(std::string("missing")), taul::ppr_not_found_error);
+        EXPECT_THROW(gram0->ppr(std::string_view("missing")), taul::ppr_not_found_error);
+        EXPECT_THROW(gram0->ppr("missing"), taul::ppr_not_found_error);
 
         const auto& _lpr0_a = gram0->lpr(std::string("lpr0"));
         const auto& _lpr0_b = gram0->lpr(std::string_view("lpr0"));
@@ -136,33 +121,6 @@ TEST(grammar_tests, copyCtor) {
         EXPECT_EQ(&_ppr1_a, &(gram0->pprs()[1]));
         EXPECT_EQ(&_ppr1_b, &(gram0->pprs()[1]));
         EXPECT_EQ(&_ppr1_c, &(gram0->pprs()[1]));
-
-        // remember, behaviour of lexers/parsers are not tested here
-
-        EXPECT_NO_THROW(gram.full_lexer());
-        EXPECT_NO_THROW((taul::lexer)gram);
-
-        EXPECT_THROW(gram.lexer(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
-
-        EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.parser("missing"), std::out_of_range);
-
-        EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
-        EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
-        EXPECT_NO_THROW(gram.lexer("lpr0"));
-        EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
-        EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
-        EXPECT_NO_THROW(gram.lexer("lpr1"));
-
-        EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
-        EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
-        EXPECT_NO_THROW(gram.parser("ppr0"));
-        EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
-        EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
-        EXPECT_NO_THROW(gram.parser("ppr1"));
 
         EXPECT_TRUE(gram0->contains(std::string("lpr0")));
         EXPECT_TRUE(gram0->contains(std::string("lpr1")));
@@ -210,8 +168,6 @@ TEST(grammar_tests, copyCtor) {
     {
         TAUL_LOG(lgr, "{}", gram);
 
-        EXPECT_EQ(gram.bias(), taul::bias::ll);
-
         if (gram.lprs().size() == 2) {
             EXPECT_EQ(gram.lprs()[0].name, "lpr0");
             EXPECT_EQ(gram.lprs()[0].index, 0);
@@ -228,13 +184,13 @@ TEST(grammar_tests, copyCtor) {
         }
         else ADD_FAILURE();
 
-        EXPECT_THROW(gram.lpr(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lpr(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lpr("missing"), std::out_of_range);
+        EXPECT_THROW(gram.lpr(std::string("missing")), taul::lpr_not_found_error);
+        EXPECT_THROW(gram.lpr(std::string_view("missing")), taul::lpr_not_found_error);
+        EXPECT_THROW(gram.lpr("missing"), taul::lpr_not_found_error);
 
-        EXPECT_THROW(gram.ppr(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.ppr(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.ppr("missing"), std::out_of_range);
+        EXPECT_THROW(gram.ppr(std::string("missing")), taul::ppr_not_found_error);
+        EXPECT_THROW(gram.ppr(std::string_view("missing")), taul::ppr_not_found_error);
+        EXPECT_THROW(gram.ppr("missing"), taul::ppr_not_found_error);
 
         const auto& _lpr0_a = gram.lpr(std::string("lpr0"));
         const auto& _lpr0_b = gram.lpr(std::string_view("lpr0"));
@@ -263,33 +219,6 @@ TEST(grammar_tests, copyCtor) {
         EXPECT_EQ(&_ppr1_a, &(gram.pprs()[1]));
         EXPECT_EQ(&_ppr1_b, &(gram.pprs()[1]));
         EXPECT_EQ(&_ppr1_c, &(gram.pprs()[1]));
-
-        // remember, behaviour of lexers/parsers are not tested here
-
-        EXPECT_NO_THROW(gram.full_lexer());
-        EXPECT_NO_THROW((taul::lexer)gram);
-
-        EXPECT_THROW(gram.lexer(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
-
-        EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.parser("missing"), std::out_of_range);
-
-        EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
-        EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
-        EXPECT_NO_THROW(gram.lexer("lpr0"));
-        EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
-        EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
-        EXPECT_NO_THROW(gram.lexer("lpr1"));
-
-        EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
-        EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
-        EXPECT_NO_THROW(gram.parser("ppr0"));
-        EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
-        EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
-        EXPECT_NO_THROW(gram.parser("ppr1"));
 
         EXPECT_TRUE(gram.contains(std::string("lpr0")));
         EXPECT_TRUE(gram.contains(std::string("lpr1")));
@@ -341,7 +270,6 @@ TEST(grammar_tests, moveCtor) {
 
     const auto spec =
         taul::spec_writer()
-        .grammar_bias(taul::bias::ll)
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
@@ -365,8 +293,6 @@ TEST(grammar_tests, moveCtor) {
 
     TAUL_LOG(lgr, "{}", gram);
 
-    EXPECT_EQ(gram.bias(), taul::bias::ll);
-
     if (gram.lprs().size() == 2) {
         EXPECT_EQ(gram.lprs()[0].name, "lpr0");
         EXPECT_EQ(gram.lprs()[0].index, 0);
@@ -383,13 +309,13 @@ TEST(grammar_tests, moveCtor) {
     }
     else ADD_FAILURE();
 
-    EXPECT_THROW(gram.lpr(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lpr(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lpr("missing"), std::out_of_range);
+    EXPECT_THROW(gram.lpr(std::string("missing")), taul::lpr_not_found_error);
+    EXPECT_THROW(gram.lpr(std::string_view("missing")), taul::lpr_not_found_error);
+    EXPECT_THROW(gram.lpr("missing"), taul::lpr_not_found_error);
 
-    EXPECT_THROW(gram.ppr(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.ppr(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.ppr("missing"), std::out_of_range);
+    EXPECT_THROW(gram.ppr(std::string("missing")), taul::ppr_not_found_error);
+    EXPECT_THROW(gram.ppr(std::string_view("missing")), taul::ppr_not_found_error);
+    EXPECT_THROW(gram.ppr("missing"), taul::ppr_not_found_error);
 
     const auto& _lpr0_a = gram.lpr(std::string("lpr0"));
     const auto& _lpr0_b = gram.lpr(std::string_view("lpr0"));
@@ -418,33 +344,6 @@ TEST(grammar_tests, moveCtor) {
     EXPECT_EQ(&_ppr1_a, &(gram.pprs()[1]));
     EXPECT_EQ(&_ppr1_b, &(gram.pprs()[1]));
     EXPECT_EQ(&_ppr1_c, &(gram.pprs()[1]));
-
-    // remember, behaviour of lexers/parsers are not tested here
-
-    EXPECT_NO_THROW(gram.full_lexer());
-    EXPECT_NO_THROW((taul::lexer)gram);
-
-    EXPECT_THROW(gram.lexer(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
-
-    EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.parser("missing"), std::out_of_range);
-
-    EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
-    EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
-    EXPECT_NO_THROW(gram.lexer("lpr0"));
-    EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
-    EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
-    EXPECT_NO_THROW(gram.lexer("lpr1"));
-
-    EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
-    EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
-    EXPECT_NO_THROW(gram.parser("ppr0"));
-    EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
-    EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
-    EXPECT_NO_THROW(gram.parser("ppr1"));
 
     EXPECT_TRUE(gram.contains(std::string("lpr0")));
     EXPECT_TRUE(gram.contains(std::string("lpr1")));
@@ -495,7 +394,6 @@ TEST(grammar_tests, copyAssign) {
 
     const auto spec =
         taul::spec_writer()
-        .grammar_bias(taul::bias::ll)
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
@@ -524,8 +422,6 @@ TEST(grammar_tests, copyAssign) {
 
         TAUL_LOG(lgr, "{}", *gram0);
 
-        EXPECT_EQ(gram0->bias(), taul::bias::ll);
-
         if (gram0->lprs().size() == 2) {
             EXPECT_EQ(gram0->lprs()[0].name, "lpr0");
             EXPECT_EQ(gram0->lprs()[0].index, 0);
@@ -542,13 +438,13 @@ TEST(grammar_tests, copyAssign) {
         }
         else ADD_FAILURE();
 
-        EXPECT_THROW(gram0->lpr(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram0->lpr(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram0->lpr("missing"), std::out_of_range);
+        EXPECT_THROW(gram0->lpr(std::string("missing")), taul::lpr_not_found_error);
+        EXPECT_THROW(gram0->lpr(std::string_view("missing")), taul::lpr_not_found_error);
+        EXPECT_THROW(gram0->lpr("missing"), taul::lpr_not_found_error);
 
-        EXPECT_THROW(gram0->ppr(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram0->ppr(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram0->ppr("missing"), std::out_of_range);
+        EXPECT_THROW(gram0->ppr(std::string("missing")), taul::ppr_not_found_error);
+        EXPECT_THROW(gram0->ppr(std::string_view("missing")), taul::ppr_not_found_error);
+        EXPECT_THROW(gram0->ppr("missing"), taul::ppr_not_found_error);
 
         const auto& _lpr0_a = gram0->lpr(std::string("lpr0"));
         const auto& _lpr0_b = gram0->lpr(std::string_view("lpr0"));
@@ -577,33 +473,6 @@ TEST(grammar_tests, copyAssign) {
         EXPECT_EQ(&_ppr1_a, &(gram0->pprs()[1]));
         EXPECT_EQ(&_ppr1_b, &(gram0->pprs()[1]));
         EXPECT_EQ(&_ppr1_c, &(gram0->pprs()[1]));
-
-        // remember, behaviour of lexers/parsers are not tested here
-
-        EXPECT_NO_THROW(gram.full_lexer());
-        EXPECT_NO_THROW((taul::lexer)gram);
-
-        EXPECT_THROW(gram.lexer(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
-
-        EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.parser("missing"), std::out_of_range);
-
-        EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
-        EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
-        EXPECT_NO_THROW(gram.lexer("lpr0"));
-        EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
-        EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
-        EXPECT_NO_THROW(gram.lexer("lpr1"));
-
-        EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
-        EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
-        EXPECT_NO_THROW(gram.parser("ppr0"));
-        EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
-        EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
-        EXPECT_NO_THROW(gram.parser("ppr1"));
 
         EXPECT_TRUE(gram0->contains(std::string("lpr0")));
         EXPECT_TRUE(gram0->contains(std::string("lpr1")));
@@ -651,8 +520,6 @@ TEST(grammar_tests, copyAssign) {
     {
         TAUL_LOG(lgr, "{}", gram);
 
-        EXPECT_EQ(gram.bias(), taul::bias::ll);
-
         if (gram.lprs().size() == 2) {
             EXPECT_EQ(gram.lprs()[0].name, "lpr0");
             EXPECT_EQ(gram.lprs()[0].index, 0);
@@ -669,13 +536,13 @@ TEST(grammar_tests, copyAssign) {
         }
         else ADD_FAILURE();
 
-        EXPECT_THROW(gram.lpr(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lpr(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lpr("missing"), std::out_of_range);
+        EXPECT_THROW(gram.lpr(std::string("missing")), taul::lpr_not_found_error);
+        EXPECT_THROW(gram.lpr(std::string_view("missing")), taul::lpr_not_found_error);
+        EXPECT_THROW(gram.lpr("missing"), taul::lpr_not_found_error);
 
-        EXPECT_THROW(gram.ppr(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.ppr(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.ppr("missing"), std::out_of_range);
+        EXPECT_THROW(gram.ppr(std::string("missing")), taul::ppr_not_found_error);
+        EXPECT_THROW(gram.ppr(std::string_view("missing")), taul::ppr_not_found_error);
+        EXPECT_THROW(gram.ppr("missing"), taul::ppr_not_found_error);
 
         const auto& _lpr0_a = gram.lpr(std::string("lpr0"));
         const auto& _lpr0_b = gram.lpr(std::string_view("lpr0"));
@@ -704,33 +571,6 @@ TEST(grammar_tests, copyAssign) {
         EXPECT_EQ(&_ppr1_a, &(gram.pprs()[1]));
         EXPECT_EQ(&_ppr1_b, &(gram.pprs()[1]));
         EXPECT_EQ(&_ppr1_c, &(gram.pprs()[1]));
-
-        // remember, behaviour of lexers/parsers are not tested here
-
-        EXPECT_NO_THROW(gram.full_lexer());
-        EXPECT_NO_THROW((taul::lexer)gram);
-
-        EXPECT_THROW(gram.lexer(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
-
-        EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
-        EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
-        EXPECT_THROW(gram.parser("missing"), std::out_of_range);
-
-        EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
-        EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
-        EXPECT_NO_THROW(gram.lexer("lpr0"));
-        EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
-        EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
-        EXPECT_NO_THROW(gram.lexer("lpr1"));
-
-        EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
-        EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
-        EXPECT_NO_THROW(gram.parser("ppr0"));
-        EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
-        EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
-        EXPECT_NO_THROW(gram.parser("ppr1"));
 
         EXPECT_TRUE(gram.contains(std::string("lpr0")));
         EXPECT_TRUE(gram.contains(std::string("lpr1")));
@@ -782,7 +622,6 @@ TEST(grammar_tests, moveAssign) {
 
     const auto spec =
         taul::spec_writer()
-        .grammar_bias(taul::bias::ll)
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
@@ -808,8 +647,6 @@ TEST(grammar_tests, moveAssign) {
 
     TAUL_LOG(lgr, "{}", gram);
 
-    EXPECT_EQ(gram.bias(), taul::bias::ll);
-
     if (gram.lprs().size() == 2) {
         EXPECT_EQ(gram.lprs()[0].name, "lpr0");
         EXPECT_EQ(gram.lprs()[0].index, 0);
@@ -826,13 +663,13 @@ TEST(grammar_tests, moveAssign) {
     }
     else ADD_FAILURE();
 
-    EXPECT_THROW(gram.lpr(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lpr(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lpr("missing"), std::out_of_range);
+    EXPECT_THROW(gram.lpr(std::string("missing")), taul::lpr_not_found_error);
+    EXPECT_THROW(gram.lpr(std::string_view("missing")), taul::lpr_not_found_error);
+    EXPECT_THROW(gram.lpr("missing"), taul::lpr_not_found_error);
 
-    EXPECT_THROW(gram.ppr(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.ppr(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.ppr("missing"), std::out_of_range);
+    EXPECT_THROW(gram.ppr(std::string("missing")), taul::ppr_not_found_error);
+    EXPECT_THROW(gram.ppr(std::string_view("missing")), taul::ppr_not_found_error);
+    EXPECT_THROW(gram.ppr("missing"), taul::ppr_not_found_error);
 
     const auto& _lpr0_a = gram.lpr(std::string("lpr0"));
     const auto& _lpr0_b = gram.lpr(std::string_view("lpr0"));
@@ -861,33 +698,6 @@ TEST(grammar_tests, moveAssign) {
     EXPECT_EQ(&_ppr1_a, &(gram.pprs()[1]));
     EXPECT_EQ(&_ppr1_b, &(gram.pprs()[1]));
     EXPECT_EQ(&_ppr1_c, &(gram.pprs()[1]));
-
-    // remember, behaviour of lexers/parsers are not tested here
-
-    EXPECT_NO_THROW(gram.full_lexer());
-    EXPECT_NO_THROW((taul::lexer)gram);
-
-    EXPECT_THROW(gram.lexer(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lexer(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.lexer("missing"), std::out_of_range);
-
-    EXPECT_THROW(gram.parser(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram.parser(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram.parser("missing"), std::out_of_range);
-
-    EXPECT_NO_THROW(gram.lexer(std::string("lpr0")));
-    EXPECT_NO_THROW(gram.lexer(std::string_view("lpr0")));
-    EXPECT_NO_THROW(gram.lexer("lpr0"));
-    EXPECT_NO_THROW(gram.lexer(std::string("lpr1")));
-    EXPECT_NO_THROW(gram.lexer(std::string_view("lpr1")));
-    EXPECT_NO_THROW(gram.lexer("lpr1"));
-
-    EXPECT_NO_THROW(gram.parser(std::string("ppr0")));
-    EXPECT_NO_THROW(gram.parser(std::string_view("ppr0")));
-    EXPECT_NO_THROW(gram.parser("ppr0"));
-    EXPECT_NO_THROW(gram.parser(std::string("ppr1")));
-    EXPECT_NO_THROW(gram.parser(std::string_view("ppr1")));
-    EXPECT_NO_THROW(gram.parser("ppr1"));
 
     EXPECT_TRUE(gram.contains(std::string("lpr0")));
     EXPECT_TRUE(gram.contains(std::string("lpr1")));
@@ -938,7 +748,6 @@ TEST(grammar_tests, grammarInitViaSpec) {
 
     const auto spec =
         taul::spec_writer()
-        .grammar_bias(taul::bias::ll)
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
@@ -960,8 +769,6 @@ TEST(grammar_tests, grammarInitViaSpec) {
     TAUL_LOG(lgr, "{}", *gram);
 
 
-    EXPECT_EQ(gram->bias(), taul::bias::ll);
-
     if (gram->lprs().size() == 2) {
         EXPECT_EQ(gram->lprs()[0].name, "lpr0");
         EXPECT_EQ(gram->lprs()[0].index, 0);
@@ -978,13 +785,13 @@ TEST(grammar_tests, grammarInitViaSpec) {
     }
     else ADD_FAILURE();
 
-    EXPECT_THROW(gram->lpr(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram->lpr(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram->lpr("missing"), std::out_of_range);
+    EXPECT_THROW(gram->lpr(std::string("missing")), taul::lpr_not_found_error);
+    EXPECT_THROW(gram->lpr(std::string_view("missing")), taul::lpr_not_found_error);
+    EXPECT_THROW(gram->lpr("missing"), taul::lpr_not_found_error);
 
-    EXPECT_THROW(gram->ppr(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram->ppr(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram->ppr("missing"), std::out_of_range);
+    EXPECT_THROW(gram->ppr(std::string("missing")), taul::ppr_not_found_error);
+    EXPECT_THROW(gram->ppr(std::string_view("missing")), taul::ppr_not_found_error);
+    EXPECT_THROW(gram->ppr("missing"), taul::ppr_not_found_error);
 
     const auto& _lpr0_a = gram->lpr(std::string("lpr0"));
     const auto& _lpr0_b = gram->lpr(std::string_view("lpr0"));
@@ -1013,33 +820,6 @@ TEST(grammar_tests, grammarInitViaSpec) {
     EXPECT_EQ(&_ppr1_a, &(gram->pprs()[1]));
     EXPECT_EQ(&_ppr1_b, &(gram->pprs()[1]));
     EXPECT_EQ(&_ppr1_c, &(gram->pprs()[1]));
-
-    // remember, behaviour of lexers/parsers are not tested here
-
-    EXPECT_NO_THROW(gram->full_lexer());
-    EXPECT_NO_THROW((taul::lexer)*gram);
-
-    EXPECT_THROW(gram->lexer(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram->lexer(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram->lexer("missing"), std::out_of_range);
-
-    EXPECT_THROW(gram->parser(std::string("missing")), std::out_of_range);
-    EXPECT_THROW(gram->parser(std::string_view("missing")), std::out_of_range);
-    EXPECT_THROW(gram->parser("missing"), std::out_of_range);
-
-    EXPECT_NO_THROW(gram->lexer(std::string("lpr0")));
-    EXPECT_NO_THROW(gram->lexer(std::string_view("lpr0")));
-    EXPECT_NO_THROW(gram->lexer("lpr0"));
-    EXPECT_NO_THROW(gram->lexer(std::string("lpr1")));
-    EXPECT_NO_THROW(gram->lexer(std::string_view("lpr1")));
-    EXPECT_NO_THROW(gram->lexer("lpr1"));
-
-    EXPECT_NO_THROW(gram->parser(std::string("ppr0")));
-    EXPECT_NO_THROW(gram->parser(std::string_view("ppr0")));
-    EXPECT_NO_THROW(gram->parser("ppr0"));
-    EXPECT_NO_THROW(gram->parser(std::string("ppr1")));
-    EXPECT_NO_THROW(gram->parser(std::string_view("ppr1")));
-    EXPECT_NO_THROW(gram->parser("ppr1"));
 
     EXPECT_TRUE(gram->contains(std::string("lpr0")));
     EXPECT_TRUE(gram->contains(std::string("lpr1")));

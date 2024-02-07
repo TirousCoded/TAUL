@@ -3,12 +3,11 @@
 #pragma once
 
 
-#include "../bias.h"
-#include "../polarity.h"
 #include "../grammar.h"
 #include "../token.h"
 #include "../node.h"
-#include "../parser.h"
+
+#include "migrated/parser.h"
 
 
 namespace taul {
@@ -336,10 +335,23 @@ namespace taul {
         class set_parser_pat final : public parser_pat {
         public:
 
-            bias b;
+            set_parser_pat();
 
 
-            set_parser_pat(bias b);
+            parser_match eval(
+                node_ctx& ctx,
+                node& nd,
+                const grammar_data& gramdat,
+                const taul::token_seq& tkns,
+                std::size_t offset,
+                const std::size_t localend_offset,
+                const std::shared_ptr<taul::logger>& lgr) override final;
+        };
+
+        class not_parser_pat final : public parser_pat {
+        public:
+
+            not_parser_pat();
 
 
             parser_match eval(
@@ -374,45 +386,10 @@ namespace taul {
         class assertion_parser_pat final : public parser_pat {
         public:
 
-            taul::polarity p;
+            bool positive;
 
 
-            assertion_parser_pat(taul::polarity p);
-
-
-            parser_match eval(
-                node_ctx& ctx,
-                node& nd,
-                const grammar_data& gramdat,
-                const taul::token_seq& tkns,
-                std::size_t offset,
-                const std::size_t localend_offset,
-                const std::shared_ptr<taul::logger>& lgr) override final;
-        };
-
-        class constraint_parser_pat final : public parser_pat {
-        public:
-
-            taul::polarity p;
-
-
-            constraint_parser_pat(taul::polarity p);
-
-
-            parser_match eval(
-                node_ctx& ctx,
-                node& nd,
-                const grammar_data& gramdat,
-                const taul::token_seq& tkns,
-                std::size_t offset,
-                const std::size_t localend_offset,
-                const std::shared_ptr<taul::logger>& lgr) override final;
-        };
-
-        class localend_parser_pat final : public parser_pat {
-        public:
-
-            localend_parser_pat();
+            assertion_parser_pat(bool positive);
 
 
             parser_match eval(

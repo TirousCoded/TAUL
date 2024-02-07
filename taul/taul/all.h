@@ -8,10 +8,9 @@
 
 #include "logger.h"
 
+#include "str.h"
 #include "source_code.h"
 
-#include "bias.h"
-#include "polarity.h"
 #include "qualifier.h"
 
 #include "string_and_charset.h"
@@ -25,12 +24,13 @@
 
 #include "token.h"
 #include "token_seq.h"
-#include "lexer.h"
-#include "tokenize.h"
 
 #include "node.h"
 #include "node_assembler.h"
-#include "parser.h"
+
+#include "parse_tree.h"
+
+#include "context.h"
 
 #include "traverser.h"
 

@@ -3,26 +3,28 @@
 # rules outside explicit lexer/parser section are within
 # an implicit lexer section
 
-    LPR0        : any ;
+    LPR0            : any ;
 
 lexer section:
 
-    LPR1	    : any ;
-    skip LPR2	: any ;
+    LPR1	        : any ;
+    skip LPR2	    : any ;
+    support LPR3    : any ;
 
 parser section:
 
-    PPR0		: any ;
+    PPR0		    : any ;
 
     # syntactic, but semantically illegal
 
-    skip PPR1   : any ;
+    skip PPR1       : any ;
+    support PPR2    : any ;
 
 lexer section:
 
-    LPR3		: any ;
+    LPR4		    : any ;
 
 parser section:
 
-    PPR2        : any ;
+    PPR3            : any ;
 

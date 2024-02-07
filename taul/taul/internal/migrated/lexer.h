@@ -3,14 +3,19 @@
 #pragma once
 
 
+// IMPORTANT: this was part of the frontend, but I've moved this to the backend
+
+
 #include <memory>
 #include <string_view>
 
-#include "logger.h"
-#include "token.h"
+#include "../../logger.h"
+#include "../../token.h"
+
+#include "../../asserts.h"
 
 
-namespace taul {
+namespace taul::internal {
 
 
     class lexer_state;
@@ -51,17 +56,13 @@ namespace taul {
         const std::shared_ptr<logger>&);
 
 
-    namespace internal {
-
-
-        lexer_function get_lexer_f(const lexer& x) noexcept;
-    }
+    lexer_function get_lexer_f(const lexer& x) noexcept;
 
 
     class lexer final {
     public:
 
-        friend lexer_function internal::get_lexer_f(const lexer&) noexcept;
+        friend lexer_function get_lexer_f(const lexer&) noexcept;
 
 
         // behaviour is undefined if f == nullptr

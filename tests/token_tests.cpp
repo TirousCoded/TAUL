@@ -35,7 +35,7 @@ protected:
 };
 
 
-TEST_F(TokenTests, defaultCtor) {
+TEST_F(TokenTests, DefaultCtor) {
 
     const taul::token tkn{};
 
@@ -50,7 +50,7 @@ TEST_F(TokenTests, defaultCtor) {
     EXPECT_EQ(tkn.pos(), 0);
 }
 
-TEST_F(TokenTests, initRegularToken) {
+TEST_F(TokenTests, InitRegularToken) {
 
     const taul::token tkn0(gram.lpr("lpr0"), "abc", 14);
     const taul::token tkn1(gram.lpr("lpr0"), "def");
@@ -70,7 +70,7 @@ TEST_F(TokenTests, initRegularToken) {
     EXPECT_EQ(tkn1.pos(), 0);
 }
 
-TEST_F(TokenTests, initFailureToken) {
+TEST_F(TokenTests, InitFailureToken) {
 
     const taul::token tkn0 = taul::token::failure("abc", 14);
     const taul::token tkn1 = taul::token::failure("def");
@@ -91,7 +91,7 @@ TEST_F(TokenTests, initFailureToken) {
     EXPECT_EQ(tkn1.pos(), 0);
 }
 
-TEST_F(TokenTests, copyCtor) {
+TEST_F(TokenTests, CopyCtor) {
 
     taul::token old_tkn0{};
     taul::token old_tkn1(gram.lpr("lpr0"), "abc", 15);
@@ -123,7 +123,7 @@ TEST_F(TokenTests, copyCtor) {
     EXPECT_EQ(tkn2.pos(), 3);
 }
 
-TEST_F(TokenTests, moveCtor) {
+TEST_F(TokenTests, MoveCtor) {
 
     taul::token old_tkn0{};
     taul::token old_tkn1(gram.lpr("lpr0"), "abc", 15);
@@ -155,7 +155,7 @@ TEST_F(TokenTests, moveCtor) {
     EXPECT_EQ(tkn2.pos(), 3);
 }
 
-TEST_F(TokenTests, copyAssign) {
+TEST_F(TokenTests, CopyAssign) {
 
     taul::token old_tkn0{};
     taul::token old_tkn1(gram.lpr("lpr0"), "abc", 15);
@@ -191,7 +191,7 @@ TEST_F(TokenTests, copyAssign) {
     EXPECT_EQ(tkn2.pos(), 3);
 }
 
-TEST_F(TokenTests, moveAssign) {
+TEST_F(TokenTests, MoveAssign) {
 
     taul::token old_tkn0{};
     taul::token old_tkn1(gram.lpr("lpr0"), "abc", 15);
@@ -227,7 +227,7 @@ TEST_F(TokenTests, moveAssign) {
     EXPECT_EQ(tkn2.pos(), 3);
 }
 
-TEST_F(TokenTests, moveAssign_ontoSelf) {
+TEST_F(TokenTests, MoveAssignOntoSelf) {
 
     taul::token tkn0{};
     taul::token tkn1(gram.lpr("lpr0"), "abc", 15);
@@ -259,7 +259,7 @@ TEST_F(TokenTests, moveAssign_ontoSelf) {
     EXPECT_EQ(tkn2.pos(), 3);
 }
 
-TEST_F(TokenTests, equality) {
+TEST_F(TokenTests, Equality) {
 
     // tokens are expected to be value types compared by value
 

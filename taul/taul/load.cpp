@@ -24,7 +24,6 @@ std::optional<taul::grammar> taul::load(
     interp.interpret(s);
     if (interp.success) {
         auto data = std::make_shared<internal::grammar_data>(internal::grammar_data{
-            interp.last_bias,
             [&]() -> auto {
                 std::vector<lexer_rule> result{};
                 result.resize(interp.lpr_count);
@@ -51,7 +50,7 @@ std::optional<taul::grammar> taul::load(
         for (auto& I : data->_lprs) {
             TAUL_ASSERT(interp.lexer_pat_map.contains(I.name));
             static_cast<internal::toplevel_lexer_pat*>(interp.lexer_pat_map.at(I.name).get())->gramdat = data.get();
-            I.fnobj = taul::lexer(internal::pat_lexer_fn, interp.lexer_pat_map.at(I.name));
+            I.fnobj = taul::internal::lexer(internal::pat_lexer_fn, interp.lexer_pat_map.at(I.name));
         }
         // for each ppr we gotta do two things right at the end:
         //      1) hook up the gramdat ptr of the toplevel_parser_pat of the ppr
@@ -59,7 +58,7 @@ std::optional<taul::grammar> taul::load(
         for (auto& I : data->_pprs) {
             TAUL_ASSERT(interp.parser_pat_map.contains(I.name));
             static_cast<internal::toplevel_parser_pat*>(interp.parser_pat_map.at(I.name).get())->gramdat = data.get();
-            I.fnobj = taul::parser(internal::pat_parser_fn, interp.parser_pat_map.at(I.name));
+            I.fnobj = taul::internal::parser(internal::pat_parser_fn, interp.parser_pat_map.at(I.name));
         }
         return std::make_optional<taul::grammar>(internal::for_internal_use_tag{}, std::move(data));
     }
@@ -321,55 +320,21 @@ void taul::internal::load_spec_interpreter::check_subexpr_count_legal(spec_opcod
     }
 }
 
-void taul::internal::load_spec_interpreter::check_junction_in_constraint_scope() {
-    if (!in_composite_expr() || ess.back().opcode != spec_opcode::constraint) {
-        raise(spec_error::junction_not_in_constraint, "junction illegal due to not in constraint expr scope!");
+void taul::internal::load_spec_interpreter::check_not_in_single_terminal_scope(spec_opcode opcode) {
+    if (in_single_terminal_scope()) {
+        raise(spec_error::illegal_in_single_terminal_scope, "{} illegal in single-terminal scope!", opcode);
     }
 }
 
-void taul::internal::load_spec_interpreter::check_junction_not_misplaced() {
-    if (!in_composite_expr()) return;
-    if (ess.back().opcode != spec_opcode::constraint) return;
-    std::size_t subexprs{};
-    if (in_lpr()) {
-        TAUL_ASSERT(!lexer_pats.empty());
-        subexprs = lexer_pats.back()->children.size();
-    }
-    if (in_ppr()) {
-        TAUL_ASSERT(!parser_pats.empty());
-        subexprs = parser_pats.back()->children.size();
-    }
-    if (subexprs != 1) {
-        raise(spec_error::junction_misplaced, "junction must come after exactly 1 constraint expr subexpr, but came after {}!", subexprs);
-    }
-}
-
-void taul::internal::load_spec_interpreter::check_junction_not_already_established() {
-    if (!in_composite_expr()) return;
-    if (ess.back().opcode != spec_opcode::constraint) return;
-    if (ess.back().has_les_entry) {
-        raise(spec_error::junction_already_established, "junction already established!");
-    }
-}
-
-void taul::internal::load_spec_interpreter::check_has_junction_if_constraint() {
-    if (!in_composite_expr()) return;
-    if (ess.back().opcode != spec_opcode::constraint) return;
-    if (!ess.back().has_les_entry) {
-        raise(spec_error::junction_missing, "constraint does not have a junction!");
-    }
-}
-
-void taul::internal::load_spec_interpreter::check_localend_in_constraint_scope_and_after_junction() {
-    if (les.empty()) {
-        raise(spec_error::illegal_localend, "localend cannot be used outside the scope of constraining expr of a constraint expr!");
+void taul::internal::load_spec_interpreter::check_string_in_single_terminal_scope_in_lpr_has_only_one_char(std::string_view s) {
+    if (in_single_terminal_scope() && in_lpr() && s.length() > 1) {
+        raise(spec_error::illegal_in_single_terminal_scope, "length of {} in single-terminal scope in lexer expr may not exceed 1 char!", spec_opcode::string);
     }
 }
 
 void taul::internal::load_spec_interpreter::on_startup() {
     TAUL_ASSERT(ec);
     success = true; // <- deem eval successful until proven otherwise
-    last_bias = bias::fl; // <- expected default
     lpr_count = 0;
     ppr_count = 0;
     TAUL_ASSERT(lprs.empty());
@@ -383,17 +348,15 @@ void taul::internal::load_spec_interpreter::on_shutdown() {
     check_all_lprs_and_pprs_are_defined();
 }
 
-void taul::internal::load_spec_interpreter::on_grammar_bias(bias b) {
-    check_not_in_lpr_nor_ppr_scope(spec_opcode::grammar_bias);
-    last_bias = b;
-}
-
 void taul::internal::load_spec_interpreter::on_close() {
     check_scope_exists_to_close();
-    check_subexpr_count_legal(spec_opcode::modifier, 1);
-    check_subexpr_count_legal(spec_opcode::assertion, 1);
-    check_subexpr_count_legal(spec_opcode::constraint, 2);
-    check_has_junction_if_constraint();
+    check_subexpr_count_legal(spec_opcode::lookahead, 1);
+    check_subexpr_count_legal(spec_opcode::lookahead_not, 1);
+    check_subexpr_count_legal(spec_opcode::not0, 1);
+    check_subexpr_count_legal(spec_opcode::optional, 1);
+    check_subexpr_count_legal(spec_opcode::kleene_star, 1);
+    check_subexpr_count_legal(spec_opcode::kleene_plus, 1);
+    handle_single_terminal_scope_for_top_ess();
     handle_pop_lexer_pat_for_top_ess();
     handle_pop_parser_pat_for_top_ess();
     pop_expr();
@@ -438,12 +401,6 @@ void taul::internal::load_spec_interpreter::on_ppr(std::string_view name, qualif
     push_parser_pat<toplevel_parser_pat>(entry.index);
 }
 
-void taul::internal::load_spec_interpreter::on_begin() {
-    check_in_lpr_or_ppr_scope(spec_opcode::begin);
-    if (in_lpr()) bind_lexer_pat<begin_lexer_pat>();
-    if (in_ppr()) bind_parser_pat<begin_parser_pat>();
-}
-
 void taul::internal::load_spec_interpreter::on_end() {
     check_in_lpr_or_ppr_scope(spec_opcode::end);
     if (in_lpr()) bind_lexer_pat<end_lexer_pat>();
@@ -458,6 +415,7 @@ void taul::internal::load_spec_interpreter::on_any() {
 
 void taul::internal::load_spec_interpreter::on_string(std::string_view s) {
     check_in_lpr_or_ppr_scope(spec_opcode::string);
+    check_string_in_single_terminal_scope_in_lpr_has_only_one_char(s);
     const auto ss = parse_taul_string(s);
     if (in_lpr()) bind_lexer_pat<string_lexer_pat>(ss);
     if (in_ppr()) bind_parser_pat<string_parser_pat>(ss);
@@ -469,13 +427,6 @@ void taul::internal::load_spec_interpreter::on_charset(std::string_view s) {
     const auto ss0 = parse_taul_charset(s);
     const auto ss1 = optimize_charset_str(ss0);
     if (in_lpr()) bind_lexer_pat<charset_lexer_pat>(ss1);
-    if (in_ppr()) (void)0;
-}
-
-void taul::internal::load_spec_interpreter::on_range(char a, char b) {
-    check_not_in_ppr_scope(spec_opcode::range);
-    check_in_lpr_or_ppr_scope(spec_opcode::range);
-    if (in_lpr()) bind_lexer_pat<range_lexer_pat>(a, b);
     if (in_ppr()) (void)0;
 }
 
@@ -496,6 +447,7 @@ void taul::internal::load_spec_interpreter::on_failure() {
 void taul::internal::load_spec_interpreter::on_name(std::string_view name) {
     check_in_lpr_or_ppr_scope(spec_opcode::name);
     check_lpr_or_ppr_exists_with_name(name);
+    check_not_in_single_terminal_scope(spec_opcode::name);
     if (in_lpr()) {
         check_rule_is_not_ppr(name);
         const std::size_t lprIndOfRef =
@@ -522,49 +474,67 @@ void taul::internal::load_spec_interpreter::on_name(std::string_view name) {
 
 void taul::internal::load_spec_interpreter::on_sequence() {
     check_in_lpr_or_ppr_scope(spec_opcode::sequence);
-    push_expr(ess_entry{ spec_opcode::sequence, ets_type::none, "", in_lpr(), in_ppr() });
+    check_not_in_single_terminal_scope(spec_opcode::sequence);
+    push_expr(ess_entry{ spec_opcode::sequence, ets_type::none, "", in_lpr(), in_ppr(), false });
     if (in_lpr()) push_lexer_pat<sequence_lexer_pat>();
     if (in_ppr()) push_parser_pat<sequence_parser_pat>();
 }
 
-void taul::internal::load_spec_interpreter::on_set(bias b) {
+void taul::internal::load_spec_interpreter::on_set() {
     check_in_lpr_or_ppr_scope(spec_opcode::set);
-    push_expr(ess_entry{ spec_opcode::set, ets_type::none, "", in_lpr(), in_ppr() });
-    if (in_lpr()) push_lexer_pat<set_lexer_pat>(b);
-    if (in_ppr()) push_parser_pat<set_parser_pat>(b);
+    push_expr(ess_entry{ spec_opcode::set, ets_type::none, "", in_lpr(), in_ppr(), false });
+    if (in_lpr()) push_lexer_pat<set_lexer_pat>();
+    if (in_ppr()) push_parser_pat<set_parser_pat>();
 }
 
-void taul::internal::load_spec_interpreter::on_modifier(std::uint16_t min, std::uint16_t max) {
-    check_in_lpr_or_ppr_scope(spec_opcode::modifier);
-    push_expr(ess_entry{ spec_opcode::modifier, ets_type::none, "", in_lpr(), in_ppr() });
-    if (in_lpr()) push_lexer_pat<modifier_lexer_pat>(min, max);
-    if (in_ppr()) push_parser_pat<modifier_parser_pat>(min, max);
+void taul::internal::load_spec_interpreter::on_lookahead() {
+    check_in_lpr_or_ppr_scope(spec_opcode::lookahead);
+    check_not_in_single_terminal_scope(spec_opcode::lookahead);
+    push_expr(ess_entry{ spec_opcode::lookahead, ets_type::none, "", in_lpr(), in_ppr(), true });
+    push_single_terminal_scope();
+    if (in_lpr()) push_lexer_pat<assertion_lexer_pat>(true);
+    if (in_ppr()) push_parser_pat<assertion_parser_pat>(true);
 }
 
-void taul::internal::load_spec_interpreter::on_assertion(polarity p) {
-    check_in_lpr_or_ppr_scope(spec_opcode::assertion);
-    push_expr(ess_entry{ spec_opcode::assertion, ets_type::none, "", in_lpr(), in_ppr() });
-    if (in_lpr()) push_lexer_pat<assertion_lexer_pat>(p);
-    if (in_ppr()) push_parser_pat<assertion_parser_pat>(p);
+void taul::internal::load_spec_interpreter::on_lookahead_not() {
+    check_in_lpr_or_ppr_scope(spec_opcode::lookahead_not);
+    check_not_in_single_terminal_scope(spec_opcode::lookahead_not);
+    push_expr(ess_entry{ spec_opcode::lookahead_not, ets_type::none, "", in_lpr(), in_ppr(), true });
+    push_single_terminal_scope();
+    if (in_lpr()) push_lexer_pat<assertion_lexer_pat>(false);
+    if (in_ppr()) push_parser_pat<assertion_parser_pat>(false);
 }
 
-void taul::internal::load_spec_interpreter::on_constraint(polarity p) {
-    check_in_lpr_or_ppr_scope(spec_opcode::constraint);
-    push_expr(ess_entry{ spec_opcode::constraint, ets_type::none, "", in_lpr(), in_ppr() });
-    if (in_lpr()) push_lexer_pat<constraint_lexer_pat>(p);
-    if (in_ppr()) push_parser_pat<constraint_parser_pat>(p);
+void taul::internal::load_spec_interpreter::on_not() {
+    check_in_lpr_or_ppr_scope(spec_opcode::not0);
+    check_not_in_single_terminal_scope(spec_opcode::not0);
+    push_expr(ess_entry{ spec_opcode::not0, ets_type::none, "", in_lpr(), in_ppr(), true });
+    push_single_terminal_scope();
+    if (in_lpr()) push_lexer_pat<not_lexer_pat>();
+    if (in_ppr()) push_parser_pat<not_parser_pat>();
 }
 
-void taul::internal::load_spec_interpreter::on_junction() {
-    check_junction_in_constraint_scope();
-    check_junction_not_misplaced();
-    check_junction_not_already_established();
-    mark_junction();
+void taul::internal::load_spec_interpreter::on_optional() {
+    check_in_lpr_or_ppr_scope(spec_opcode::optional);
+    check_not_in_single_terminal_scope(spec_opcode::optional);
+    push_expr(ess_entry{ spec_opcode::optional, ets_type::none, "", in_lpr(), in_ppr(), false });
+    if (in_lpr()) push_lexer_pat<modifier_lexer_pat>(0, 1);
+    if (in_ppr()) push_parser_pat<modifier_parser_pat>(0, 1);
 }
 
-void taul::internal::load_spec_interpreter::on_localend() {
-    check_localend_in_constraint_scope_and_after_junction();
-    if (in_lpr()) bind_lexer_pat<localend_lexer_pat>();
-    if (in_ppr()) bind_parser_pat<localend_parser_pat>();
+void taul::internal::load_spec_interpreter::on_kleene_star() {
+    check_in_lpr_or_ppr_scope(spec_opcode::kleene_star);
+    check_not_in_single_terminal_scope(spec_opcode::kleene_star);
+    push_expr(ess_entry{ spec_opcode::kleene_star, ets_type::none, "", in_lpr(), in_ppr(), false });
+    if (in_lpr()) push_lexer_pat<modifier_lexer_pat>(0, 0);
+    if (in_ppr()) push_parser_pat<modifier_parser_pat>(0, 0);
+}
+
+void taul::internal::load_spec_interpreter::on_kleene_plus() {
+    check_in_lpr_or_ppr_scope(spec_opcode::kleene_plus);
+    check_not_in_single_terminal_scope(spec_opcode::kleene_plus);
+    push_expr(ess_entry{ spec_opcode::kleene_plus, ets_type::none, "", in_lpr(), in_ppr(), false });
+    if (in_lpr()) push_lexer_pat<modifier_lexer_pat>(1, 0);
+    if (in_ppr()) push_parser_pat<modifier_parser_pat>(1, 0);
 }
 

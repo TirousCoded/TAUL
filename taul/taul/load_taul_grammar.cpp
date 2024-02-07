@@ -9,13 +9,11 @@
 taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
     spec_writer sw;
     sw
-        .grammar_bias(bias::f); // need this for LL(1) semantics
-    sw
         .lpr_decl("KW_LEXER")
         .lpr_decl("KW_PARSER")
         .lpr_decl("KW_SECTION")
         .lpr_decl("KW_SKIP")
-        .lpr_decl("KW_BEGIN")
+        .lpr_decl("KW_SUPPORT")
         .lpr_decl("KW_END")
         .lpr_decl("KW_ANY")
         .lpr_decl("KW_TOKEN")
@@ -50,13 +48,16 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .ppr_decl("Clause_LexerSection")
         .ppr_decl("Clause_ParserSection")
         .ppr_decl("Clause_Rule")
-        .ppr_decl("Clause_Rule_Skip")
+        .ppr_decl("Clause_Rule_Qualifier")
         .ppr_decl("Clause_Rule_Name")
         .ppr_decl("Clause_Rule_Expr");
     sw
+        .ppr_decl("Qualifier")
+        .ppr_decl("Qualifier_Skip")
+        .ppr_decl("Qualifier_Support");
+    sw
         .ppr_decl("Expr")
         .ppr_decl("Expr_Primary")
-        .ppr_decl("Expr_Begin")
         .ppr_decl("Expr_End")
         .ppr_decl("Expr_Any")
         .ppr_decl("Expr_Token")
@@ -84,13 +85,8 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
             .lpr(kwName)
             .string(s)
             //-[0-9a-zA-Z_]
-            .assertion(polarity::negative)
-            .set()
-            .range('0', '9')
-            .range('a', 'z')
-            .range('A', 'Z')
-            .string("_")
-            .close()
+            .lookahead_not()
+            .charset("0-9a-zA-Z_")
             .close()
             .close();
         };
@@ -98,7 +94,7 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
     add_keyword_lpr("KW_PARSER", "parser");
     add_keyword_lpr("KW_SECTION", "section");
     add_keyword_lpr("KW_SKIP", "skip");
-    add_keyword_lpr("KW_BEGIN", "begin");
+    add_keyword_lpr("KW_SUPPORT", "support");
     add_keyword_lpr("KW_END", "end");
     add_keyword_lpr("KW_ANY", "any");
     add_keyword_lpr("KW_TOKEN", "token");
@@ -126,37 +122,25 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
     sw
         .lpr("IDENTIFIER")
         // [a-zA-Z_] [0-9a-zA-Z_]*
-        .set()
-        .range('a', 'z')
-        .range('A', 'Z')
-        .string("_")
-        .close()
-        .modifier(0, 0)
-        .set()
-        .range('0', '9')
-        .range('a', 'z')
-        .range('A', 'Z')
-        .string("_")
-        .close()
+        .charset("a-zA-Z_")
+        .kleene_star()
+        .charset("0-9a-zA-Z_")
         .close()
         .close();
     sw
         .lpr("STRING")
-        // '\'' ( ~'\'' | '\\' any )* '\''
+        // '\'' ( '\\' any | ~'\'' )* '\''
         .string("'")
-        .modifier(0, 0)
+        .kleene_star()
         .set()
-        // ~'\''
-        .sequence()
-        .assertion(polarity::negative)
-        .string("'")
-        .close()
-        .any()
-        .close()
         // '\\' any
         .sequence()
         .string("\\")
         .any()
+        .close()
+        // ~'\''
+        .not0()
+        .string("'")
         .close()
         .close()
         .close()
@@ -164,21 +148,18 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .close();
     sw
         .lpr("CHARSET")
-        // '[' ( ~']' | '\\' any )* ']'
+        // '[' ( '\\' any | ~']' )* ']'
         .string("[")
-        .modifier(0, 0)
+        .kleene_star()
         .set()
-        // ~']'
-        .sequence()
-        .assertion(polarity::negative)
-        .string("]")
-        .close()
-        .any()
-        .close()
         // '\\' any
         .sequence()
         .string("\\")
         .any()
+        .close()
+        // ~']'
+        .not0()
+        .string("]")
         .close()
         .close()
         .close()
@@ -191,23 +172,25 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .close();
     sw
         .lpr("NEWLINE", qualifier::skip)
-        // '\r\n' | [\r\n]
-        .set(bias::f)
-        .string("\r\n")
-        .charset("\r\n")
+        // '\n' | '\r' '\n'?
+        .set()
+        .string("\n")
+        .sequence()
+        .string("\r")
+        .optional()
+        .string("\n")
+        .close()
+        .close()
         .close()
         .close();
     sw
         .lpr("SL_COMMENT", qualifier::skip)
         // '#' ~[\r\n]*
         .string("#")
-        .modifier(0, 0)
+        .kleene_star()
         // ~[\r\n]
-        .sequence()
-        .assertion(polarity::negative)
+        .not0()
         .charset("\r\n")
-        .close()
-        .any()
         .close()
         .close()
         .close();
@@ -215,36 +198,32 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .lpr("ML_COMMENT", qualifier::skip)
         // '!#' ( ~'#' | '#' -'!' )* '#!'?
         .string("!#")
-        .modifier(0, 0)
-        .set(bias::f)
+        .kleene_star()
+        .set()
         // ~'#'
-        .sequence()
-        .assertion(polarity::negative)
+        .not0()
         .string("#")
-        .close()
-        .any()
         .close()
         // '#' -'!'
         .sequence()
         .string("#")
-        .assertion(polarity::negative)
+        .lookahead_not()
         .string("!")
         .close()
         .close()
         .close()
         .close()
-        .modifier(0, 1)
+        .optional()
         .string("#!")
         .close()
         .close();
     sw
         .ppr("Spec")
-        // begin Clause* ( end | Spec_SyntaxError )
-        .begin()
-        .modifier(0, 0)
+        // Clause* ( end | Spec_SyntaxError )
+        .kleene_star()
         .name("Clause")
         .close()
-        .set(bias::f)
+        .set()
         .end()
         .name("Spec_SyntaxError")
         .close()
@@ -256,7 +235,7 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .close();
     sw
         .ppr("Clause")
-        .set(bias::f)
+        .set()
         .name("Clause_LexerSection")
         .name("Clause_ParserSection")
         .name("Clause_Rule")
@@ -278,9 +257,9 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .close();
     sw
         .ppr("Clause_Rule")
-        // Clause_Rule_Skip? Clause_Rule_Name OP_COLON Clause_Rule_Expr OP_SEMICOLON
-        .modifier(0, 1)
-        .name("Clause_Rule_Skip")
+        // Clause_Rule_Qualifier? Clause_Rule_Name OP_COLON Clause_Rule_Expr OP_SEMICOLON
+        .optional()
+        .name("Clause_Rule_Qualifier")
         .close()
         .name("Clause_Rule_Name")
         .name("OP_COLON")
@@ -288,9 +267,9 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .name("OP_SEMICOLON")
         .close();
     sw
-        .ppr("Clause_Rule_Skip")
-        // KW_SKIP
-        .name("KW_SKIP")
+        .ppr("Clause_Rule_Qualifier")
+        // Qualifier
+        .name("Qualifier")
         .close();
     sw
         .ppr("Clause_Rule_Name")
@@ -303,8 +282,23 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .name("Expr")
         .close();
     sw
+        .ppr("Qualifier")
+        .set()
+        .name("Qualifier_Skip")
+        .name("Qualifier_Support")
+        .close()
+        .close();
+    sw
+        .ppr("Qualifier_Skip")
+        .name("KW_SKIP")
+        .close();
+    sw
+        .ppr("Qualifier_Support")
+        .name("KW_SUPPORT")
+        .close();
+    sw
         .ppr("Expr")
-        .set(bias::f)
+        .set()
         .name("Expr_Set")
         .name("Expr_Sequence")
         .name("Expr_KleenePlus")
@@ -319,8 +313,7 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .close();
     sw
         .ppr("Expr_Primary")
-        .set(bias::f)
-        .name("Expr_Begin")
+        .set()
         .name("Expr_End")
         .name("Expr_Any")
         .name("Expr_Token")
@@ -329,10 +322,6 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .name("Expr_Charset")
         .name("Expr_Name")
         .close()
-        .close();
-    sw
-        .ppr("Expr_Begin")
-        .name("KW_BEGIN")
         .close();
     sw
         .ppr("Expr_End")
@@ -395,7 +384,7 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .close();
     sw
         .ppr("Expr_Optional_Expr")
-        .set(bias::f)
+        .set()
         .name("Expr_Not")
         .name("Expr_LookAheadNot")
         .name("Expr_LookAhead")
@@ -411,7 +400,7 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .close();
     sw
         .ppr("Expr_KleeneStar_Expr")
-        .set(bias::f)
+        .set()
         .name("Expr_Optional")
         .name("Expr_Not")
         .name("Expr_LookAheadNot")
@@ -428,7 +417,7 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .close();
     sw
         .ppr("Expr_KleenePlus_Expr")
-        .set(bias::f)
+        .set()
         .name("Expr_KleeneStar")
         .name("Expr_Optional")
         .name("Expr_Not")
@@ -442,13 +431,13 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .ppr("Expr_Sequence")
         // Expr_Sequence_Expr Expr_Sequence_Expr+
         .name("Expr_Sequence_Expr")
-        .modifier(1, 0)
+        .kleene_plus()
         .name("Expr_Sequence_Expr")
         .close()
         .close();
     sw
         .ppr("Expr_Sequence_Expr")
-        .set(bias::f)
+        .set()
         .name("Expr_KleenePlus")
         .name("Expr_KleeneStar")
         .name("Expr_Optional")
@@ -463,7 +452,7 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .ppr("Expr_Set")
         // Expr_Set_Expr ( OP_VBAR Expr_Set_Expr )+
         .name("Expr_Set_Expr")
-        .modifier(1, 0)
+        .kleene_plus()
         .sequence()
         .name("OP_VBAR")
         .name("Expr_Set_Expr")
@@ -472,7 +461,7 @@ taul::grammar taul::load_taul_grammar(const std::shared_ptr<logger>& lgr) {
         .close();
     sw
         .ppr("Expr_Set_Expr")
-        .set(bias::f)
+        .set()
         .name("Expr_Sequence")
         .name("Expr_KleenePlus")
         .name("Expr_KleeneStar")

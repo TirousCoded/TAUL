@@ -9,11 +9,11 @@ lexer section:
     # token, failure, and PPR name PPR0, are semantically illegal in LPR,
     # but may syntactically be put there
 
-    LPR0            : begin end any 'abc\n\fdef' [-abc1-49-6A\-Z-] token failure LPR0 PPR0 ;
+    LPR0            : end any 'abc\n\fdef' [-abc1-49-6A\-Z-] token failure LPR0 PPR0 ;
 
 parser section:
 
     # charset is illegal in PPR, but may syntactically be put there
 
-    PPR0            : begin end any 'abc\n\fdef' [-abc1-49-6A\-Z-] token failure LPR0 PPR0 ;
+    PPR0            : end any 'abc\n\fdef' [-abc1-49-6A\-Z-] token failure LPR0 PPR0 ;
 

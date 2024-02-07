@@ -20,15 +20,15 @@
 // this test is for general usage of *all* instructions, so be sure to
 // update it as we add new instructions
 
-static_assert(taul::spec_opcodes == 22);
+static_assert(taul::spec_opcodes == 20);
 
 TEST(load_tests, success) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
-    const auto s =
-        taul::spec_writer()
-        .grammar_bias(taul::bias::ll)
+    taul::spec_writer sw{};
+
+    sw
         // gonna test successful usage of qualifiers here
         .lpr_decl("with_none_qualifier")
         .lpr_decl("with_skip_qualifier")
@@ -42,18 +42,21 @@ TEST(load_tests, success) {
         .lpr_decl("lpr0")
         .lpr_decl("lpr1")
         .ppr_decl("ppr0")
-        .ppr_decl("ppr1")
-        .lpr("lpr0")
+        .ppr_decl("ppr1");
+
+    sw
+        .lpr("lpr0");
+
+    sw
         // test simple lexer exprs
-        .begin()
         .end()
         .any()
         .string("abc")
         .charset("abc")
-        .range('A', 'Z')
-        .range('z', 'a')
         .name("lpr0") // legal lpr ref
-        .name("lpr1") // legal lpr ref
+        .name("lpr1"); // legal lpr ref
+
+    sw
         // test composite lexer exprs
         // sequence
         .sequence() // test empty
@@ -67,30 +70,29 @@ TEST(load_tests, success) {
         .set() // test w/ nested set
         .any()
         .close() // test w/ nested set (end)
-        .modifier(1, 3) // test w/ nested modifier
-        .any()
-        .close() // test w/ nested modifier (end)
-        .assertion(taul::polarity::negative) // test w/ nested assertion
-        .any()
-        .close() // test w/ nested assertion (end)
-        .constraint(taul::polarity::negative) // test w/ nested constraint #1
-        .any()
-        .junction()
-        .sequence()
-        .localend()
-        .string("a")
-        .close()
-        .close() // test w/ nested constraint #1 (end)
-        .constraint() // test w/ nested constraint #2
-        .sequence()
+        .lookahead()
         .any()
         .close()
-        .junction()
-        .string("a")
-        .close() // test w/ nested constraint #2 (end)
-        .close() // test w/ nested (end)
+        .lookahead_not()
+        .any()
+        .close()
+        .not0()
+        .any()
+        .close()
+        .optional()
+        .any()
+        .close()
+        .kleene_star()
+        .any()
+        .close()
+        .kleene_plus()
+        .any()
+        .close()
+        .close(); // test w/ nested (end)
+
+    sw
         // set
-        .set(taul::bias::ll) // test empty
+        .set() // test empty
         .close() // test empty (end)
         .set() // test w/ nested
         .any()
@@ -101,126 +103,218 @@ TEST(load_tests, success) {
         .set() // test w/ nested set
         .any()
         .close() // test w/ nested set (end)
-        .modifier(1, 3) // test w/ nested modifier
-        .any()
-        .close() // test w/ nested modifier (end)
-        .assertion(taul::polarity::negative) // test w/ nested assertion
-        .any()
-        .close() // test w/ nested assertion (end)
-        .constraint(taul::polarity::negative) // test w/ nested constraint #1
-        .any()
-        .junction()
-        .sequence()
-        .localend()
-        .string("a")
-        .close()
-        .close() // test w/ nested constraint #1 (end)
-        .constraint() // test w/ nested constraint #2
-        .sequence()
+        .lookahead()
         .any()
         .close()
-        .junction()
+        .lookahead_not()
+        .any()
+        .close()
+        .not0()
+        .any()
+        .close()
+        .optional()
+        .any()
+        .close()
+        .kleene_star()
+        .any()
+        .close()
+        .kleene_plus()
+        .any()
+        .close()
+        .close(); // test w/ nested (end)
+    
+    sw
+        // lookahead
+        .lookahead()
+        .set()
+        .end()
+        .any()
         .string("a")
-        .close() // test w/ nested constraint #2 (end)
-        .close() // test w/ nested (end)
-        // modifier
-        .modifier(1, 1) // test w/ nested #1
+        .charset("a")
+        .close()
+        .close();
+
+    sw
+        // lookahead-not
+        .lookahead_not()
+        .set()
+        .end()
+        .any()
+        .string("a")
+        .charset("a")
+        .close()
+        .close();
+
+    sw
+        // not
+        .not0()
+        .set()
+        .end()
+        .any()
+        .string("a")
+        .charset("a")
+        .close()
+        .close();
+
+    sw
+        // optional
+        .optional() // test w/ nested #1
         .any()
         .close() // test w/ nested #1 (end)
-        .modifier(1, 1) // test w/ nested #2
+        .optional() // test w/ nested #2
         .string("abc")
         .close() // test w/ nested #2 (end)
-        .modifier(1, 1) // test w/ nested #3
+        .optional() // test w/ nested #3
         .sequence() // test w/ nested sequence
         .any()
         .close() // test w/ nested sequence (end)
         .close() // test w/ nested #3 (end)
-        .modifier(1, 1) // test w/ nested #4
+        .optional() // test w/ nested #4
         .set() // test w/ nested set
         .any()
         .close() // test w/ nested set (end)
         .close() // test w/ nested #4 (end)
-        .modifier(1, 1) // test w/ nested #5
-        .modifier(1, 3) // test w/ nested modifier
+        .optional() // test w/ nested #5
+        .lookahead()
         .any()
-        .close() // test w/ nested modifier (end)
+        .close()
         .close() // test w/ nested #5 (end)
-        .modifier(1, 1) // test w/ nested #6
-        .assertion(taul::polarity::negative) // test w/ nested assertion
+        .optional() // test w/ nested #6
+        .lookahead_not()
         .any()
-        .close() // test w/ nested assertion (end)
+        .close()
         .close() // test w/ nested #6 (end)
-        .modifier(1, 1) // test w/ nested #7
-        .constraint(taul::polarity::negative) // test w/ nested constraint #1
+        .optional() // test w/ nested #7
+        .not0()
         .any()
-        .junction()
-        .sequence()
-        .localend()
-        .string("a")
         .close()
-        .close() // test w/ nested constraint #1 (end)
         .close() // test w/ nested #7 (end)
-        .modifier(1, 1) // test w/ nested #8
-        .constraint() // test w/ nested constraint #2
-        .sequence()
+        .optional() // test w/ nested #8
+        .optional()
         .any()
         .close()
-        .junction()
-        .string("a")
-        .close() // test w/ nested constraint #2 (end)
         .close() // test w/ nested #8 (end)
-        // assertion
-        .assertion(taul::polarity::positive) // test w/ nested #1
+        .optional() // test w/ nested #9
+        .kleene_star()
+        .any()
+        .close()
+        .close() // test w/ nested #9 (end)
+        .optional() // test w/ nested #10
+        .kleene_plus()
+        .any()
+        .close()
+        .close(); // test w/ nested #10 (end)
+
+    sw
+        // kleene-star
+        .kleene_star() // test w/ nested #1
         .any()
         .close() // test w/ nested #1 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #2
+        .kleene_star() // test w/ nested #2
         .string("abc")
         .close() // test w/ nested #2 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #3
+        .kleene_star() // test w/ nested #3
         .sequence() // test w/ nested sequence
         .any()
         .close() // test w/ nested sequence (end)
         .close() // test w/ nested #3 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #4
+        .kleene_star() // test w/ nested #4
         .set() // test w/ nested set
         .any()
         .close() // test w/ nested set (end)
         .close() // test w/ nested #4 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #5
-        .modifier(1, 3) // test w/ nested modifier
+        .kleene_star() // test w/ nested #5
+        .lookahead()
         .any()
-        .close() // test w/ nested modifier (end)
+        .close()
         .close() // test w/ nested #5 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #6
-        .assertion(taul::polarity::negative) // test w/ nested assertion
+        .kleene_star() // test w/ nested #6
+        .lookahead_not()
         .any()
-        .close() // test w/ nested assertion (end)
+        .close()
         .close() // test w/ nested #6 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #7
-        .constraint(taul::polarity::negative) // test w/ nested constraint #1
+        .kleene_star() // test w/ nested #7
+        .not0()
         .any()
-        .junction()
-        .sequence()
-        .localend()
-        .string("a")
         .close()
-        .close() // test w/ nested constraint #1 (end)
         .close() // test w/ nested #7 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #8
-        .constraint() // test w/ nested constraint #2
-        .sequence()
+        .kleene_star() // test w/ nested #8
+        .optional()
         .any()
         .close()
-        .junction()
-        .string("a")
-        .close() // test w/ nested constraint #2 (end)
         .close() // test w/ nested #8 (end)
+        .kleene_star() // test w/ nested #9
+        .kleene_star()
+        .any()
         .close()
+        .close() // test w/ nested #9 (end)
+        .kleene_star() // test w/ nested #10
+        .kleene_plus()
+        .any()
+        .close()
+        .close(); // test w/ nested #10 (end)
+
+    sw
+        // kleene-plus
+        .kleene_plus() // test w/ nested #1
+        .any()
+        .close() // test w/ nested #1 (end)
+        .kleene_plus() // test w/ nested #2
+        .string("abc")
+        .close() // test w/ nested #2 (end)
+        .kleene_plus() // test w/ nested #3
+        .sequence() // test w/ nested sequence
+        .any()
+        .close() // test w/ nested sequence (end)
+        .close() // test w/ nested #3 (end)
+        .kleene_plus() // test w/ nested #4
+        .set() // test w/ nested set
+        .any()
+        .close() // test w/ nested set (end)
+        .close() // test w/ nested #4 (end)
+        .kleene_plus() // test w/ nested #5
+        .lookahead()
+        .any()
+        .close()
+        .close() // test w/ nested #5 (end)
+        .kleene_plus() // test w/ nested #6
+        .lookahead_not()
+        .any()
+        .close()
+        .close() // test w/ nested #6 (end)
+        .kleene_plus() // test w/ nested #7
+        .not0()
+        .any()
+        .close()
+        .close() // test w/ nested #7 (end)
+        .kleene_plus() // test w/ nested #8
+        .optional()
+        .any()
+        .close()
+        .close() // test w/ nested #8 (end)
+        .kleene_plus() // test w/ nested #9
+        .kleene_star()
+        .any()
+        .close()
+        .close() // test w/ nested #9 (end)
+        .kleene_plus() // test w/ nested #10
+        .kleene_plus()
+        .any()
+        .close()
+        .close(); // test w/ nested #10 (end)
+
+    sw
+        .close();
+
+    sw
         .lpr("lpr1") // test empty
-        .close()
-        .ppr("ppr0")
+        .close();
+
+    sw
+        .ppr("ppr0");
+
+    sw
         // test simple parser exprs
-        .begin()
         .end()
         .any()
         .string("abc")
@@ -229,7 +323,9 @@ TEST(load_tests, success) {
         .name("lpr0") // legal lpr ref
         .name("lpr1") // legal lpr ref
         .name("ppr0") // legal ppr ref
-        .name("ppr1") // legal ppr ref
+        .name("ppr1"); // legal ppr ref
+
+    sw
         // test composite parser exprs
         // sequence
         .sequence() // test empty
@@ -243,30 +339,29 @@ TEST(load_tests, success) {
         .set() // test w/ nested set
         .any()
         .close() // test w/ nested set (end)
-        .modifier(1, 3) // test w/ nested modifier
-        .any()
-        .close() // test w/ nested modifier (end)
-        .assertion(taul::polarity::negative) // test w/ nested assertion
-        .any()
-        .close() // test w/ nested assertion (end)
-        .constraint(taul::polarity::negative) // test w/ nested constraint #1
-        .any()
-        .junction()
-        .sequence()
-        .localend()
-        .string("a")
-        .close()
-        .close() // test w/ nested constraint #1 (end)
-        .constraint() // test w/ nested constraint #2
-        .sequence()
+        .lookahead()
         .any()
         .close()
-        .junction()
-        .string("a")
-        .close() // test w/ nested constraint #2 (end)
-        .close() // test w/ nested (end)
+        .lookahead_not()
+        .any()
+        .close()
+        .not0()
+        .any()
+        .close()
+        .optional()
+        .any()
+        .close()
+        .kleene_star()
+        .any()
+        .close()
+        .kleene_plus()
+        .any()
+        .close()
+        .close(); // test w/ nested (end)
+
+    sw
         // set
-        .set(taul::bias::ll) // test empty
+        .set() // test empty
         .close() // test empty (end)
         .set() // test w/ nested
         .any()
@@ -277,134 +372,217 @@ TEST(load_tests, success) {
         .set() // test w/ nested set
         .any()
         .close() // test w/ nested set (end)
-        .modifier(1, 3) // test w/ nested modifier
-        .any()
-        .close() // test w/ nested modifier (end)
-        .assertion(taul::polarity::negative) // test w/ nested assertion
-        .any()
-        .close() // test w/ nested assertion (end)
-        .constraint(taul::polarity::negative) // test w/ nested constraint #1
-        .any()
-        .junction()
-        .sequence()
-        .localend()
-        .string("a")
-        .close()
-        .close() // test w/ nested constraint #1 (end)
-        .constraint() // test w/ nested constraint #2
-        .sequence()
+        .lookahead()
         .any()
         .close()
-        .junction()
-        .string("a")
-        .close() // test w/ nested constraint #2 (end)
-        .close() // test w/ nested (end)
-        // modifier
-        .modifier(1, 1) // test w/ nested #1
+        .lookahead_not()
+        .any()
+        .close()
+        .not0()
+        .any()
+        .close()
+        .optional()
+        .any()
+        .close()
+        .kleene_star()
+        .any()
+        .close()
+        .kleene_plus()
+        .any()
+        .close()
+        .close(); // test w/ nested (end)
+    
+    sw
+        // lookahead
+        .lookahead()
+        .set()
+        .end()
+        .any()
+        .string("abc") // <- in pprs, may have >1 chars
+        .token()
+        .failure()
+        .close()
+        .close();
+
+    sw
+        // lookahead-not
+        .lookahead_not()
+        .set()
+        .end()
+        .any()
+        .string("abc") // <- in pprs, may have >1 chars
+        .token()
+        .failure()
+        .close()
+        .close();
+
+    sw
+        // not
+        .not0()
+        .set()
+        .end()
+        .any()
+        .string("abc") // <- in pprs, may have >1 chars
+        .token()
+        .failure()
+        .close()
+        .close();
+
+    sw
+        // optional
+        .optional() // test w/ nested #1
         .any()
         .close() // test w/ nested #1 (end)
-        .modifier(1, 1) // test w/ nested #2
+        .optional() // test w/ nested #2
         .string("abc")
         .close() // test w/ nested #2 (end)
-        .modifier(1, 1) // test w/ nested #3
+        .optional() // test w/ nested #3
         .sequence() // test w/ nested sequence
         .any()
         .close() // test w/ nested sequence (end)
         .close() // test w/ nested #3 (end)
-        .modifier(1, 1) // test w/ nested #4
+        .optional() // test w/ nested #4
         .set() // test w/ nested set
         .any()
         .close() // test w/ nested set (end)
         .close() // test w/ nested #4 (end)
-        .modifier(1, 1) // test w/ nested #5
-        .modifier(1, 3) // test w/ nested modifier
+        .optional() // test w/ nested #5
+        .lookahead()
         .any()
-        .close() // test w/ nested modifier (end)
+        .close()
         .close() // test w/ nested #5 (end)
-        .modifier(1, 1) // test w/ nested #6
-        .assertion(taul::polarity::negative) // test w/ nested assertion
+        .optional() // test w/ nested #6
+        .lookahead_not()
         .any()
-        .close() // test w/ nested assertion (end)
+        .close()
         .close() // test w/ nested #6 (end)
-        .modifier(1, 1) // test w/ nested #7
-        .constraint(taul::polarity::negative) // test w/ nested constraint #1
+        .optional() // test w/ nested #7
+        .not0()
         .any()
-        .junction()
-        .sequence()
-        .localend()
-        .string("a")
         .close()
-        .close() // test w/ nested constraint #1 (end)
         .close() // test w/ nested #7 (end)
-        .modifier(1, 1) // test w/ nested #8
-        .constraint() // test w/ nested constraint #2
-        .sequence()
+        .optional() // test w/ nested #8
+        .optional()
         .any()
         .close()
-        .junction()
-        .string("a")
-        .close() // test w/ nested constraint #2 (end)
         .close() // test w/ nested #8 (end)
-        // assertion
-        .assertion(taul::polarity::positive) // test w/ nested #1
+        .optional() // test w/ nested #9
+        .kleene_star()
+        .any()
+        .close()
+        .close() // test w/ nested #9 (end)
+        .optional() // test w/ nested #10
+        .kleene_plus()
+        .any()
+        .close()
+        .close(); // test w/ nested #10 (end)
+
+    sw
+        // kleene-star
+        .kleene_star() // test w/ nested #1
         .any()
         .close() // test w/ nested #1 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #2
+        .kleene_star() // test w/ nested #2
         .string("abc")
         .close() // test w/ nested #2 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #3
+        .kleene_star() // test w/ nested #3
         .sequence() // test w/ nested sequence
         .any()
         .close() // test w/ nested sequence (end)
         .close() // test w/ nested #3 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #4
+        .kleene_star() // test w/ nested #4
         .set() // test w/ nested set
         .any()
         .close() // test w/ nested set (end)
         .close() // test w/ nested #4 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #5
-        .modifier(1, 3) // test w/ nested modifier
+        .kleene_star() // test w/ nested #5
+        .lookahead()
         .any()
-        .close() // test w/ nested modifier (end)
+        .close()
         .close() // test w/ nested #5 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #6
-        .assertion(taul::polarity::negative) // test w/ nested assertion
+        .kleene_star() // test w/ nested #6
+        .lookahead_not()
         .any()
-        .close() // test w/ nested assertion (end)
+        .close()
         .close() // test w/ nested #6 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #7
-        .constraint(taul::polarity::negative) // test w/ nested constraint #1
+        .kleene_star() // test w/ nested #7
+        .not0()
         .any()
-        .junction()
-        .sequence()
-        .localend()
-        .string("a")
         .close()
-        .close() // test w/ nested constraint #1 (end)
         .close() // test w/ nested #7 (end)
-        .assertion(taul::polarity::positive) // test w/ nested #8
-        .constraint() // test w/ nested constraint #2
-        .sequence()
+        .kleene_star() // test w/ nested #8
+        .optional()
         .any()
         .close()
-        .junction()
-        .string("a")
-        .close() // test w/ nested constraint #2 (end)
         .close() // test w/ nested #8 (end)
-        .constraint()
-        .modifier(0, 5)
+        .kleene_star() // test w/ nested #9
+        .kleene_star()
         .any()
         .close()
-        .junction()
-        .sequence()
+        .close() // test w/ nested #9 (end)
+        .kleene_star() // test w/ nested #10
+        .kleene_plus()
+        .any()
+        .close()
+        .close(); // test w/ nested #10 (end)
+
+    sw
+        // kleene-plus
+        .kleene_plus() // test w/ nested #1
+        .any()
+        .close() // test w/ nested #1 (end)
+        .kleene_plus() // test w/ nested #2
         .string("abc")
-        .localend()
+        .close() // test w/ nested #2 (end)
+        .kleene_plus() // test w/ nested #3
+        .sequence() // test w/ nested sequence
+        .any()
+        .close() // test w/ nested sequence (end)
+        .close() // test w/ nested #3 (end)
+        .kleene_plus() // test w/ nested #4
+        .set() // test w/ nested set
+        .any()
+        .close() // test w/ nested set (end)
+        .close() // test w/ nested #4 (end)
+        .kleene_plus() // test w/ nested #5
+        .lookahead()
+        .any()
         .close()
+        .close() // test w/ nested #5 (end)
+        .kleene_plus() // test w/ nested #6
+        .lookahead_not()
+        .any()
         .close()
+        .close() // test w/ nested #6 (end)
+        .kleene_plus() // test w/ nested #7
+        .not0()
+        .any()
         .close()
+        .close() // test w/ nested #7 (end)
+        .kleene_plus() // test w/ nested #8
+        .optional()
+        .any()
+        .close()
+        .close() // test w/ nested #8 (end)
+        .kleene_plus() // test w/ nested #9
+        .kleene_star()
+        .any()
+        .close()
+        .close() // test w/ nested #9 (end)
+        .kleene_plus() // test w/ nested #10
+        .kleene_plus()
+        .any()
+        .close()
+        .close(); // test w/ nested #10 (end)
+
+    sw
+        .close();
+
+    sw
         .ppr("ppr1") // test empty
-        .close()
-        .done();
+        .close();
+
+    const auto s = sw.done();
 
     const auto gram = taul::load(s, ec, lgr);
 
@@ -412,8 +590,6 @@ TEST(load_tests, success) {
 
     if (gram) {
         TAUL_LOG(lgr, "{}", *gram);
-
-        EXPECT_EQ(gram->bias(), taul::bias::ll);
 
         if (gram->contains_lpr("with_none_qualifier")) {
             EXPECT_EQ(gram->lpr("with_none_qualifier").name, "with_none_qualifier");
@@ -476,33 +652,6 @@ TEST(load_tests, success_withEmptyGrammarSpec) {
     if (gram) {
         TAUL_LOG(lgr, "{}", *gram);
 
-        EXPECT_EQ(gram->bias(), taul::bias::fl);
-        EXPECT_TRUE(gram->lprs().empty());
-        EXPECT_TRUE(gram->pprs().empty());
-    }
-    else ADD_FAILURE();
-}
-
-// this tests that later grammar-bias instructions overwrite earlier ones
-
-TEST(load_tests, success_withExpectedGrammarBiasOverwriting) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .grammar_bias(taul::bias::fs)
-        .grammar_bias(taul::bias::ll)
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    EXPECT_EQ(ec.total(), 0);
-
-    if (gram) {
-        TAUL_LOG(lgr, "{}", *gram);
-
-        EXPECT_EQ(gram->bias(), taul::bias::ll);
         EXPECT_TRUE(gram->lprs().empty());
         EXPECT_TRUE(gram->pprs().empty());
     }
@@ -540,8 +689,6 @@ TEST(load_tests, success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage) {
     if (gram) {
         TAUL_LOG(lgr, "{}", *gram);
 
-        EXPECT_EQ(gram->bias(), taul::bias::fl);
-
         if (gram->contains_lpr("lpr0")) {
             EXPECT_EQ(gram->lpr("lpr0").name, "lpr0");
             EXPECT_EQ(gram->lpr("lpr0").index, 0);
@@ -572,49 +719,7 @@ TEST(load_tests, success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage) {
 // the below detail what errors each instruction can raise, and thus which must
 // be unit tested, and being specified *in order*
 
-static_assert(taul::spec_errors == 20);
-
-// grammar-bias
-//      illegal-in-lpr-scope
-//      illegal-in-ppr-scope
-
-TEST(load_tests, grammar_bias_forErr_illegal_in_lpr_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .lpr_decl("lpr0")
-        .lpr("lpr0")
-        .grammar_bias(taul::bias::l)
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_lpr_scope), 1);
-    EXPECT_FALSE(gram);
-}
-
-TEST(load_tests, grammar_bias_forErr_illegal_in_ppr_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("ppr0")
-        .ppr("ppr0")
-        .grammar_bias(taul::bias::l)
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
-    EXPECT_FALSE(gram);
-}
+static_assert(taul::spec_errors == 16);
 
 // close                        <- most errors will be associated w/ opening instruction instead
 //      stray-close
@@ -1043,25 +1148,6 @@ TEST(load_tests, ppr_forErr_illegal_qualifier_forSupport) {
     EXPECT_FALSE(gram);
 }
 
-// begin
-//      illegal-in-no-scope
-
-TEST(load_tests, begin_forErr_illegal_in_no_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .begin()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
-    EXPECT_FALSE(gram);
-}
-
 // end
 //      illegal-in-no-scope
 
@@ -1149,45 +1235,6 @@ TEST(load_tests, charset_forErr_illegal_in_no_scope) {
     const auto s =
         taul::spec_writer()
         .charset("abc")
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
-    EXPECT_FALSE(gram);
-}
-
-// range
-//      illegal-in-ppr-scope
-//      illegal-in-no-scope
-
-TEST(load_tests, range_forErr_illegal_in_ppr_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("a")
-        .ppr("a")
-        .range('a', 'z') // illegal!
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_ppr_scope), 1);
-    EXPECT_FALSE(gram);
-}
-
-TEST(load_tests, range_forErr_illegal_in_no_scope) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .range('a', 'z')
         .done();
 
     const auto gram = taul::load(s, ec, lgr);
@@ -1438,7 +1485,7 @@ TEST(load_tests, set_forErr_illegal_in_no_scope) {
 
     const auto s =
         taul::spec_writer()
-        .set(taul::bias::ls)
+        .set()
         .close()
         .done();
 
@@ -1449,20 +1496,1634 @@ TEST(load_tests, set_forErr_illegal_in_no_scope) {
     EXPECT_FALSE(gram);
 }
 
-// modifier
+// lookahead
+//      illegal-in-no-scope
+//      illegal-subexpr-count (due to <1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to <1 subexprs) (for pprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for pprs)
+//      illegal-in-single-terminal-scope (w/ name) (for lprs)
+//      illegal-in-single-terminal-scope (w/ sequence) (for lprs)
+//      illegal-in-single-terminal-scope (w/ lookahead) (for lprs)
+//      illegal-in-single-terminal-scope (w/ lookahead-not) (for lprs)
+//      illegal-in-single-terminal-scope (w/ not) (for lprs)
+//      illegal-in-single-terminal-scope (w/ optional) (for lprs)
+//      illegal-in-single-terminal-scope (w/ kleene-star) (for lprs)
+//      illegal-in-single-terminal-scope (w/ kleene-plus) (for lprs)
+//      illegal-in-single-terminal-scope (w/ name) (for pprs)
+//      illegal-in-single-terminal-scope (w/ sequence) (for pprs)
+//      illegal-in-single-terminal-scope (w/ lookahead) (for pprs)
+//      illegal-in-single-terminal-scope (w/ lookahead-not) (for pprs)
+//      illegal-in-single-terminal-scope (w/ not) (for pprs)
+//      illegal-in-single-terminal-scope (w/ optional) (for pprs)
+//      illegal-in-single-terminal-scope (w/ kleene-star) (for pprs)
+//      illegal-in-single-terminal-scope (w/ kleene-plus) (for pprs)
+
+TEST(load_tests, lookahead_forErr_illegal_in_no_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lookahead()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("f")
+        .lpr("f")
+        .lookahead()
+        // no subexprs, illegal!
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .lookahead()
+        // no subexprs, illegal!
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("f")
+        .lpr("f")
+        .lookahead()
+        // two subexprs, illegal!
+        .any()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .lookahead()
+        // two subexprs, illegal!
+        .any()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forName_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead()
+        .name("lpr0")
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forSequence_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead()
+        .sequence()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forLookAhead_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead()
+        .lookahead()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forLookAheadNot_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead()
+        .lookahead_not()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forNot_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead()
+        .not0()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forOptional_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead()
+        .optional()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forKleeneStar_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead()
+        .kleene_star()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forKleenePlus_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead()
+        .kleene_plus()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forName_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead()
+        .name("ppr0")
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forSequence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead()
+        .sequence()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forLookAhead_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead()
+        .lookahead()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forLookAheadNot_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead()
+        .lookahead_not()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forNot_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead()
+        .not0()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forOptional_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead()
+        .optional()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forKleeneStar_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead()
+        .kleene_star()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_forErr_illegal_in_single_terminal_scope_forKleenePlus_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead()
+        .kleene_plus()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+// lookahead-not
+//      illegal-in-no-scope
+//      illegal-subexpr-count (due to <1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to <1 subexprs) (for pprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for pprs)
+//      illegal-in-single-terminal-scope (w/ name) (for lprs)
+//      illegal-in-single-terminal-scope (w/ sequence) (for lprs)
+//      illegal-in-single-terminal-scope (w/ lookahead) (for lprs)
+//      illegal-in-single-terminal-scope (w/ lookahead-not) (for lprs)
+//      illegal-in-single-terminal-scope (w/ not) (for lprs)
+//      illegal-in-single-terminal-scope (w/ optional) (for lprs)
+//      illegal-in-single-terminal-scope (w/ kleene-star) (for lprs)
+//      illegal-in-single-terminal-scope (w/ kleene-plus) (for lprs)
+//      illegal-in-single-terminal-scope (w/ name) (for pprs)
+//      illegal-in-single-terminal-scope (w/ sequence) (for pprs)
+//      illegal-in-single-terminal-scope (w/ lookahead) (for pprs)
+//      illegal-in-single-terminal-scope (w/ lookahead-not) (for pprs)
+//      illegal-in-single-terminal-scope (w/ not) (for pprs)
+//      illegal-in-single-terminal-scope (w/ optional) (for pprs)
+//      illegal-in-single-terminal-scope (w/ kleene-star) (for pprs)
+//      illegal-in-single-terminal-scope (w/ kleene-plus) (for pprs)
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_no_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lookahead_not()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("f")
+        .lpr("f")
+        .lookahead_not()
+        // no subexprs, illegal!
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .lookahead_not()
+        // no subexprs, illegal!
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("f")
+        .lpr("f")
+        .lookahead_not()
+        // two subexprs, illegal!
+        .any()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .lookahead_not()
+        // two subexprs, illegal!
+        .any()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forName_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead_not()
+        .name("lpr0")
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forSequence_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead_not()
+        .sequence()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forLookAhead_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead_not()
+        .lookahead()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forLookAheadNot_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead_not()
+        .lookahead_not()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forNot_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead_not()
+        .not0()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forOptional_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead_not()
+        .optional()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forKleeneStar_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead_not()
+        .kleene_star()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forKleenePlus_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .lookahead_not()
+        .kleene_plus()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forName_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead_not()
+        .name("ppr0")
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forSequence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead_not()
+        .sequence()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forLookAhead_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead_not()
+        .lookahead()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forLookAheadNot_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead_not()
+        .lookahead_not()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forNot_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead_not()
+        .not0()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forOptional_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead_not()
+        .optional()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forKleeneStar_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead_not()
+        .kleene_star()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, lookahead_not_forErr_illegal_in_single_terminal_scope_forKleenePlus_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .lookahead_not()
+        .kleene_plus()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+// not
+//      illegal-in-no-scope
+//      illegal-subexpr-count (due to <1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to <1 subexprs) (for pprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for pprs)
+//      illegal-in-single-terminal-scope (w/ name) (for lprs)
+//      illegal-in-single-terminal-scope (w/ sequence) (for lprs)
+//      illegal-in-single-terminal-scope (w/ lookahead) (for lprs)
+//      illegal-in-single-terminal-scope (w/ lookahead-not) (for lprs)
+//      illegal-in-single-terminal-scope (w/ not) (for lprs)
+//      illegal-in-single-terminal-scope (w/ optional) (for lprs)
+//      illegal-in-single-terminal-scope (w/ kleene-star) (for lprs)
+//      illegal-in-single-terminal-scope (w/ kleene-plus) (for lprs)
+//      illegal-in-single-terminal-scope (w/ name) (for pprs)
+//      illegal-in-single-terminal-scope (w/ sequence) (for pprs)
+//      illegal-in-single-terminal-scope (w/ lookahead) (for pprs)
+//      illegal-in-single-terminal-scope (w/ lookahead-not) (for pprs)
+//      illegal-in-single-terminal-scope (w/ not) (for pprs)
+//      illegal-in-single-terminal-scope (w/ optional) (for pprs)
+//      illegal-in-single-terminal-scope (w/ kleene-star) (for pprs)
+//      illegal-in-single-terminal-scope (w/ kleene-plus) (for pprs)
+
+TEST(load_tests, not_forErr_illegal_in_no_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .not0()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("f")
+        .lpr("f")
+        .not0()
+        // no subexprs, illegal!
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .not0()
+        // no subexprs, illegal!
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("f")
+        .lpr("f")
+        .not0()
+        // two subexprs, illegal!
+        .any()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f")
+        .ppr("f")
+        .not0()
+        // two subexprs, illegal!
+        .any()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forName_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .not0()
+        .name("lpr0")
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forSequence_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .not0()
+        .sequence()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forLookAhead_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .not0()
+        .lookahead()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forLookAheadNot_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .not0()
+        .lookahead_not()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forNot_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .not0()
+        .not0()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forOptional_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .not0()
+        .optional()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forKleeneStar_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .not0()
+        .kleene_star()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forKleenePlus_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0")
+        .lpr_decl("lpr1")
+        .lpr("lpr0")
+        .close()
+        .lpr("lpr1")
+        .not0()
+        .kleene_plus()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forName_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .not0()
+        .name("ppr0")
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forSequence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .not0()
+        .sequence()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forLookAhead_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .not0()
+        .lookahead()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forLookAheadNot_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .not0()
+        .lookahead_not()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forNot_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .not0()
+        .not0()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forOptional_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .not0()
+        .optional()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forKleeneStar_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .not0()
+        .kleene_star()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(load_tests, not_forErr_illegal_in_single_terminal_scope_forKleenePlus_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0")
+        .ppr_decl("ppr1")
+        .ppr("ppr0")
+        .close()
+        .ppr("ppr1")
+        .not0()
+        .kleene_plus()
+        .any()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_terminal_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+// optional
 //      illegal-in-no-scope
 //      illegal-subexpr-count (due to <1 subexprs) (for lprs)
 //      illegal-subexpr-count (due to <1 subexprs) (for pprs)
 //      illegal-subexpr-count (due to >1 subexprs) (for lprs)
 //      illegal-subexpr-count (due to >1 subexprs) (for pprs)
 
-TEST(load_tests, modifier_forErr_illegal_in_no_scope) {
+TEST(load_tests, optional_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
     const auto s =
         taul::spec_writer()
-        .modifier(3, 10)
+        .optional()
         .close()
         .done();
 
@@ -1473,7 +3134,7 @@ TEST(load_tests, modifier_forErr_illegal_in_no_scope) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
+TEST(load_tests, optional_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1481,7 +3142,7 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLP
         taul::spec_writer()
         .lpr_decl("f")
         .lpr("f")
-        .modifier(0, 0)
+        .optional()
         // no subexprs, illegal!
         .close()
         .close()
@@ -1494,7 +3155,7 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLP
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
+TEST(load_tests, optional_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1502,7 +3163,7 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPP
         taul::spec_writer()
         .ppr_decl("f")
         .ppr("f")
-        .modifier(0, 0)
+        .optional()
         // no subexprs, illegal!
         .close()
         .close()
@@ -1515,7 +3176,7 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPP
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
+TEST(load_tests, optional_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1523,7 +3184,7 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooManySubExprs_forL
         taul::spec_writer()
         .lpr_decl("f")
         .lpr("f")
-        .modifier(0, 0)
+        .optional()
         // two subexprs, illegal!
         .any()
         .any()
@@ -1538,7 +3199,7 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooManySubExprs_forL
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
+TEST(load_tests, optional_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1546,7 +3207,7 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooManySubExprs_forP
         taul::spec_writer()
         .ppr_decl("f")
         .ppr("f")
-        .modifier(0, 0)
+        .optional()
         // two subexprs, illegal!
         .any()
         .any()
@@ -1561,21 +3222,20 @@ TEST(load_tests, modifier_forErr_illegal_subexpr_count_dueToTooManySubExprs_forP
     EXPECT_FALSE(gram);
 }
 
-// assertion
+// kleene-star
 //      illegal-in-no-scope
 //      illegal-subexpr-count (due to <1 subexprs) (for lprs)
 //      illegal-subexpr-count (due to <1 subexprs) (for pprs)
 //      illegal-subexpr-count (due to >1 subexprs) (for lprs)
 //      illegal-subexpr-count (due to >1 subexprs) (for pprs)
 
-TEST(load_tests, assertion_forErr_illegal_in_no_scope) {
+TEST(load_tests, kleene_star_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
     const auto s =
         taul::spec_writer()
-        .assertion(taul::polarity::negative)
-        //.any() <- impl could raise illegal_in_no_scope for this, so we'll just exclude it
+        .kleene_star()
         .close()
         .done();
 
@@ -1586,7 +3246,7 @@ TEST(load_tests, assertion_forErr_illegal_in_no_scope) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
+TEST(load_tests, kleene_star_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1594,7 +3254,7 @@ TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forL
         taul::spec_writer()
         .lpr_decl("f")
         .lpr("f")
-        .assertion(taul::polarity::negative)
+        .kleene_star()
         // no subexprs, illegal!
         .close()
         .close()
@@ -1607,7 +3267,7 @@ TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forL
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
+TEST(load_tests, kleene_star_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1615,7 +3275,7 @@ TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forP
         taul::spec_writer()
         .ppr_decl("f")
         .ppr("f")
-        .assertion(taul::polarity::negative)
+        .kleene_star()
         // no subexprs, illegal!
         .close()
         .close()
@@ -1628,7 +3288,7 @@ TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forP
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
+TEST(load_tests, kleene_star_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1636,7 +3296,7 @@ TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooManySubExprs_for
         taul::spec_writer()
         .lpr_decl("f")
         .lpr("f")
-        .assertion(taul::polarity::negative)
+        .kleene_star()
         // two subexprs, illegal!
         .any()
         .any()
@@ -1651,7 +3311,7 @@ TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooManySubExprs_for
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
+TEST(load_tests, kleene_star_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1659,7 +3319,7 @@ TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooManySubExprs_for
         taul::spec_writer()
         .ppr_decl("f")
         .ppr("f")
-        .assertion(taul::polarity::negative)
+        .kleene_star()
         // two subexprs, illegal!
         .any()
         .any()
@@ -1674,25 +3334,20 @@ TEST(load_tests, assertion_forErr_illegal_subexpr_count_dueToTooManySubExprs_for
     EXPECT_FALSE(gram);
 }
 
-// constraint
+// kleene-plus
 //      illegal-in-no-scope
-//      illegal-subexpr-count (due to <2 subexprs) (for lprs)
-//      illegal-subexpr-count (due to <2 subexprs) (for pprs)
-//      illegal-subexpr-count (due to >2 subexprs) (for lprs)
-//      illegal-subexpr-count (due to >2 subexprs) (for pprs)
-//      junction-missing (for lprs)
-//      junction-missing (for pprs)
+//      illegal-subexpr-count (due to <1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to <1 subexprs) (for pprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for lprs)
+//      illegal-subexpr-count (due to >1 subexprs) (for pprs)
 
-TEST(load_tests, constraint_forErr_illegal_in_no_scope) {
+TEST(load_tests, kleene_plus_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
     const auto s =
         taul::spec_writer()
-        .constraint(taul::polarity::negative)
-        //.any() <- impl could raise illegal_in_no_scope for this, so we'll just exclude it
-        //.junction() <- excluded this too
-        //.any() <- impl could raise illegal_in_no_scope for this, so we'll just exclude it
+        .kleene_plus()
         .close()
         .done();
 
@@ -1703,7 +3358,7 @@ TEST(load_tests, constraint_forErr_illegal_in_no_scope) {
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
+TEST(load_tests, kleene_plus_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1711,10 +3366,8 @@ TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooFewSubExprs_for
         taul::spec_writer()
         .lpr_decl("f")
         .lpr("f")
-        .constraint(taul::polarity::negative)
-        // one subexpr, illegal!
-        .any()
-        .junction()
+        .kleene_plus()
+        // no subexprs, illegal!
         .close()
         .close()
         .done();
@@ -1726,7 +3379,7 @@ TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooFewSubExprs_for
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
+TEST(load_tests, kleene_plus_forErr_illegal_subexpr_count_dueToTooFewSubExprs_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1734,10 +3387,8 @@ TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooFewSubExprs_for
         taul::spec_writer()
         .ppr_decl("f")
         .ppr("f")
-        .constraint(taul::polarity::negative)
-        // one subexpr, illegal!
-        .any()
-        .junction()
+        .kleene_plus()
+        // no subexprs, illegal!
         .close()
         .close()
         .done();
@@ -1749,7 +3400,7 @@ TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooFewSubExprs_for
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
+TEST(load_tests, kleene_plus_forErr_illegal_subexpr_count_dueToTooManySubExprs_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1757,10 +3408,8 @@ TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooManySubExprs_fo
         taul::spec_writer()
         .lpr_decl("f")
         .lpr("f")
-        .constraint(taul::polarity::negative)
-        // three subexprs, illegal!
-        .any()
-        .junction()
+        .kleene_plus()
+        // two subexprs, illegal!
         .any()
         .any()
         .close()
@@ -1774,7 +3423,7 @@ TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooManySubExprs_fo
     EXPECT_FALSE(gram);
 }
 
-TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
+TEST(load_tests, kleene_plus_forErr_illegal_subexpr_count_dueToTooManySubExprs_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1782,10 +3431,8 @@ TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooManySubExprs_fo
         taul::spec_writer()
         .ppr_decl("f")
         .ppr("f")
-        .constraint(taul::polarity::negative)
-        // three subexprs, illegal!
-        .any()
-        .junction()
+        .kleene_plus()
+        // two subexprs, illegal!
         .any()
         .any()
         .close()
@@ -1796,267 +3443,6 @@ TEST(load_tests, constraint_forErr_illegal_subexpr_count_dueToTooManySubExprs_fo
 
     //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
     EXPECT_EQ(ec.count(taul::spec_error::illegal_subexpr_count), 1);
-    EXPECT_FALSE(gram);
-}
-
-TEST(load_tests, constraint_forErr_junction_missing_forLPRs) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .lpr_decl("f")
-        .lpr("f")
-        .constraint()
-        // okay, but no junction!
-        .any()
-        .any()
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::junction_missing), 1);
-    EXPECT_FALSE(gram);
-}
-
-TEST(load_tests, constraint_forErr_junction_missing_forPPRs) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("f")
-        .ppr("f")
-        .constraint()
-        // okay, but no junction!
-        .any()
-        .any()
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::junction_missing), 1);
-    EXPECT_FALSE(gram);
-}
-
-// junction
-//      junction-not-in-constraint
-//      junction-misplaced (due to coming after <1 prior subexprs) (for lprs)
-//      junction-misplaced (due to coming after <1 prior subexprs) (for pprs)
-//      junction-misplaced (due to coming after >1 prior subexprs) (for lprs)
-//      junction-misplaced (due to coming after >1 prior subexprs) (for pprs)
-//      junction-already-established (for lprs)
-//      junction-already-established (for pprs)
-
-TEST(load_tests, junction_forErr_junction_not_in_constraint) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .junction()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::junction_not_in_constraint), 1);
-    EXPECT_FALSE(gram);
-}
-
-TEST(load_tests, junction_forErr_junction_misplaced_dueToComingAfterTooFewPriorSubExprs_forLPRs) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .lpr_decl("f")
-        .lpr("f")
-        .constraint()
-        .junction()
-        .any()
-        .any()
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::junction_misplaced), 1);
-    EXPECT_FALSE(gram);
-}
-
-TEST(load_tests, junction_forErr_junction_misplaced_dueToComingAfterTooFewPriorSubExprs_forPPRs) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("f")
-        .ppr("f")
-        .constraint()
-        .junction()
-        .any()
-        .any()
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::junction_misplaced), 1);
-    EXPECT_FALSE(gram);
-}
-
-TEST(load_tests, junction_forErr_junction_misplaced_dueToComingAfterTooManyPriorSubExprs_forLPRs) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .lpr_decl("f")
-        .lpr("f")
-        .constraint()
-        .any()
-        .any()
-        .junction()
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::junction_misplaced), 1);
-    EXPECT_FALSE(gram);
-}
-
-TEST(load_tests, junction_forErr_junction_misplaced_dueToComingAfterTooManyPriorSubExprs_forPPRs) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("f")
-        .ppr("f")
-        .constraint()
-        .any()
-        .any()
-        .junction()
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::junction_misplaced), 1);
-    EXPECT_FALSE(gram);
-}
-
-TEST(load_tests, junction_forErr_junction_already_established_forLPRs) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .lpr_decl("f")
-        .lpr("f")
-        .constraint()
-        .any()
-        .junction()
-        .junction()
-        .any()
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::junction_already_established), 1);
-    EXPECT_FALSE(gram);
-}
-
-TEST(load_tests, junction_forErr_junction_already_established_forPPRs) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("f")
-        .ppr("f")
-        .constraint()
-        .any()
-        .junction()
-        .junction()
-        .any()
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::junction_already_established), 1);
-    EXPECT_FALSE(gram);
-}
-
-// localend
-//      illegal-localend (for lprs)
-//      illegal-localend (for pprs)
-
-TEST(load_tests, localend_forErr_illegal_localend_forLPRs) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .lpr_decl("f")
-        .lpr("f")
-        .constraint()
-        .localend() // the only invalid part of this is that it's not in the constraining expr
-        .junction()
-        .any()
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_localend), 1);
-    EXPECT_FALSE(gram);
-}
-
-TEST(load_tests, localend_forErr_illegal_localend_forPPRs) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .ppr_decl("f")
-        .ppr("f")
-        .constraint()
-        .localend() // the only invalid part of this is that it's not in the constraining expr
-        .junction()
-        .any()
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    //EXPECT_EQ(ec.total(), 1); <- remember, we don't impose rule that it need only raise 1
-    EXPECT_EQ(ec.count(taul::spec_error::illegal_localend), 1);
     EXPECT_FALSE(gram);
 }
 

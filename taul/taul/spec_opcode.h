@@ -15,14 +15,12 @@ namespace taul {
 
     enum class spec_opcode : std::uint8_t {
 
-        grammar_bias,   // grammar bias defaults to first-longest if missing
         close,
         lpr_decl,
         ppr_decl,
         lpr,
         ppr,
 
-        begin,          // lexer/parser
         end,            // lexer/parser
         any,            // lexer/parser
 
@@ -43,16 +41,6 @@ namespace taul {
 
         charset,        // lexer-only
 
-        // range matches a single character that's within a character range
-
-        // the character range is defined by a pair of character values, w/ the range 
-        // being defined as including both characters, and all characters in between
-
-        // range does not require the first character value to be the lower of the two,
-        // w/ it working the same regardless of what order the range is specified in
-
-        range,          // lexer-only
-
         // token matches any single non-failure token
 
         token,          // parser-only
@@ -70,20 +58,26 @@ namespace taul {
         sequence,       // lexer/parser
         set,            // lexer/parser
 
-        // TODO: in docs, mention max == 0 disables max
+        // lookahead, lookahead-not, and not exprs encapsulate 'single 
+        // terminal scope' within their scopes, which is a scope which 
+        // only allows a single subexpr matching exactly one terminal
 
-        modifier,       // lexer/parser
+        // terminal-only scope allows only the following exprs:
+        //      - end
+        //      - any
+        //      - string        <- may only be 1 char long within lprs
+        //      - charset
+        //      - token
+        //      - failure
+        //      - set           <- containing only allowed subexprs
 
-        assertion,      // lexer/parser
-        constraint,     // lexer/parser
-        junction,       // the *junction* between 'constrained' and 'constraining' exprs; this is not an expr
+        lookahead,      // lexer/parser
+        lookahead_not,  // lexer/parser
+        not0,           // lexer/parser
 
-        // TODO: if we ever add an 'lsubexpr' (aka. 'lexer subexpression') expr, we'll need to account
-        //       for having a localend within a nested lsubexpr expr be able to detect when the available
-        //       constraint expr is the one in the outside parser expr, w/ the localend being deemed
-        //       illegal in such circumstances
-
-        localend,       // lexer/parser
+        optional,       // lexer/parser
+        kleene_star,    // lexer/parser
+        kleene_plus,    // lexer/parser
 
         num,            // this is not a valid spec opcode
     };

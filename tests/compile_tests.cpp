@@ -87,14 +87,15 @@ TEST_F(CompileTests, TopLevel) {
     tsi.interpret(*result);
 
     expected += "startup\n";
-    expected += "grammar-bias first\n";
     expected += "lpr-decl \"LPR0\"\n";
     expected += "lpr-decl \"LPR1\"\n";
     expected += "lpr-decl \"LPR2\"\n";
+    expected += "lpr-decl \"LPR3\"\n";
     expected += "ppr-decl \"PPR0\"\n";
     expected += "ppr-decl \"PPR1\"\n";
-    expected += "lpr-decl \"LPR3\"\n";
     expected += "ppr-decl \"PPR2\"\n";
+    expected += "lpr-decl \"LPR4\"\n";
+    expected += "ppr-decl \"PPR3\"\n";
     expected += "lpr \"LPR0\" none\n";
     expected += "any\n";
     expected += "close\n";
@@ -104,16 +105,22 @@ TEST_F(CompileTests, TopLevel) {
     expected += "lpr \"LPR2\" skip\n";
     expected += "any\n";
     expected += "close\n";
+    expected += "lpr \"LPR3\" support\n";
+    expected += "any\n";
+    expected += "close\n";
     expected += "ppr \"PPR0\" none\n";
     expected += "any\n";
     expected += "close\n";
     expected += "ppr \"PPR1\" skip\n";
     expected += "any\n";
     expected += "close\n";
-    expected += "lpr \"LPR3\" none\n";
+    expected += "ppr \"PPR2\" support\n";
     expected += "any\n";
     expected += "close\n";
-    expected += "ppr \"PPR2\" none\n";
+    expected += "lpr \"LPR4\" none\n";
+    expected += "any\n";
+    expected += "close\n";
+    expected += "ppr \"PPR3\" none\n";
     expected += "any\n";
     expected += "close\n";
     expected += "shutdown\n";
@@ -150,12 +157,10 @@ TEST_F(CompileTests, PrimaryExprs) {
     tsi.interpret(*result);
 
     expected += "startup\n";
-    expected += "grammar-bias first\n";
     expected += "lpr-decl \"LPR0\"\n";
     expected += "ppr-decl \"PPR0\"\n";
     expected += "lpr \"LPR0\" none\n";
     expected += "sequence\n";
-    expected += "begin\n";
     expected += "end\n";
     expected += "any\n";
     expected += "string \"abc\\n\\fdef\"\n";
@@ -168,7 +173,6 @@ TEST_F(CompileTests, PrimaryExprs) {
     expected += "close\n";
     expected += "ppr \"PPR0\" none\n";
     expected += "sequence\n";
-    expected += "begin\n";
     expected += "end\n";
     expected += "any\n";
     expected += "string \"abc\\n\\fdef\"\n";
@@ -213,7 +217,6 @@ TEST_F(CompileTests, GroupExprs) {
     tsi.interpret(*result);
 
     expected += "startup\n";
-    expected += "grammar-bias first\n";
     expected += "lpr-decl \"LPR0\"\n";
     expected += "ppr-decl \"PPR0\"\n";
     expected += "lpr \"LPR0\" none\n";
@@ -256,16 +259,15 @@ TEST_F(CompileTests, LookAheadExprs) {
     tsi.interpret(*result);
 
     expected += "startup\n";
-    expected += "grammar-bias first\n";
     expected += "lpr-decl \"LPR0\"\n";
     expected += "ppr-decl \"PPR0\"\n";
     expected += "lpr \"LPR0\" none\n";
-    expected += "assertion positive\n";
+    expected += "lookahead\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
     expected += "ppr \"PPR0\" none\n";
-    expected += "assertion positive\n";
+    expected += "lookahead\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
@@ -303,16 +305,15 @@ TEST_F(CompileTests, LookAheadNotExprs) {
     tsi.interpret(*result);
 
     expected += "startup\n";
-    expected += "grammar-bias first\n";
     expected += "lpr-decl \"LPR0\"\n";
     expected += "ppr-decl \"PPR0\"\n";
     expected += "lpr \"LPR0\" none\n";
-    expected += "assertion negative\n";
+    expected += "lookahead-not\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
     expected += "ppr \"PPR0\" none\n";
-    expected += "assertion negative\n";
+    expected += "lookahead-not\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
@@ -350,20 +351,15 @@ TEST_F(CompileTests, NotExprs) {
     tsi.interpret(*result);
 
     expected += "startup\n";
-    expected += "grammar-bias first\n";
     expected += "lpr-decl \"LPR0\"\n";
     expected += "ppr-decl \"PPR0\"\n";
     expected += "lpr \"LPR0\" none\n";
-    expected += "constraint negative\n";
-    expected += "any\n";
-    expected += "junction\n";
+    expected += "not\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
     expected += "ppr \"PPR0\" none\n";
-    expected += "constraint negative\n";
-    expected += "any\n";
-    expected += "junction\n";
+    expected += "not\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
@@ -401,16 +397,15 @@ TEST_F(CompileTests, OptionalExprs) {
     tsi.interpret(*result);
 
     expected += "startup\n";
-    expected += "grammar-bias first\n";
     expected += "lpr-decl \"LPR0\"\n";
     expected += "ppr-decl \"PPR0\"\n";
     expected += "lpr \"LPR0\" none\n";
-    expected += "modifier 0, 1\n";
+    expected += "optional\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
     expected += "ppr \"PPR0\" none\n";
-    expected += "modifier 0, 1\n";
+    expected += "optional\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
@@ -448,16 +443,15 @@ TEST_F(CompileTests, KleeneStarExprs) {
     tsi.interpret(*result);
 
     expected += "startup\n";
-    expected += "grammar-bias first\n";
     expected += "lpr-decl \"LPR0\"\n";
     expected += "ppr-decl \"PPR0\"\n";
     expected += "lpr \"LPR0\" none\n";
-    expected += "modifier 0, 0\n";
+    expected += "kleene-star\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
     expected += "ppr \"PPR0\" none\n";
-    expected += "modifier 0, 0\n";
+    expected += "kleene-star\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
@@ -495,16 +489,15 @@ TEST_F(CompileTests, KleenePlusExprs) {
     tsi.interpret(*result);
 
     expected += "startup\n";
-    expected += "grammar-bias first\n";
     expected += "lpr-decl \"LPR0\"\n";
     expected += "ppr-decl \"PPR0\"\n";
     expected += "lpr \"LPR0\" none\n";
-    expected += "modifier 1, 0\n";
+    expected += "kleene-plus\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
     expected += "ppr \"PPR0\" none\n";
-    expected += "modifier 1, 0\n";
+    expected += "kleene-plus\n";
     expected += "any\n";
     expected += "close\n";
     expected += "close\n";
@@ -542,7 +535,6 @@ TEST_F(CompileTests, SequenceExprs) {
     tsi.interpret(*result);
 
     expected += "startup\n";
-    expected += "grammar-bias first\n";
     expected += "lpr-decl \"LPR0\"\n";
     expected += "ppr-decl \"PPR0\"\n";
     expected += "lpr \"LPR0\" none\n";
@@ -599,17 +591,16 @@ TEST_F(CompileTests, SetExprs) {
     tsi.interpret(*result);
 
     expected += "startup\n";
-    expected += "grammar-bias first\n";
     expected += "lpr-decl \"LPR0\"\n";
     expected += "ppr-decl \"PPR0\"\n";
     expected += "lpr \"LPR0\" none\n";
-    expected += "set first\n";
+    expected += "set\n";
     expected += "sequence\n";
     expected += "any\n";
     expected += "any\n";
     expected += "close\n";
     expected += "any\n";
-    expected += "set first\n";
+    expected += "set\n";
     expected += "sequence\n";
     expected += "any\n";
     expected += "any\n";
@@ -619,13 +610,13 @@ TEST_F(CompileTests, SetExprs) {
     expected += "close\n";
     expected += "close\n";
     expected += "ppr \"PPR0\" none\n";
-    expected += "set first\n";
+    expected += "set\n";
     expected += "sequence\n";
     expected += "any\n";
     expected += "any\n";
     expected += "close\n";
     expected += "any\n";
-    expected += "set first\n";
+    expected += "set\n";
     expected += "sequence\n";
     expected += "any\n";
     expected += "any\n";

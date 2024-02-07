@@ -5,12 +5,6 @@
 #include "asserts.h"
 
 
-taul::spec_writer& taul::spec_writer::grammar_bias(bias b) {
-    internal::spec_write_opcode(_temp, spec_opcode::grammar_bias);
-    internal::spec_write_bias(_temp, b);
-    return *this;
-}
-
 taul::spec_writer& taul::spec_writer::close() {
     internal::spec_write_opcode(_temp, spec_opcode::close);
     return *this;
@@ -42,11 +36,6 @@ taul::spec_writer& taul::spec_writer::ppr(std::string_view name, qualifier quali
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::begin() {
-    internal::spec_write_opcode(_temp, spec_opcode::begin);
-    return *this;
-}
-
 taul::spec_writer& taul::spec_writer::end() {
     internal::spec_write_opcode(_temp, spec_opcode::end);
     return *this;
@@ -66,13 +55,6 @@ taul::spec_writer& taul::spec_writer::string(std::string_view s) {
 taul::spec_writer& taul::spec_writer::charset(std::string_view s) {
     internal::spec_write_opcode(_temp, spec_opcode::charset);
     internal::spec_write_str(_temp, s);
-    return *this;
-}
-
-taul::spec_writer& taul::spec_writer::range(char a, char b) {
-    internal::spec_write_opcode(_temp, spec_opcode::range);
-    internal::spec_write_char(_temp, a);
-    internal::spec_write_char(_temp, b);
     return *this;
 }
 
@@ -97,38 +79,38 @@ taul::spec_writer& taul::spec_writer::sequence() {
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::set(bias b) {
+taul::spec_writer& taul::spec_writer::set() {
     internal::spec_write_opcode(_temp, spec_opcode::set);
-    internal::spec_write_bias(_temp, b);
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::modifier(std::uint16_t min, std::uint16_t max) {
-    internal::spec_write_opcode(_temp, spec_opcode::modifier);
-    internal::spec_write_u16(_temp, min);
-    internal::spec_write_u16(_temp, max);
+taul::spec_writer& taul::spec_writer::lookahead() {
+    internal::spec_write_opcode(_temp, spec_opcode::lookahead);
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::assertion(polarity p) {
-    internal::spec_write_opcode(_temp, spec_opcode::assertion);
-    internal::spec_write_polarity(_temp, p);
+taul::spec_writer& taul::spec_writer::lookahead_not() {
+    internal::spec_write_opcode(_temp, spec_opcode::lookahead_not);
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::constraint(polarity p) {
-    internal::spec_write_opcode(_temp, spec_opcode::constraint);
-    internal::spec_write_polarity(_temp, p);
+taul::spec_writer& taul::spec_writer::not0() {
+    internal::spec_write_opcode(_temp, spec_opcode::not0);
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::junction() {
-    internal::spec_write_opcode(_temp, spec_opcode::junction);
+taul::spec_writer& taul::spec_writer::optional() {
+    internal::spec_write_opcode(_temp, spec_opcode::optional);
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::localend() {
-    internal::spec_write_opcode(_temp, spec_opcode::localend);
+taul::spec_writer& taul::spec_writer::kleene_star() {
+    internal::spec_write_opcode(_temp, spec_opcode::kleene_star);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::kleene_plus() {
+    internal::spec_write_opcode(_temp, spec_opcode::kleene_plus);
     return *this;
 }
 
@@ -148,16 +130,10 @@ void taul::spec_interpreter::interpret(const spec& x) {
 }
 
 std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
-    static_assert(spec_opcodes == 22);
+    static_assert(spec_opcodes == 20);
     std::size_t len = 0;
     const auto opcode = internal::spec_read_opcode(s, offset, len);
     switch (opcode) {
-    case spec_opcode::grammar_bias:
-    {
-        const auto b = internal::spec_read_bias(s, offset + len, len);
-        on_grammar_bias(b);
-    }
-    break;
     case spec_opcode::close:
     {
         on_close();
@@ -189,11 +165,6 @@ std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
         on_ppr(name, qualifier);
     }
     break;
-    case spec_opcode::begin:
-    {
-        on_begin();
-    }
-    break;
     case spec_opcode::end:
     {
         on_end();
@@ -214,13 +185,6 @@ std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
     {
         const auto s0 = internal::spec_read_str(s, offset + len, len);
         on_charset(s0);
-    }
-    break;
-    case spec_opcode::range:
-    {
-        const char a = internal::spec_read_char(s, offset + len, len);
-        const char b = internal::spec_read_char(s, offset + len, len);
-        on_range(a, b);
     }
     break;
     case spec_opcode::token:
@@ -246,38 +210,37 @@ std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
     break;
     case spec_opcode::set:
     {
-        const auto b = internal::spec_read_bias(s, offset + len, len);
-        on_set(b);
+        on_set();
     }
     break;
-    case spec_opcode::modifier:
+    case spec_opcode::lookahead:
     {
-        // remember, in C++ argument eval order is undefined... I think
-        const auto min = internal::spec_read_u16(s, offset + len, len);
-        const auto max = internal::spec_read_u16(s, offset + len, len);
-        on_modifier(min, max);
+        on_lookahead();
     }
     break;
-    case spec_opcode::assertion:
+    case spec_opcode::lookahead_not:
     {
-        const auto p = internal::spec_read_polarity(s, offset + len, len);
-        on_assertion(p);
+        on_lookahead_not();
     }
     break;
-    case spec_opcode::constraint:
+    case spec_opcode::not0:
     {
-        const auto p = internal::spec_read_polarity(s, offset + len, len);
-        on_constraint(p);
+        on_not();
     }
     break;
-    case spec_opcode::junction:
+    case spec_opcode::optional:
     {
-        on_junction();
+        on_optional();
     }
     break;
-    case spec_opcode::localend:
+    case spec_opcode::kleene_star:
     {
-        on_localend();
+        on_kleene_star();
+    }
+    break;
+    case spec_opcode::kleene_plus:
+    {
+        on_kleene_plus();
     }
     break;
     default: TAUL_DEADEND; break;
@@ -309,14 +272,6 @@ void taul::internal::spec_write_char(spec& s, char x) noexcept {
 
 void taul::internal::spec_write_opcode(spec& s, spec_opcode opcode) noexcept {
     spec_write_u8(s, (std::uint8_t)opcode);
-}
-
-void taul::internal::spec_write_bias(spec& s, bias b) noexcept {
-    spec_write_u8(s, (std::uint8_t)b);
-}
-
-void taul::internal::spec_write_polarity(spec& s, polarity p) noexcept {
-    spec_write_u8(s, (std::uint8_t)p);
 }
 
 void taul::internal::spec_write_qualifier(spec& s, qualifier p) noexcept {
@@ -362,14 +317,6 @@ char taul::internal::spec_read_char(const spec& s, std::size_t offset, std::size
 
 taul::spec_opcode taul::internal::spec_read_opcode(const spec& s, std::size_t offset, std::size_t& len) noexcept {
     return (taul::spec_opcode)spec_read_u8(s, offset, len);
-}
-
-taul::bias taul::internal::spec_read_bias(const spec& s, std::size_t offset, std::size_t& len) noexcept {
-    return (taul::bias)spec_read_u8(s, offset, len);
-}
-
-taul::polarity taul::internal::spec_read_polarity(const spec& s, std::size_t offset, std::size_t& len) noexcept {
-    return (taul::polarity)spec_read_u8(s, offset, len);
 }
 
 taul::qualifier taul::internal::spec_read_qualifier(const spec& s, std::size_t offset, std::size_t& len) noexcept {
