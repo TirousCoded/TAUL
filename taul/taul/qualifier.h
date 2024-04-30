@@ -19,6 +19,12 @@ namespace taul {
     };
 
     std::string fmt_qualifier(qualifier x);
+
+
+    // these are here to summarize end-user usage
+
+    constexpr qualifier skip = qualifier::skip;
+    constexpr qualifier support = qualifier::support;
 }
 
 

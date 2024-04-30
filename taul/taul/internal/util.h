@@ -3,6 +3,9 @@
 #pragma once
 
 
+#include <utility>
+#include <optional>
+
 #include "../logger.h"
 #include "../spec_error.h"
 
@@ -56,6 +59,37 @@ namespace taul::internal {
         case Char('F'): return 15;  break;
         default:        return 16;  break;
         }
+    }
+
+
+    // below are exclusive ranges [a_first, a_last) and [b_first, b_last)
+
+    // range_overlap returns false if the two ranges are 0 units apart, but not overlapping
+
+    template<typename T>
+    inline bool range_overlap(T a_first, T a_last, T b_first, T b_last) noexcept {
+        TAUL_ASSERT(a_first <= a_last);
+        TAUL_ASSERT(b_first <= b_last);
+        //return !(a_first >= b_last || a_last <= b_first);
+        return a_first < b_last && b_first < a_last;
+    }
+
+    // range_overlap_details is like range_overlap, except that it returns an exclusive
+    // range of the exact overlap between [a_first, a_last) and [b_first, b_last)
+
+    // range_overlap_details returns std::nullopt if there is no overlap
+
+    template<typename T>
+    inline std::optional<std::pair<T, T>> range_overlap_details(T a_first, T a_last, T b_first, T b_last) noexcept {
+        TAUL_ASSERT(a_first <= a_last);
+        TAUL_ASSERT(b_first <= b_last);
+        if (range_overlap(a_first, a_last, b_first, b_last)) {
+            std::pair<T, T> result{};
+            result.first = std::max(a_first, b_first);
+            result.second = std::min(a_last, b_last);
+            return std::make_optional(std::move(result));
+        }
+        else return std::nullopt;
     }
 }
 

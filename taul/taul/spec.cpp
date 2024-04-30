@@ -10,16 +10,29 @@ taul::spec_writer& taul::spec_writer::close() {
     return *this;
 }
 
+taul::spec_writer& taul::spec_writer::alternative() {
+    internal::spec_write_opcode(_temp, spec_opcode::alternative);
+    return *this;
+}
+
 taul::spec_writer& taul::spec_writer::lpr_decl(std::string_view name) {
     internal::spec_write_opcode(_temp, spec_opcode::lpr_decl);
     internal::spec_write_str(_temp, name);
     return *this;
 }
 
+taul::spec_writer& taul::spec_writer::lpr_decl(const taul::str& name) {
+    return lpr_decl(std::string_view(name));
+}
+
 taul::spec_writer& taul::spec_writer::ppr_decl(std::string_view name) {
     internal::spec_write_opcode(_temp, spec_opcode::ppr_decl);
     internal::spec_write_str(_temp, name);
     return *this;
+}
+
+taul::spec_writer& taul::spec_writer::ppr_decl(const taul::str& name) {
+    return ppr_decl(std::string_view(name));
 }
 
 taul::spec_writer& taul::spec_writer::lpr(std::string_view name, qualifier qualifier) {
@@ -29,11 +42,19 @@ taul::spec_writer& taul::spec_writer::lpr(std::string_view name, qualifier quali
     return *this;
 }
 
+taul::spec_writer& taul::spec_writer::lpr(const taul::str& name, qualifier qualifier) {
+    return lpr(std::string_view(name), qualifier);
+}
+
 taul::spec_writer& taul::spec_writer::ppr(std::string_view name, qualifier qualifier) {
     internal::spec_write_opcode(_temp, spec_opcode::ppr);
     internal::spec_write_str(_temp, name);
     internal::spec_write_qualifier(_temp, qualifier);
     return *this;
+}
+
+taul::spec_writer& taul::spec_writer::ppr(const taul::str& name, qualifier qualifier) {
+    return ppr(std::string_view(name), qualifier);
 }
 
 taul::spec_writer& taul::spec_writer::end() {
@@ -52,10 +73,18 @@ taul::spec_writer& taul::spec_writer::string(std::string_view s) {
     return *this;
 }
 
+taul::spec_writer& taul::spec_writer::string(const taul::str& s) {
+    return string(std::string_view(s));
+}
+
 taul::spec_writer& taul::spec_writer::charset(std::string_view s) {
     internal::spec_write_opcode(_temp, spec_opcode::charset);
     internal::spec_write_str(_temp, s);
     return *this;
+}
+
+taul::spec_writer& taul::spec_writer::charset(const taul::str& s) {
+    return charset(std::string_view(s));
 }
 
 taul::spec_writer& taul::spec_writer::token() {
@@ -74,13 +103,12 @@ taul::spec_writer& taul::spec_writer::name(std::string_view name) {
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::sequence() {
-    internal::spec_write_opcode(_temp, spec_opcode::sequence);
-    return *this;
+taul::spec_writer& taul::spec_writer::name(const taul::str& name) {
+    return this->name(std::string_view(name));
 }
 
-taul::spec_writer& taul::spec_writer::set() {
-    internal::spec_write_opcode(_temp, spec_opcode::set);
+taul::spec_writer& taul::spec_writer::sequence() {
+    internal::spec_write_opcode(_temp, spec_opcode::sequence);
     return *this;
 }
 
@@ -114,6 +142,17 @@ taul::spec_writer& taul::spec_writer::kleene_plus() {
     return *this;
 }
 
+taul::spec_writer& taul::spec_writer::write_spec(const spec& x) {
+    internal::write_spec_method_spec_interpreter interp(*this);
+    interp.interpret(x);
+    return *this;
+}
+
+taul::spec_writer& taul::spec_writer::write_spec(const spec_writer& x) {
+    TAUL_ASSERT(&x != this); // just easier to forbid this for now
+    return write_spec(x._temp);
+}
+
 taul::spec taul::spec_writer::done() {
     spec result{};
     std::swap(result, _temp);
@@ -137,6 +176,11 @@ std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
     case spec_opcode::close:
     {
         on_close();
+    }
+    break;
+    case spec_opcode::alternative:
+    {
+        on_alternative();
     }
     break;
     case spec_opcode::lpr_decl:
@@ -206,11 +250,6 @@ std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
     case spec_opcode::sequence:
     {
         on_sequence();
-    }
-    break;
-    case spec_opcode::set:
-    {
-        on_set();
     }
     break;
     case spec_opcode::lookahead:

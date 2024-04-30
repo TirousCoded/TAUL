@@ -2,18 +2,29 @@
 
 #include <gtest/gtest.h>
 
-#include <taul/all.h>
+#include <taul/disassemble_spec.h>
+#include <taul/compile.h>
 
 
-#include "helpers/test_spec_interpreter.h"
+using namespace taul::string_literals;
+
+
+// taul::compile will be tested by asserting the expected spec generated
+
+// originally I thought to test it by asserting the expected behaviour
+// of a grammar loaded by the generated spec, but I realized that doing
+// so would be in many ways equivalent to having to maintain two copies
+// of code testing taul::taul_spec, so I decided against it
+
+
+// like w/ our load tests, we'll just assert that the impl needs to raise
+// the expected error at least once, but is free to raise it multiple
+// times, and alongside whatever other errors it may choose to raise
 
 
 class CompileTests : public testing::Test {
 protected:
-
     std::shared_ptr<taul::logger> lgr = nullptr;
-
-    taul::node_ctx ctx;
     taul::spec_error_counter ec;
 
 
@@ -23,630 +34,464 @@ protected:
 };
 
 
-TEST_F(CompileTests, FailWithSourceCodeNotFoundSpecError_DueToSrcSharedPtrBeingNullptr) {
+TEST_F(CompileTests, SourceCodeNotFoundError_DueToSrcBeingNullptr) {
+    auto actual = taul::compile(nullptr, ec, lgr);
 
-    std::shared_ptr<taul::source_code> src = nullptr;
-
-    auto result = taul::compile(ctx, src, ec, lgr);
-
-
-    EXPECT_FALSE(result);
-
-    EXPECT_EQ(ec.count(taul::spec_error::source_code_not_found), 1);
+    EXPECT_GE(ec.count(taul::spec_error::source_code_not_found), 1);
+    EXPECT_FALSE(actual);
 }
 
-TEST_F(CompileTests, FailWithSourceCodeNotFoundSpecError_DueToSrcFileNotFound) {
+TEST_F(CompileTests, SourceCodeNotFoundError_DueToSrcFileNotFound) {
+    auto actual = taul::compile(std::filesystem::current_path() / "nonexistent-taul-script.taul", ec, lgr);
 
-    std::filesystem::path src_path = std::filesystem::current_path() / "does-not-exist.taul";
-
-    ASSERT_FALSE(std::filesystem::exists(src_path)) << "src_path file incorrectly exists!";
-
-    auto result = taul::compile(ctx, src_path, ec, lgr);
-
-
-    EXPECT_FALSE(result);
-
-    EXPECT_EQ(ec.count(taul::spec_error::source_code_not_found), 1);
+    EXPECT_GE(ec.count(taul::spec_error::source_code_not_found), 1);
+    EXPECT_FALSE(actual);
 }
 
-
-// these tests test that taul::compile produces the expected spec for a given input
-
-// originally I though we'd be best to test taul::compile by compiling a spec, then loading
-// a grammar w/ it, then testing that grammar's behaviour, to decouple our tests from the
-// *specific* spec generated
-
-// however, I've come to realize now that doing that would require us to essentially create
-// an entire parallel set of semantic tests for taul::compile, so that, alongside other
-// similar reasons, has convinced me to test it w/ the below instead
-
-TEST_F(CompileTests, TopLevel) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_1.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_1.taul not found!";
-
+TEST_F(CompileTests, SyntaxError) {
     auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_1.taul"));
+
+    auto actual = taul::compile(src, ec, lgr);
+
+    EXPECT_GE(ec.count(taul::spec_error::syntax_error), 1);
+    EXPECT_FALSE(actual);
+}
+
+TEST_F(CompileTests, IllegalMultipleQualifiers_forLPRs) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_2.taul"));
+
+    auto actual = taul::compile(src, ec, lgr);
+
+    EXPECT_GE(ec.count(taul::spec_error::illegal_multiple_qualifiers), 1);
+    EXPECT_FALSE(actual);
+}
+
+TEST_F(CompileTests, IllegalMultipleQualifiers_forPPRs) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_3.taul"));
+
+    auto actual = taul::compile(src, ec, lgr);
+
+    EXPECT_GE(ec.count(taul::spec_error::illegal_multiple_qualifiers), 1);
+    EXPECT_FALSE(actual);
+}
 
 
-    auto result = taul::compile(ctx, src, ec, lgr);
+TEST_F(CompileTests, ReturnedSpecIsImbuedWithSrc) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_1.taul"));
 
-    ASSERT_TRUE((bool)result);
-
-    EXPECT_TRUE(result->associated(src));
+    auto actual = taul::compile(src, ec, lgr);
 
     EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
 
+    EXPECT_TRUE(actual->associated(src));
+}
 
-    test_spec_interpreter tsi{};
+TEST_F(CompileTests, TopLevel) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_2.taul"));
 
-    std::string expected{};
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .lpr_decl("LPR1"_str)
+        .lpr_decl("LPR2"_str)
+        .ppr_decl("PPR0"_str)
+        .ppr_decl("PPR1"_str)
+        .ppr_decl("PPR2"_str)
+        .lpr("LPR0"_str)
+        .close()
+        .lpr("LPR1"_str, taul::skip)
+        .any()
+        .close()
+        .lpr("LPR2"_str, taul::support)
+        .any()
+        .any()
+        .alternative()
+        .any()
+        .alternative()
+        .alternative()
+        .close()
+        .ppr("PPR0"_str)
+        .close()
+        .ppr("PPR1"_str)
+        .any()
+        .close()
+        .ppr("PPR2"_str)
+        .any()
+        .any()
+        .alternative()
+        .any()
+        .alternative()
+        .alternative()
+        .close()
+        .done();
 
+    auto actual = taul::compile(src, ec, lgr);
 
-    tsi.interpret(*result);
+    EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
 
-    expected += "startup\n";
-    expected += "lpr-decl \"LPR0\"\n";
-    expected += "lpr-decl \"LPR1\"\n";
-    expected += "lpr-decl \"LPR2\"\n";
-    expected += "lpr-decl \"LPR3\"\n";
-    expected += "ppr-decl \"PPR0\"\n";
-    expected += "ppr-decl \"PPR1\"\n";
-    expected += "ppr-decl \"PPR2\"\n";
-    expected += "lpr-decl \"LPR4\"\n";
-    expected += "ppr-decl \"PPR3\"\n";
-    expected += "lpr \"LPR0\" none\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "lpr \"LPR1\" none\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "lpr \"LPR2\" skip\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "lpr \"LPR3\" support\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "ppr \"PPR0\" none\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "ppr \"PPR1\" skip\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "ppr \"PPR2\" support\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "lpr \"LPR4\" none\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "ppr \"PPR3\" none\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "shutdown\n";
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
+}
 
-    ASSERT_EQ(tsi.output, expected);
+TEST_F(CompileTests, TopLevel_Empty) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_3.taul"));
 
-    TAUL_LOG(lgr, "{}", tsi.output);
+    auto expected =
+        taul::spec_writer()
+        .done();
+
+    auto actual = taul::compile(src, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
+
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
+}
+
+TEST_F(CompileTests, TopLevel_ImplicitLexerSectionIfNoExplicitSectionIsDeclared) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_4.taul"));
+
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .lpr_decl("LPR1"_str)
+        .lpr_decl("LPR2"_str)
+        .lpr("LPR0"_str)
+        .close()
+        .lpr("LPR1"_str, taul::skip)
+        .any()
+        .close()
+        .lpr("LPR2"_str, taul::support)
+        .any()
+        .any()
+        .alternative()
+        .any()
+        .alternative()
+        .alternative()
+        .close()
+        .done();
+
+    auto actual = taul::compile(src, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
+
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
 }
 
 TEST_F(CompileTests, PrimaryExprs) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_2.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_2.taul not found!";
-
     auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_5.taul"));
 
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .lpr_decl("LPR1"_str)
+        .ppr_decl("PPR0"_str)
+        .ppr_decl("PPR1"_str)
+        .lpr("LPR0"_str)
+        .end()
+        .any()
+        .string("abc"_str)
+        .charset("0-9a-zA-Z_"_str)
+        .name("LPR1"_str)
+        .close()
+        .lpr("LPR1"_str)
+        .close()
+        .ppr("PPR0"_str)
+        .end()
+        .any()
+        .token()
+        .failure()
+        .name("LPR1"_str)
+        .name("PPR1"_str)
+        .close()
+        .ppr("PPR1"_str)
+        .close()
+        .done();
 
-    auto result = taul::compile(ctx, src, ec, lgr);
-
-    ASSERT_TRUE((bool)result);
-
-    EXPECT_TRUE(result->associated(src));
+    auto actual = taul::compile(src, ec, lgr);
 
     EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
 
+    TAUL_LOG(lgr, "expected:\n{}", taul::disassemble_spec(expected));
+    TAUL_LOG(lgr, "actual:\n{}", taul::disassemble_spec(actual.value()));
 
-    test_spec_interpreter tsi{};
-
-    std::string expected{};
-
-
-    tsi.interpret(*result);
-
-    expected += "startup\n";
-    expected += "lpr-decl \"LPR0\"\n";
-    expected += "ppr-decl \"PPR0\"\n";
-    expected += "lpr \"LPR0\" none\n";
-    expected += "sequence\n";
-    expected += "end\n";
-    expected += "any\n";
-    expected += "string \"abc\\n\\fdef\"\n";
-    expected += "charset \"-abc1-49-6A\\-Z-\"\n";
-    expected += "token\n";
-    expected += "failure\n";
-    expected += "name \"LPR0\"\n";
-    expected += "name \"PPR0\"\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "ppr \"PPR0\" none\n";
-    expected += "sequence\n";
-    expected += "end\n";
-    expected += "any\n";
-    expected += "string \"abc\\n\\fdef\"\n";
-    expected += "charset \"-abc1-49-6A\\-Z-\"\n";
-    expected += "token\n";
-    expected += "failure\n";
-    expected += "name \"LPR0\"\n";
-    expected += "name \"PPR0\"\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "shutdown\n";
-
-    ASSERT_EQ(tsi.output, expected);
-
-    TAUL_LOG(lgr, "{}", tsi.output);
-}
-
-TEST_F(CompileTests, GroupExprs) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_3.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_3.taul not found!";
-
-    auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
-
-
-    auto result = taul::compile(ctx, src, ec, lgr);
-
-    ASSERT_TRUE((bool)result);
-
-    EXPECT_TRUE(result->associated(src));
-
-    EXPECT_EQ(ec.total(), 0);
-
-
-    test_spec_interpreter tsi{};
-
-    std::string expected{};
-
-
-    tsi.interpret(*result);
-
-    expected += "startup\n";
-    expected += "lpr-decl \"LPR0\"\n";
-    expected += "ppr-decl \"PPR0\"\n";
-    expected += "lpr \"LPR0\" none\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "ppr \"PPR0\" none\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "shutdown\n";
-
-    ASSERT_EQ(tsi.output, expected);
-
-    TAUL_LOG(lgr, "{}", tsi.output);
-}
-
-TEST_F(CompileTests, LookAheadExprs) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_4.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_4.taul not found!";
-
-    auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
-
-
-    auto result = taul::compile(ctx, src, ec, lgr);
-
-    ASSERT_TRUE((bool)result);
-
-    EXPECT_TRUE(result->associated(src));
-
-    EXPECT_EQ(ec.total(), 0);
-
-
-    test_spec_interpreter tsi{};
-
-    std::string expected{};
-
-
-    tsi.interpret(*result);
-
-    expected += "startup\n";
-    expected += "lpr-decl \"LPR0\"\n";
-    expected += "ppr-decl \"PPR0\"\n";
-    expected += "lpr \"LPR0\" none\n";
-    expected += "lookahead\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "ppr \"PPR0\" none\n";
-    expected += "lookahead\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "shutdown\n";
-
-    ASSERT_EQ(tsi.output, expected);
-
-    TAUL_LOG(lgr, "{}", tsi.output);
-}
-
-TEST_F(CompileTests, LookAheadNotExprs) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_5.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_5.taul not found!";
-
-    auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
-
-
-    auto result = taul::compile(ctx, src, ec, lgr);
-
-    ASSERT_TRUE((bool)result);
-
-    EXPECT_TRUE(result->associated(src));
-
-    EXPECT_EQ(ec.total(), 0);
-
-
-    test_spec_interpreter tsi{};
-
-    std::string expected{};
-
-
-    tsi.interpret(*result);
-
-    expected += "startup\n";
-    expected += "lpr-decl \"LPR0\"\n";
-    expected += "ppr-decl \"PPR0\"\n";
-    expected += "lpr \"LPR0\" none\n";
-    expected += "lookahead-not\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "ppr \"PPR0\" none\n";
-    expected += "lookahead-not\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "shutdown\n";
-
-    ASSERT_EQ(tsi.output, expected);
-
-    TAUL_LOG(lgr, "{}", tsi.output);
-}
-
-TEST_F(CompileTests, NotExprs) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_6.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_6.taul not found!";
-
-    auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
-
-
-    auto result = taul::compile(ctx, src, ec, lgr);
-
-    ASSERT_TRUE((bool)result);
-
-    EXPECT_TRUE(result->associated(src));
-
-    EXPECT_EQ(ec.total(), 0);
-
-
-    test_spec_interpreter tsi{};
-
-    std::string expected{};
-
-
-    tsi.interpret(*result);
-
-    expected += "startup\n";
-    expected += "lpr-decl \"LPR0\"\n";
-    expected += "ppr-decl \"PPR0\"\n";
-    expected += "lpr \"LPR0\" none\n";
-    expected += "not\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "ppr \"PPR0\" none\n";
-    expected += "not\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "shutdown\n";
-
-    ASSERT_EQ(tsi.output, expected);
-
-    TAUL_LOG(lgr, "{}", tsi.output);
-}
-
-TEST_F(CompileTests, OptionalExprs) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_7.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_7.taul not found!";
-
-    auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
-
-
-    auto result = taul::compile(ctx, src, ec, lgr);
-
-    ASSERT_TRUE((bool)result);
-
-    EXPECT_TRUE(result->associated(src));
-
-    EXPECT_EQ(ec.total(), 0);
-
-
-    test_spec_interpreter tsi{};
-
-    std::string expected{};
-
-
-    tsi.interpret(*result);
-
-    expected += "startup\n";
-    expected += "lpr-decl \"LPR0\"\n";
-    expected += "ppr-decl \"PPR0\"\n";
-    expected += "lpr \"LPR0\" none\n";
-    expected += "optional\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "ppr \"PPR0\" none\n";
-    expected += "optional\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "shutdown\n";
-
-    ASSERT_EQ(tsi.output, expected);
-
-    TAUL_LOG(lgr, "{}", tsi.output);
-}
-
-TEST_F(CompileTests, KleeneStarExprs) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_8.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_8.taul not found!";
-
-    auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
-
-
-    auto result = taul::compile(ctx, src, ec, lgr);
-
-    ASSERT_TRUE((bool)result);
-
-    EXPECT_TRUE(result->associated(src));
-
-    EXPECT_EQ(ec.total(), 0);
-
-
-    test_spec_interpreter tsi{};
-
-    std::string expected{};
-
-
-    tsi.interpret(*result);
-
-    expected += "startup\n";
-    expected += "lpr-decl \"LPR0\"\n";
-    expected += "ppr-decl \"PPR0\"\n";
-    expected += "lpr \"LPR0\" none\n";
-    expected += "kleene-star\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "ppr \"PPR0\" none\n";
-    expected += "kleene-star\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "shutdown\n";
-
-    ASSERT_EQ(tsi.output, expected);
-
-    TAUL_LOG(lgr, "{}", tsi.output);
-}
-
-TEST_F(CompileTests, KleenePlusExprs) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_9.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_9.taul not found!";
-
-    auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
-
-
-    auto result = taul::compile(ctx, src, ec, lgr);
-
-    ASSERT_TRUE((bool)result);
-
-    EXPECT_TRUE(result->associated(src));
-
-    EXPECT_EQ(ec.total(), 0);
-
-
-    test_spec_interpreter tsi{};
-
-    std::string expected{};
-
-
-    tsi.interpret(*result);
-
-    expected += "startup\n";
-    expected += "lpr-decl \"LPR0\"\n";
-    expected += "ppr-decl \"PPR0\"\n";
-    expected += "lpr \"LPR0\" none\n";
-    expected += "kleene-plus\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "ppr \"PPR0\" none\n";
-    expected += "kleene-plus\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "shutdown\n";
-
-    ASSERT_EQ(tsi.output, expected);
-
-    TAUL_LOG(lgr, "{}", tsi.output);
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
 }
 
 TEST_F(CompileTests, SequenceExprs) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_10.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_10.taul not found!";
-
     auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_6.taul"));
 
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .ppr_decl("PPR0"_str)
+        .lpr("LPR0"_str)
+        .sequence()
+        .any()
+        .alternative()
+        .any()
+        .any()
+        .alternative()
+        .alternative()
+        .close()
+        .close()
+        .ppr("PPR0"_str)
+        .sequence()
+        .any()
+        .alternative()
+        .any()
+        .any()
+        .alternative()
+        .alternative()
+        .close()
+        .close()
+        .done();
 
-    auto result = taul::compile(ctx, src, ec, lgr);
-
-    ASSERT_TRUE((bool)result);
-
-    EXPECT_TRUE(result->associated(src));
+    auto actual = taul::compile(src, ec, lgr);
 
     EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
 
-
-    test_spec_interpreter tsi{};
-
-    std::string expected{};
-
-
-    tsi.interpret(*result);
-
-    expected += "startup\n";
-    expected += "lpr-decl \"LPR0\"\n";
-    expected += "ppr-decl \"PPR0\"\n";
-    expected += "lpr \"LPR0\" none\n";
-    expected += "sequence\n";
-    expected += "any\n";
-    expected += "sequence\n";
-    expected += "any\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "ppr \"PPR0\" none\n";
-    expected += "sequence\n";
-    expected += "any\n";
-    expected += "sequence\n";
-    expected += "any\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "shutdown\n";
-
-    ASSERT_EQ(tsi.output, expected);
-
-    TAUL_LOG(lgr, "{}", tsi.output);
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
 }
 
-TEST_F(CompileTests, SetExprs) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_11.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_11.taul not found!";
-
+TEST_F(CompileTests, LookAheadExprs) {
     auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_7.taul"));
 
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .ppr_decl("PPR0"_str)
+        .lpr("LPR0"_str)
+        .lookahead()
+        .any()
+        .close()
+        .close()
+        .ppr("PPR0"_str)
+        .lookahead()
+        .any()
+        .close()
+        .close()
+        .done();
 
-    auto result = taul::compile(ctx, src, ec, lgr);
-
-    ASSERT_TRUE((bool)result);
-
-    EXPECT_TRUE(result->associated(src));
+    auto actual = taul::compile(src, ec, lgr);
 
     EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
 
-
-    test_spec_interpreter tsi{};
-
-    std::string expected{};
-
-
-    tsi.interpret(*result);
-
-    expected += "startup\n";
-    expected += "lpr-decl \"LPR0\"\n";
-    expected += "ppr-decl \"PPR0\"\n";
-    expected += "lpr \"LPR0\" none\n";
-    expected += "set\n";
-    expected += "sequence\n";
-    expected += "any\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "any\n";
-    expected += "set\n";
-    expected += "sequence\n";
-    expected += "any\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "ppr \"PPR0\" none\n";
-    expected += "set\n";
-    expected += "sequence\n";
-    expected += "any\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "any\n";
-    expected += "set\n";
-    expected += "sequence\n";
-    expected += "any\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "any\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "close\n";
-    expected += "shutdown\n";
-
-    ASSERT_EQ(tsi.output, expected);
-
-    TAUL_LOG(lgr, "{}", tsi.output);
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
 }
 
-
-TEST_F(CompileTests, SyntaxError) {
-
-    std::filesystem::path src_path = std::filesystem::current_path() / "support\\compile_test_spec_err.taul";
-
-    ASSERT_TRUE(std::filesystem::exists(src_path)) << "file compile_test_spec_err.taul not found!";
-
+TEST_F(CompileTests, LookAheadNotExprs) {
     auto src = std::make_shared<taul::source_code>();
-    src->add_file(src_path, lgr);
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_8.taul"));
 
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .ppr_decl("PPR0"_str)
+        .lpr("LPR0"_str)
+        .lookahead_not()
+        .any()
+        .close()
+        .close()
+        .ppr("PPR0"_str)
+        .lookahead_not()
+        .any()
+        .close()
+        .close()
+        .done();
 
-    auto result = taul::compile(ctx, src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr);
 
-    ASSERT_FALSE((bool)result);
+    EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
 
-    EXPECT_TRUE(ec.count(taul::spec_error::syntax_error) >= 1);
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
+}
+
+TEST_F(CompileTests, NotExprs) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_9.taul"));
+
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .ppr_decl("PPR0"_str)
+        .lpr("LPR0"_str)
+        .not0()
+        .any()
+        .close()
+        .close()
+        .ppr("PPR0"_str)
+        .not0()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    auto actual = taul::compile(src, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
+
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
+}
+
+TEST_F(CompileTests, OptionalExprs) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_10.taul"));
+
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .ppr_decl("PPR0"_str)
+        .lpr("LPR0"_str)
+        .optional()
+        .any()
+        .close()
+        .close()
+        .ppr("PPR0"_str)
+        .optional()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    auto actual = taul::compile(src, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
+
+    TAUL_LOG(lgr, "expected:\n{}", taul::disassemble_spec(expected));
+    TAUL_LOG(lgr, "actual:\n{}", taul::disassemble_spec(actual.value()));
+
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
+}
+
+TEST_F(CompileTests, KleeneStarExprs) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_11.taul"));
+
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .ppr_decl("PPR0"_str)
+        .lpr("LPR0"_str)
+        .kleene_star()
+        .any()
+        .close()
+        .close()
+        .ppr("PPR0"_str)
+        .kleene_star()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    auto actual = taul::compile(src, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
+
+    TAUL_LOG(lgr, "expected:\n{}", taul::disassemble_spec(expected));
+    TAUL_LOG(lgr, "actual:\n{}", taul::disassemble_spec(actual.value()));
+
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
+}
+
+TEST_F(CompileTests, KleenePlusExprs) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_12.taul"));
+
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .ppr_decl("PPR0"_str)
+        .lpr("LPR0"_str)
+        .kleene_plus()
+        .any()
+        .close()
+        .close()
+        .ppr("PPR0"_str)
+        .kleene_plus()
+        .any()
+        .close()
+        .close()
+        .done();
+
+    auto actual = taul::compile(src, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
+
+    TAUL_LOG(lgr, "expected:\n{}", taul::disassemble_spec(expected));
+    TAUL_LOG(lgr, "actual:\n{}", taul::disassemble_spec(actual.value()));
+
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
+}
+
+TEST_F(CompileTests, NonTrivialExprPrecedence) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_13.taul"));
+
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .ppr_decl("PPR0"_str)
+        .lpr("LPR0"_str)
+        .kleene_plus()
+        .kleene_star()
+        .optional()
+        .lookahead()
+        .lookahead_not()
+        .not0()
+        .any()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .ppr("PPR0"_str)
+        .kleene_plus()
+        .kleene_star()
+        .optional()
+        .lookahead()
+        .lookahead_not()
+        .not0()
+        .any()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .done();
+
+    auto actual = taul::compile(src, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
+
+    TAUL_LOG(lgr, "expected:\n{}", taul::disassemble_spec(expected));
+    TAUL_LOG(lgr, "actual:\n{}", taul::disassemble_spec(actual.value()));
+
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
 }
 

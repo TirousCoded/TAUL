@@ -10,6 +10,7 @@ std::string taul::fmt_spec_opcode(spec_opcode x) {
     std::string result{};
     switch (x) {
     case spec_opcode::close:            result = "close";           break;
+    case spec_opcode::alternative:      result = "alternative";     break;
     case spec_opcode::lpr_decl:         result = "lpr-decl";        break;
     case spec_opcode::ppr_decl:         result = "ppr-decl";        break;
     case spec_opcode::lpr:              result = "lpr";             break;
@@ -22,7 +23,6 @@ std::string taul::fmt_spec_opcode(spec_opcode x) {
     case spec_opcode::failure:          result = "failure";         break;
     case spec_opcode::name:             result = "name";            break;
     case spec_opcode::sequence:         result = "sequence";        break;
-    case spec_opcode::set:              result = "set";             break;
     case spec_opcode::lookahead:        result = "lookahead";       break;
     case spec_opcode::lookahead_not:    result = "lookahead-not";   break;
     case spec_opcode::not0:             result = "not";             break;

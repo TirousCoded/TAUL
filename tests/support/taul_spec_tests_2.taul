@@ -1,0 +1,18 @@
+
+
+lexer section:
+
+    A : any ;
+    skip B : any ;
+    support C : any ;
+
+    skip support skip skip support D : any ; # semantically illegal
+
+parser section:
+
+    a : any ;
+
+    skip b : any ; # semantically illegal
+    support c : any ; # semantically illegal
+    skip support skip skip support d : any ; # semantically illegal
+

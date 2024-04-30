@@ -11,8 +11,12 @@ std::string taul::fmt_pos(source_pos pos) {
     return std::format("[pos {}]", pos);
 }
 
+std::string taul::fmt_pos_and_len(source_pos pos, source_len len) {
+    return std::format("[pos {}, len {}]", pos, len);
+}
+
 std::string taul::source_location::fmt() const {
-    return std::format("[ln {}, ch {}] \"{}\"", line, chr, origin);
+    return std::format("[ln {}, ch {}; \"{}\"]", line, chr, origin);
 }
 
 taul::source_code::source_code(source_code&& x) noexcept {
@@ -32,7 +36,7 @@ taul::source_code& taul::source_code::operator=(source_code&& rhs) noexcept {
     return *this;
 }
 
-std::string_view taul::source_code::str() const noexcept {
+taul::str taul::source_code::str() const noexcept {
     return _concat;
 }
 
@@ -75,24 +79,15 @@ std::optional<taul::source_location> taul::source_code::location_at(source_pos p
     return std::make_optional(std::move(loc));
 }
 
-void taul::source_code::add_str(std::string origin, const std::string& x) {
-    add_str(std::move(origin), std::string_view(x));
-}
-
-void taul::source_code::add_str(std::string origin, std::string_view x) {
+void taul::source_code::add_str(taul::str origin, taul::str x) {
     _addLineStarts(x);
     source_page _new_page{
         (source_pos)str().size(),
-        x.length(),
+        (source_len)x.length(),
         std::move(origin),
     };
     _pages.push_back(std::move(_new_page));
-    _concat.append(x);
-}
-
-void taul::source_code::add_str(std::string origin, const char* x) {
-    TAUL_ASSERT(x != nullptr);
-    add_str(std::move(origin), std::string_view(x));
+    _concat = _concat + x;
 }
 
 bool taul::source_code::add_file(
@@ -108,7 +103,7 @@ bool taul::source_code::add_file(
         std::string buff{};
         buff.resize(file_size, '\0'); // <- TODO: std::string can handle stray nulls, right?
         ifs.read(buff.data(), file_size);
-        add_str(src_path.string(), buff);
+        add_str(taul::str(src_path.string()), taul::str(buff));
         TAUL_LOG(lgr, "loaded source code page ({} char) from \"{}\"!", ifs.gcount(), src_path_s);
     }
     TAUL_LOG_IF(!ifs.is_open(), lgr, "failed source code page load due to \"{}\" not found!", src_path_s);
@@ -119,7 +114,7 @@ void taul::source_code::reset() noexcept {
     *this = std::move(source_code{});
 }
 
-void taul::source_code::_addLineStarts(std::string_view s) {
+void taul::source_code::_addLineStarts(taul::str s) {
     _pageLineStartOffsets.push_back(_lineStarts.size());
     source_pos offset = source_pos(str().length());
     for (const auto& I : s) {

@@ -3,13 +3,12 @@
 #pragma once
 
 
-#include <string>
-#include <string_view>
 #include <vector>
 #include <span>
 #include <filesystem>
 
 #include "logger.h"
+#include "str.h"
 
 
 namespace taul {
@@ -42,29 +41,32 @@ namespace taul {
 
     using source_pos = std::uint32_t;
 
+    // this type is is paired w/ source_pos and measures source code length
+
+    using source_len = source_pos;
+
 
     // this format function is used to get a formatted string of a source_pos, for
     // situations where full source_location information isn't otherwise available
 
     std::string fmt_pos(source_pos pos);
+    std::string fmt_pos_and_len(source_pos pos, source_len len);
 
 
     struct source_page final {
         source_pos      pos     = 0;
-        std::size_t     length  = 0;
-        std::string	    origin;
+        source_len      length  = 0;
+        str	            origin;         // a descriptor of the page's origin, such as a file path
     };
 
-
-    // note how source_location stores a std::string, so be mindful of its heap usage
 
     // I'm using std::string so that source_location can outlive its source_code object
 
     struct source_location final {
         source_pos      pos     = 0;
-        std::string	    origin;
-        std::size_t     chr     = 1;
-        std::size_t     line    = 1;
+        str	            origin;
+        size_t          chr     = 1;
+        size_t          line    = 1;
 
 
         std::string fmt() const;
@@ -105,9 +107,13 @@ namespace taul {
         source_code& operator=(source_code&& rhs) noexcept;
 
 
-        // this returns a view of the concatenated source code string
+        // this returns the concatenated source code string
 
-        std::string_view str() const noexcept;
+        str str() const noexcept;
+
+        // source code objects can implicit convert into their source code strings
+
+        inline operator taul::str() const noexcept { return str(); }
 
 
         bool pos_in_bounds(source_pos pos) const noexcept;
@@ -118,19 +124,15 @@ namespace taul {
 
         // this, if successful, returns the page index of the page pos is within
 
-        std::optional<std::size_t> page_at(source_pos pos) const noexcept;
+        std::optional<size_t> page_at(source_pos pos) const noexcept;
 
 
         std::optional<source_location> location_at(source_pos pos) const noexcept;
 
 
-        void add_str(std::string origin, const std::string& x);
-        void add_str(std::string origin, std::string_view x);
+        // these allocate a new taul::str, replacing the old one, if any
 
-        // behaviour is undefined if x == nullptr
-
-        void add_str(std::string origin, const char* x);
-
+        void add_str(taul::str origin, taul::str x);
 
         // returns if successful
 
@@ -144,17 +146,20 @@ namespace taul {
 
     private:
 
-        std::string _concat;
+        taul::str _concat;
         std::vector<source_page> _pages;
 
         // each _pages entry gets an entry in this, detailing where in _lineStarts
         // begins its lines
 
-        std::vector<std::size_t> _pageLineStartOffsets;
+        std::vector<size_t> _pageLineStartOffsets;
 
         // TODO: I'm sure there's a way to do this better, but we'll just
         //       record the positions of all the line starts, then linearly
         //       iterate across when resolving a position's line number
+
+        // TODO: we could seperate out and generalize our 'ID grouper' code,
+        //       and then we could impl below as a grouper + hash map
 
         // here 'line start' refers to the position AFTER the newline, which
         // we're considering to be the final character of the *previous* line
@@ -164,9 +169,9 @@ namespace taul {
 
         // this is to be called BEFORE doing anything else when adding a new page
 
-        void _addLineStarts(std::string_view s);
+        void _addLineStarts(taul::str s);
 
-        std::pair<std::size_t, std::size_t> resolveChrAndLine(std::size_t pageInd, source_pos pos) const noexcept;
+        std::pair<size_t, size_t> resolveChrAndLine(size_t pageInd, source_pos pos) const noexcept;
     };
 }
 

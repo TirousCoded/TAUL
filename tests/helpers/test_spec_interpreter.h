@@ -38,6 +38,10 @@ protected:
     inline void on_close() override final {
         output += "close\n";
     }
+    
+    inline void on_alternative() override final {
+        output += "alternative\n";
+    }
 
     inline void on_lpr_decl(std::string_view name) override final {
         output += std::format("lpr-decl \"{}\"\n", name);
@@ -85,10 +89,6 @@ protected:
 
     inline void on_sequence() override final {
         output += std::format("sequence\n");
-    }
-
-    inline void on_set() override final {
-        output += std::format("set\n");
     }
 
     inline void on_lookahead() override final {

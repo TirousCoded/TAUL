@@ -1,0 +1,14 @@
+
+
+lexer section:
+
+	LPR0			: ;
+	skip LPR1		: any ;
+	support LPR2	: any any | any | | ;
+
+parser section:
+
+	PPR0			: ;
+	PPR1			: any ;
+	PPR2			: any any | any | | ;
+

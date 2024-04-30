@@ -1,0 +1,6 @@
+
+
+	LPR0			: ;
+	skip LPR1		: any ;
+	support LPR2	: any any | any | | ;
+

@@ -1,0 +1,12 @@
+
+
+lexer section:
+
+    A	: any ; $ # <- '$' is syntax error
+    B	: any ;
+    C	: any ;
+
+parser section:
+
+    Abc : A B C ;
+

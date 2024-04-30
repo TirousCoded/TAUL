@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include <taul/all.h>
+#include <taul/logger.h>
 
 
 #include "helpers/test_spec_interpreter.h"
@@ -79,7 +79,11 @@ TEST(SpecTests, Core) {
 
     static_assert(taul::spec_opcodes == 20);
 
+    // note that, as I've added/changed stuff, the below has become more-and-more
+    // non-semantic, but again that doesn't matter here, so whatever
+
     const auto spec1 = sw
+        .alternative()
         .lpr_decl("test_none_qualifier")
         .lpr_decl("test_skip_qualifier")
         .lpr_decl("test_support_qualifier")
@@ -97,7 +101,7 @@ TEST(SpecTests, Core) {
         .string("abc")
         .charset("abc")
         .sequence()
-        .set()
+        .sequence()
         .any()
         .name("lpr0")
         .close()
@@ -128,7 +132,7 @@ TEST(SpecTests, Core) {
         .token()
         .failure()
         .sequence()
-        .set()
+        .sequence()
         .any()
         .name("lpr0")
         .name("ppr0")
@@ -188,6 +192,7 @@ TEST(SpecTests, Core) {
     tsi.interpret(spec1);
 
     expected = "startup\n";
+    expected += "alternative\n";
     expected += "lpr-decl \"test_none_qualifier\"\n";
     expected += "lpr-decl \"test_skip_qualifier\"\n";
     expected += "lpr-decl \"test_support_qualifier\"\n";
@@ -205,7 +210,7 @@ TEST(SpecTests, Core) {
     expected += "string \"abc\"\n";
     expected += "charset \"abc\"\n";
     expected += "sequence\n";
-    expected += "set\n";
+    expected += "sequence\n";
     expected += "any\n";
     expected += "name \"lpr0\"\n";
     expected += "close\n";
@@ -236,7 +241,7 @@ TEST(SpecTests, Core) {
     expected += "token\n";
     expected += "failure\n";
     expected += "sequence\n";
-    expected += "set\n";
+    expected += "sequence\n";
     expected += "any\n";
     expected += "name \"lpr0\"\n";
     expected += "name \"ppr0\"\n";

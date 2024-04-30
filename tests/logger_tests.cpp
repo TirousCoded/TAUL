@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include <taul/all.h>
+#include <taul/logger.h>
 
 
 class test_logger final : public taul::logger {

@@ -4,12 +4,24 @@
 
 
 #include <memory>
-#include <functional>
 #include <string>
 #include <string_view>
+#include <format>
+#include <functional>
+
+#include "asserts.h"
+#include "strings.h"
+#include "encoding.h"
 
 
 namespace taul {
+
+
+    namespace internal {
+
+
+        struct str_literal_ctor_tag final {};
+    }
 
 
     // this is an custom string type to be used within TAUL, w/ 
@@ -33,11 +45,14 @@ namespace taul {
     class basic_str;
 
 
-    using str   = basic_str<char>;
-    using wstr  = basic_str<wchar_t>;
-    using str8  = basic_str<char8_t>;
-    using str16 = basic_str<char16_t>;
-    using str32 = basic_str<char32_t>;
+    // remember that further down we define a ***_str custom string
+    // literal for defining taul::basic_str
+
+    using str       = basic_str<char>;
+    using wstr      = basic_str<wchar_t>;
+    using str8      = basic_str<char8_t>;
+    using str16     = basic_str<char16_t>;
+    using str32     = basic_str<char32_t>;
 
 
     template<typename Char>
@@ -53,6 +68,19 @@ namespace taul {
         using const_iterator            = iterator;
         using reverse_iterator          = std::basic_string_view<char_t>::const_reverse_iterator;
         using const_reverse_iterator    = reverse_iterator;
+
+
+        // this is used to allow custom string literals to define their string
+        // w/out alloc, and in a way that is length-based, rather than using
+        // a C-string, so our custom string literals can contain stray nulls
+
+        // I don't want the end-user to be able to do this w/ taul::str, as I
+        // feeling adding in unowned memory strings other than via literals
+        // to static memory would add unhelpful nuance to the considerations
+        // end-users must make when reasoning about taul::str
+
+        // internal, do not use
+        inline basic_str(internal::str_literal_ctor_tag, const char_t* x, std::size_t len);
 
 
         // this initializes an empty string, w/out alloc
@@ -158,7 +186,7 @@ namespace taul {
 
         inline this_t substr(
             std::size_t offset, 
-            std::size_t len = std::size_t(-1));
+            std::size_t len = std::size_t(-1)) const;
 
 
         inline iterator begin() const noexcept;
@@ -173,7 +201,7 @@ namespace taul {
 
 
         // these strings can be converted explicitly into 
-        // standard library strings
+        // standard library strings and string views
 
         inline explicit operator std::basic_string<char_t>() const;
 
@@ -203,9 +231,7 @@ namespace taul {
         static inline this_t concat(const this_t& a, const char_t* b);
 
 
-        // TODO: update this later to use proper UTF-8
-
-        inline std::string fmt() const;
+        inline std::string fmt(unicode_t err = default_err) const;
 
 
         inline std::size_t hash() const noexcept;
@@ -239,6 +265,7 @@ namespace taul {
         inline void _init_via_literal(const char_t* x);
         inline void _init_via_substr(const this_t& original, std::size_t offset, std::size_t len);
         inline void _init_via_concat(std::basic_string_view<char_t> a, std::basic_string_view<char_t> b);
+        inline void _init_via_custom_literal(const char_t* x, std::size_t len);
 
         inline void _precompute_hash() noexcept;
 
@@ -246,8 +273,6 @@ namespace taul {
         inline void _swap_fields(this_t& dest, this_t& src);
 
         inline std::basic_string_view<char_t> _get_string_view() const noexcept;
-
-        static inline std::size_t _measure(const char_t* x) noexcept;
     };
 
 
@@ -298,6 +323,14 @@ namespace taul {
         return taul::basic_str<Char>::concat(lhs, rhs);
     }
 
+
+    template<typename Char>
+    inline basic_str<Char>::basic_str(internal::str_literal_ctor_tag, const char_t* x, std::size_t len)
+        : basic_str(no_precompute_hash_tag{}) {
+        TAUL_ASSERT(x);
+        _init_via_custom_literal(x, len);
+        _precompute_hash();
+    }
 
     template<typename Char>
     inline basic_str<Char>::basic_str()
@@ -421,7 +454,7 @@ namespace taul {
     }
 
     template<typename Char>
-    inline basic_str<Char>::this_t basic_str<Char>::substr(std::size_t offset, std::size_t len) {
+    inline basic_str<Char>::this_t basic_str<Char>::substr(std::size_t offset, std::size_t len) const {
         return this_t(init_via_substr_tag{}, *this, offset, len);
     }
 
@@ -490,7 +523,7 @@ namespace taul {
     template<typename Char>
     inline bool basic_str<Char>::equal(const this_t& a, const char_t* b) noexcept {
         TAUL_ASSERT(b);
-        return equal(a, std::basic_string_view<char_t>(b, _measure(b)));
+        return equal(a, std::basic_string_view<char_t>(b, strlen(b)));
     }
 
     template<typename Char>
@@ -506,17 +539,58 @@ namespace taul {
     template<typename Char>
     inline basic_str<Char>::this_t basic_str<Char>::concat(const this_t& a, const char_t* b) {
         TAUL_ASSERT(b);
-        return concat(a, std::basic_string_view<char_t>(b, _measure(b)));
+        return concat(a, std::basic_string_view<char_t>(b, strlen(b)));
+    }
+
+    namespace internal {
+        // this ad hoc traits-like type is used by fmt to decide how formatted strings
+        // should be prepared, such that code for one char type doesn't have to be 
+        // compiled in situations where a differently sized char type is used
+
+        template<typename Char>
+        struct _fmt_helper {};
+
+        template<>
+        struct _fmt_helper<char> {
+            inline std::string operator()(std::string_view x, unicode_t) const {
+                return std::string(x);
+            }
+        };
+
+        template<>
+        struct _fmt_helper<char8_t> {
+            inline std::string operator()(std::u8string_view x, unicode_t) const {
+                std::string result(x.length(), ' ');
+                std::memcpy((void*)result.data(), (const void*)x.data(), x.length());
+                return result;
+            }
+        };
+
+        template<>
+        struct _fmt_helper<char16_t> {
+            inline std::string operator()(std::u16string_view x, unicode_t err) const {
+                return taul::convert_encoding<char>(encoding::utf16, encoding::utf8, x, err).value();
+            }
+        };
+
+        template<>
+        struct _fmt_helper<char32_t> {
+            inline std::string operator()(std::u32string_view x, unicode_t err) const {
+                return taul::convert_encoding<char>(encoding::utf32, encoding::utf8, x, err).value();
+            }
+        };
+
+        template<>
+        struct _fmt_helper<wchar_t> {
+            inline std::string operator()(std::wstring_view x, unicode_t err) const {
+                return taul::convert_encoding<char>(wchar_encoding(encoding::utf16), encoding::utf8, x, err).value();
+            }
+        };
     }
 
     template<typename Char>
-    inline std::string basic_str<Char>::fmt() const {
-        std::string result{};
-        result.reserve(length());
-        for (const char_t& I : *this) {
-            result += (char)I;
-        }
-        return result;
+    inline std::string basic_str<Char>::fmt(unicode_t err) const {
+        return internal::_fmt_helper<Char>{}(_get_string_view(), err);
     }
     
     template<typename Char>
@@ -587,7 +661,7 @@ namespace taul {
         _assert_default_init();
         _storage = nullptr;
         _start = x;
-        _length = _measure(x);
+        _length = strlen(x);
     }
 
     template<typename Char>
@@ -604,6 +678,15 @@ namespace taul {
         std::memcpy((void*)_start, (const void*)a.data(), a.length() * sizeof(char_t));
         // don't multiply a.length() by sizeof(char_t) below, since sizeof(_start) may be >1 bytes
         std::memcpy((void*)(_start + a.length()), (const void*)b.data(), b.length() * sizeof(char_t));
+    }
+
+    template<typename Char>
+    inline void basic_str<Char>::_init_via_custom_literal(const char_t* x, std::size_t len) {
+        TAUL_ASSERT(x);
+        _assert_default_init();
+        _storage = nullptr;
+        _start = x;
+        _length = len;
     }
 
     template<typename Char>
@@ -635,14 +718,21 @@ namespace taul {
             : std::basic_string_view<char_t>{};
     }
 
-    template<typename Char>
-    inline std::size_t basic_str<Char>::_measure(const char_t* x) noexcept {
-        TAUL_ASSERT(x);
-        std::size_t result = 0;
-        while (x[result] != '\0') {
-            result++;
-        }
-        return result;
+
+    namespace string_literals {
+
+
+        inline str operator""_str(const char* x, std::size_t len) { return str(internal::str_literal_ctor_tag{}, x, len); }
+        inline wstr operator""_str(const wchar_t* x, std::size_t len) { return wstr(internal::str_literal_ctor_tag{}, x, len); }
+        inline str8 operator""_str(const char8_t* x, std::size_t len) { return str8(internal::str_literal_ctor_tag{}, x, len); }
+        inline str16 operator""_str(const char16_t* x, std::size_t len) { return str16(internal::str_literal_ctor_tag{}, x, len); }
+        inline str32 operator""_str(const char32_t* x, std::size_t len) { return str32(internal::str_literal_ctor_tag{}, x, len); }
+    }
+
+    namespace literals {
+
+
+        using namespace taul::string_literals;
     }
 }
 

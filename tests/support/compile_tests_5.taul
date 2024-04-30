@@ -1,0 +1,12 @@
+
+
+lexer section:
+
+	LPR0 : end any 'abc' [0-9a-zA-Z_] LPR1 ;
+	LPR1 : ;
+
+parser section:
+
+	PPR0 : end any token failure LPR1 PPR1 ;
+	PPR1 : ;
+

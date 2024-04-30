@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include <taul/all.h>
+#include <taul/error_counter.h>
 
 
 enum class test_error : std::uint8_t {

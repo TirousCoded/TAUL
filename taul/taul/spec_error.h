@@ -17,25 +17,37 @@ namespace taul {
 
         // these errors arise during the creation of specs
 
+        // general errors
+
+        internal_error,                     // indicates that compilation failed due to internal compiler error
+
+        // pre-loading errors
+
         source_code_not_found,              // indicates that compilation could not begin due to source code being unavailable
         syntax_error,                       // indicates a syntax error during compilation
+        illegal_multiple_qualifiers,        // illegal for a rule to have multiple qualifiers
 
-        // these errors arise during the actual loading of specs
+        // loading errors
 
         scope_not_closed,                   // spec ends w/ still open composite expr scopes
         stray_close,                        // usage of close instruction w/ no associated scope to close
-        rule_name_conflict,                 // lpr/ppr name already taken
-        rule_never_declared,                // expected lpr/ppr but never declared
-        rule_never_defined,                 // lpr/ppr declared but never defined
-        rule_already_defined,               // attempted to define already defined lpr/ppr
-        rule_not_found,                     // name specified name of non-existent lpr/ppr
-        rule_may_not_be_ppr,                // name specified name of ppr, but only lpr may be specified
-        illegal_in_lpr_scope,               // illegal instruction use in lpr expr scope
-        illegal_in_ppr_scope,               // illegal instruction use in ppr expr scope
+        rule_name_conflict,                 // LPR/PPR name already taken
+        rule_never_declared,                // expected LPR/PPR but never declared
+        rule_never_defined,                 // LPR/PPR declared but never defined
+        rule_already_defined,               // attempted to define already defined LPR/PPR
+        rule_not_found,                     // name specified name of non-existent LPR/PPR
+        rule_may_not_be_ppr,                // name specified name of PPR, but only LPR may be specified
+        illegal_rule_declare,               // illegal declaration of an LPR/PPR after rule defining has already started
+        illegal_in_lpr_scope,               // illegal instruction use in LPR expr scope
+        illegal_in_ppr_scope,               // illegal instruction use in PPR expr scope
         illegal_in_no_scope,                // illegal instruction use outside expr scope
-        illegal_subexpr_count,              // illegal number of expr subexprs
         illegal_qualifier,                  // illegal LPR/PPR qualifier
-        illegal_in_single_terminal_scope,   // illegal subexpr in single-terminal scope
+        illegal_in_single_terminal_scope,   // illegal instruction use in single-terminal scope
+        illegal_in_no_alternation_scope,    // illegal instruction use in no-alternation scope
+        illegal_in_single_subexpr_scope,    // illegal instruction use in single-subexpr scope
+        illegal_in_no_end_subexpr_scope,    // illegal instruction use in no-end-subexpr scope
+        illegal_ambiguity,                  // illegal grammar ambiguity
+
         num,                                // this is not a valid spec error
     };
 

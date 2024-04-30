@@ -295,68 +295,7 @@ bool taul::in_charset_str(char x, std::string_view charset) noexcept {
     return internal::where_in_charset_str(x, charset) < charset.length();
 }
 
-std::string taul::optimize_charset_str(std::string_view x) {
-    TAUL_ASSERT(x.length() % 2 == 0);
-    //TAUL_LOG(make_stderr_logger(), "x == {} (length == {})", (std::string)x, x.length());
-    // using these to ensure we don't get potential strangeness below regarding
-    // *merging* when we're at ASCII codepoint boundaries
-    //constexpr char first_ascii = (char)0;
-    constexpr char last_ascii = (char)127;
-    std::string result{};
-    result.reserve(x.length());
-    for (std::size_t i = 0; i < x.length(); i += 2) {
-        // this is the currently under consideration char range from x
-        auto& current_low = x[i];
-        auto& current_high = x[i + 1];
-        // if nothing in result, append current
-        if (result.empty()) {
-            result += current_low;
-            result += current_high;
-        }
-        // if not nothing in result, seek to merge into 'target' below
-        else{
-            for (std::size_t j = 0; j < result.length(); j += 2) {
-                // if possible, we'd like to *merge* into target's range instead of appending result
-                auto& target_low = result[j];
-                auto& target_high = result[j + 1];
-                // merge if either end of current is in target
-                if (
-                    internal::in_char_range(current_low, target_low, target_high) ||
-                    internal::in_char_range(current_high, target_low, target_high)) {
-                    target_low = std::min(current_low, target_low);
-                    target_high = std::max(current_high, target_high);
-                }
-                // merge if either target of current is in current
-                else if (
-                    internal::in_char_range(target_low, current_low, current_high) ||
-                    internal::in_char_range(target_high, current_low, current_high)) {
-                    target_low = std::min(target_low, current_low);
-                    target_high = std::max(target_high, current_high);
-                }
-                // merge if current starts immediately after target
-                else if (target_high < last_ascii && current_low == target_high + 1) {
-                    target_high = current_high;
-                }
-                // merge if target starts immediately after current
-                else if (current_high < last_ascii && target_low == current_high + 1) {
-                    target_low = current_low;
-                }
-                // if all else fails, append result
-                else {
-                    result += current_low;
-                    result += current_high;
-                }
-            }
-        }
-    }
-    return result;
-}
-
 bool taul::internal::in_char_range(char x, char low, char high) noexcept {
-    //if (!(low <= high)) {
-    //    TAUL_LOG(make_stderr_logger(), "low  == {}", low);
-    //    TAUL_LOG(make_stderr_logger(), "high == {}", high);
-    //}
     TAUL_ASSERT(low <= high);
     return x >= low && x <= high;
 }
@@ -370,3 +309,4 @@ std::size_t taul::internal::where_in_charset_str(char x, std::string_view charse
     }
     return charset.length();
 }
+

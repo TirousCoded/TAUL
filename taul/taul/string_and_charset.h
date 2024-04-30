@@ -22,6 +22,11 @@ namespace taul {
     // w/ the impl being expected to use this API in the spec loader
 
 
+    // this system is part of the TAUL frontend, w/ things like charset strings
+    // being used to then generate backend structures which actually get incorporated
+    // into the behaviour of grammars
+
+
     // -- CHARS & ESCAPE SEQUENCES --
 
 
@@ -95,7 +100,7 @@ namespace taul {
     // not [first, last))
 
     // for example, 'aabbcc' is equiv to the TAUL charset [abc], w/ 'ac' 
-    // likewise equiv to [a-c], and 'ac1xz' being equiv to [a-c1x-z]
+    // likewise equiv to [a-c], and 'ac11xz' being equiv to [a-c1x-z]
 
     // chars in these charset strings may be invisible chars like \r or \f,
     // or they may be spaces, other visible ASCII, etc. w/ these strings
@@ -150,19 +155,15 @@ namespace taul {
     std::string fmt_taul_charset(std::string_view x);
 
 
-    // in_charset_str returns if a char x is in charset string charset
+
+    // notice that, while not *really* needed, in_charset_str is needed for unit tests
+
+
+    // in_charset_str returns if x exists in charset
 
     // behaviour is undefined if charset is not a valid charset string
 
     bool in_charset_str(char x, std::string_view charset) noexcept;
-
-
-    // optimize_charset_str takes a charset string x and returns a version of 
-    // it w/ char ranges which can be merged having been merged
-
-    // behaviour is undefined if x is not a valid charset string
-
-    std::string optimize_charset_str(std::string_view x);
 
 
     namespace internal {

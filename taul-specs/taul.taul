@@ -12,33 +12,31 @@ lexer section:
 
     # keywords
 
-    KW_LEXER                        : 'lexer' -[0-9a-zA-Z_] ;
-    KW_PARSER                       : 'parser' -[0-9a-zA-Z_] ;
-    KW_SECTION                      : 'section' -[0-9a-zA-Z_] ;
+    support END_OF_KW               : -[0-9a-zA-Z_]
+                                    | end ;
 
-    KW_SKIP                         : 'skip' -[0-9a-zA-Z_] ;
-    KW_SUPPORT                      : 'support' -[0-9a-zA-Z_] ;
-    
-    KW_BEGIN                        : 'begin' -[0-9a-zA-Z_] ;
-    KW_END                          : 'end' -[0-9a-zA-Z_] ;
-    KW_ANY                          : 'any' -[0-9a-zA-Z_] ;
-    KW_TOKEN                        : 'token' -[0-9a-zA-Z_] ;
-    KW_FAILURE                      : 'failure' -[0-9a-zA-Z_] ;
+    KW_LEXER                        : 'lexer' END_OF_KW ;
+    KW_PARSER                       : 'parser' END_OF_KW ;
+    KW_SECTION                      : 'section' END_OF_KW ;
+    KW_SKIP                         : 'skip' END_OF_KW ;
+    KW_SUPPORT                      : 'support' END_OF_KW ;
+    KW_END                          : 'end' END_OF_KW ;
+    KW_ANY                          : 'any' END_OF_KW ;
+    KW_TOKEN                        : 'token' END_OF_KW ;
+    KW_FAILURE                      : 'failure' END_OF_KW ;
     
     # operators
 
     OP_PERIOD                       : '.' ;
-    OP_COMMA                        : ',' ;
     OP_COLON                        : ':' ;
     OP_SEMICOLON                    : ';' ;
     OP_VBAR                         : '|' ;
     OP_QUESTION                     : '?' ;
     OP_ASTERISK                     : '*' ;
     OP_PLUS                         : '+' ;
-    OP_TILDE                        : '~' ;
     OP_AMPERSAND                    : '&' ;
     OP_MINUS                        : '-' ;
-
+    OP_TILDE                        : '~' ;
     OP_L_ROUND                      : '(' ;
     OP_R_ROUND                      : ')' ;
 
@@ -48,113 +46,109 @@ lexer section:
     #
     #       https://en.wikipedia.org/wiki/ASCII
     
-    # TODO: we're gonna steal ANTLR semantics for charsets, likely replacing our ranges too
-    # TODO: the &x is the 'lookahead' expr, which asserts the next char is in the 
-    #       charset x w/out advancing
-    # TODO: the -x is the 'lookahead-not' expr, which asserts that there must either be
-    #       no next char, or that the next char is NOT in the charset x, all done w/out advancing
-    # TODO: the ~x is the 'not' expr, which takes a char or charset subexpr, and matches
-    #       a single char which is NOT in said set
+    # TODO: we're gonna steal ANTLR semantics for charsets
 
     IDENTIFIER                      : [a-zA-Z_] [0-9a-zA-Z_]* ;
 
-    !#
-        TAUL ESCAPE SEQUENCES
-
-        \0              <- Null
-        \a				<- Bell (Alert)
-        \b				<- Backspace
-        \f				<- Form Feed
-        \n				<- New Line
-        \r				<- Carriage Return
-        \t				<- Horizontal Tab
-        \v				<- Vertical Tab
-        \'				<- Single Quotation			<- TAUL doesn't need '\"' escape sequence
-        \]				<- Right Square Bracket		<- for charsets
-        \-				<- Minus					<- for ranges in charsets
-        \\				<- Backslash
-        \xhh			<- Hex Literal (8-bit)		<- TODO: add 16-bit and 32-bit version when we add encodings
-
-        escaped characters which do not form any of the above are *literalized*,
-        meaning the opening '\' is simply removed
-
-        TAUL doesn't need, and so doesn't support, octal literal escape sequences
-
-        TAUL hex literal escape sequences are *case-insensitive*
-
-        TAUL hex literals which are malformed are interpreted as literalized 'x' chars
-    #!
+    # TAUL ESCAPE SEQUENCES
+    # 
+    # \0                <- Null
+    # \a				<- Bell (Alert)
+    # \b				<- Backspace
+    # \f				<- Form Feed
+    # \n				<- New Line
+    # \r				<- Carriage Return
+    # \t				<- Horizontal Tab
+    # \v				<- Vertical Tab
+    # \'				<- Single Quotation			<- TAUL doesn't need '\"' escape sequence
+    # \]				<- Right Square Bracket		<- for charsets
+    # \-				<- Minus					<- for ranges in charsets
+    # \\				<- Backslash
+    # \xhh			    <- Hex Literal (8-bit)		<- TODO: add 16-bit and 32-bit versions
+    # 
+    # escaped characters which do not form any of the above are *literalized*,
+    # meaning the opening '\' is simply removed
+    # 
+    # TAUL doesn't need, and so doesn't support, octal literal escape sequences
+    # 
+    # TAUL hex literal escape sequences are *case-insensitive*
+    # 
+    # TAUL hex literals which are malformed are interpreted as literalized 'x' chars
 
     # TODO: maybe make it so that TAUL strings/charsets remove non-visible chars
     #       from string/charset literals (escaped control chars are fine, the problem
     #       arises from the source code containing improperly placed control chars)
 
-    STRING                          : '\'' ( '\\' any | ~'\'' )* '\'' ;
+    # while semantically illegal, syntactically the closing '\'' is optional so
+    # that the compiler can detect malformed literals
 
-    !#
-        TAUL will support ANTLR-style ranges in charsets, w/ escaping the '-' within
-        forms like [a-b] being required to interpret the '-' as part of the charset's
-        character set
+    STRING                          : '\'' ( '\\' any | ~[\'\\] )* '\''? ;
 
-        like ANTLR, an exception is made for charsets like [-abc-], where the '-'
-        characters are at the vary start or vary end of the charset, in which case
-        they are interpreted as part of the character set of the charset, w/out need
-        of escaping them
+    # TAUL will support ANTLR-style ranges in charsets, w/ escaping the '-' within
+    # forms like [a-b] being required to interpret the '-' as part of the charset's
+    # character set
+    # 
+    # like ANTLR, an exception is made for charsets like [-abc-], where the '-'
+    # characters are at the vary start or vary end of the charset, in which case
+    # they are interpreted as part of the character set of the charset, w/out need
+    # of escaping them
+    # 
+    # another little nuance is that in forms where an unescaped '-' is used to form
+    # a char range, but the right char of the char range is an unescaped '-', and
+    # one not at the vary start/end of the charset, such as in [aA--b], in these
+    # cases the right unescaped '-' is allowed to be used to specify the high codepoint
+    # of the range, w/out escaping
+    # 
+    # TODO: wouldn't the two rules above mean that the right char in the char range
+    #       is *in general* exempt from needing to be escaped?
+    # 
+    # '-' chars which are described explicitly in the form '\x2d' or '\x2D' do not
+    # form char ranges
+    # 
+    # TAUL char ranges within charsets will treat escaped chars, in general, as
+    # being equivalent to regular chars regarding forming char ranges (eg. [ab\]-\-cd])
+    # 
+    # TAUL char ranges within charsets will treat forms like [z-a], in which the
+    # higher codepoint character appears first, as equivalent to char ranges where
+    # they are flipped around (eg. [z-a] -> [a-z])
 
-        another little nuance is that in forms where an unescaped '-' is used to form
-        a char range, but the right char of the char range is an unescaped '-', and
-        one not at the vary start/end of the charset, such as in [aA--b], in these
-        cases the right unescaped '-' is allowed to be used to specify the high codepoint
-        of the range, w/out escaping
+    # TODO: do our frontend's tests cover case of charset w/ multiple of same char?
+    #       and if not, should we make it ambiguous, or auto-resolved for end-user?
+    
+    # while semantically illegal, syntactically the closing ']' is optional so
+    # that the compiler can detect malformed literals
 
-        TODO: wouldn't the two rules above mean that the right char in the char range
-              is *in general* exempt from needing to be escaped?
+    CHARSET                         : '[' ( '\\' any | ~[\]\\] )* ']'? ;
 
-        '-' chars which are described explicitly in the form '\x2d' or '\x2D' do not
-        form char ranges
-
-        TAUL char ranges within charsets will treat escaped chars, in general, as
-        being equivalent to regular chars regarding forming char ranges (eg. [ab\]-\-cd])
-
-        TAUL char ranges within charsets will treat forms like [z-a], in which the
-        higher codepoint character appears first, as equivalent to char ranges where
-        they are flipped around (eg. [z-a] -> [a-z])
-    #!
-
-    CHARSET                         : '[' ( '\\' any | ~']' )* ']' ;
-
-    skip WHITESPACE                 : [ \t] ;
+    skip WHITESPACE                 : [ \t]+ ;
     skip NEWLINE                    : '\n' | '\r' '\n'? ;
 
-    skip SL_COMMENT                 : '#' ~[\r\n]* ;
-    skip ML_COMMENT                 : '!#' ( ~'#' | '#' -'!' )* '#!'? ;
+    skip COMMENT                    : '#' ~[\r\n]* ;
 
 parser section:
 
-    Spec                            : Clause* ( end | Spec_SyntaxError ) ;
+    Spec                            : Clause* end ;
 
-    # TODO: replace later w/ proper error handling/recovery
-
-    Spec_SyntaxError                : any ;
+    Clause                          : LexerSection
+                                    | ParserSection
+                                    | Rule ;
     
-    Clause                          : Clause_LexerSection
-                                    | Clause_ParserSection
-                                    | Clause_Rule ;
-    Clause_LexerSection             : KW_LEXER KW_SECTION OP_COLON ;
-    Clause_ParserSection            : KW_PARSER KW_SECTION OP_COLON ;
-    Clause_Rule                     : Clause_Rule_Qualifier? Clause_Rule_Name OP_COLON Clause_Rule_Expr OP_SEMICOLON ;
-    Clause_Rule_Qualifier           : Qualifier ;
-    Clause_Rule_Name                : IDENTIFIER ;
-    Clause_Rule_Expr                : Expr ;
+    LexerSection                    : KW_LEXER KW_SECTION OP_COLON ;
+    ParserSection                   : KW_PARSER KW_SECTION OP_COLON ;
 
+    Rule                            : Rule_Qualifiers Rule_Name OP_COLON Rule_Alts OP_SEMICOLON ;
+    Rule_Qualifiers                 : Qualifiers ;
+    Rule_Name                       : IDENTIFIER ;
+    Rule_Alts                       : Alts ;
+
+    Qualifiers                      : Qualifier* ;
     Qualifier                       : Qualifier_Skip
                                     | Qualifier_Support ;
     Qualifier_Skip                  : KW_SKIP ;
     Qualifier_Support               : KW_SUPPORT ;
     
     # expr precedence (ordered highest to lowest)
-    #       (primary)
-    #       - begin
+    #       (base)
     #       - end
     #       - any
     #       - token
@@ -162,129 +156,64 @@ parser section:
     #       - string
     #       - charset
     #       - name
-    #       (non-primary)
-    #       - group             <- the expr "( abc )", where 'abc' is the nested expr
+    #       - sequence          <- the expr '( abc )', where 'abc' is the nested expr
     #       - lookahead         <- &x
     #       - lookahead-not     <- -x
     #       - not               <- ~x
+    #       (suffix)
     #       - optional          <- x?
     #       - kleene-star       <- x*
     #       - kleene-plus       <- x+
-    #       - sequence          <- a sequence "a b c", w/ enclosing "(...)" not being mandatory
-    #       - set               <- an *alternatives* set "a | b | c", which can contain nested sequences
 
-    # below, the '_Expr' suffixed helper PPRs are used to replace 'Expr' in order to 
-    # address the whole *left-recursion* thing
+    # for this grammar we can seperate our exprs into 'base' and 'suffix',
+    # to deal w/ left-recursion related issues, w/ 'suffix' exprs having
+    # lower precedence than 'base' exprs
 
-    # enumerating exprs must go from lowest -> highest precedence
+    # not 100% sure how we'd generalize this to the grammar of a more 
+    # complex language, but this'll work for TAUL
 
-    Expr                            : Expr_Set
-                                    | Expr_Sequence
-                                    | Expr_KleenePlus
-                                    | Expr_KleeneStar
-                                    | Expr_Optional
-                                    | Expr_Not
-                                    | Expr_LookAheadNot
-                                    | Expr_LookAhead
-                                    | Expr_Group
-                                    | Expr_Primary ;
+    Expr                            : Base Suffix* ;
+    Expr_NoSuffix                   : Base ;
 
-    Expr_Primary                    : Expr_Begin
-                                    | Expr_End
-                                    | Expr_Any
-                                    | Expr_Token
-                                    | Expr_Failure
-                                    | Expr_String
-                                    | Expr_Charset
-                                    | Expr_Name ;
+    Base                            : Primary
+                                    | Sequence
+                                    | LookAhead
+                                    | LookAheadNot
+                                    | Not ;
+    Suffix                          : Optional_Suffix
+                                    | KleeneStar_Suffix
+                                    | KleenePlus_Suffix ;
 
-    Expr_Begin                      : KW_BEGIN ;
-    Expr_End                        : KW_END ;
-    Expr_Any                        : KW_ANY ;
-    Expr_Token                      : KW_TOKEN ;
-    Expr_Failure                    : KW_FAILURE ;
-    Expr_String                     : STRING ;
-    Expr_Charset                    : CHARSET ;
-    Expr_Name                       : IDENTIFIER ;
+    Primary                         : End
+                                    | Any
+                                    | Token
+                                    | Failure
+                                    | String
+                                    | Charset
+                                    | Name ;
 
-    # group exprs are just here to help contain a single nested subexpr
-    # syntactically (importantly, the implicit sequence/set exprs), and
-    # so have no corresponding spec expr, as instead this single nested
-    # subexpr can just be used directly
+    End                             : KW_END ;
+    Any                             : KW_ANY ;
+    Token                           : KW_TOKEN ;
+    Failure                         : KW_FAILURE ;
+    String                          : STRING ;
+    Charset                         : CHARSET ;
+    Name                            : IDENTIFIER ;
 
-    Expr_Group                      : OP_L_ROUND Expr OP_R_ROUND ;
+    Sequence                        : OP_L_ROUND Sequence_Alts OP_R_ROUND ;
+    Sequence_Alts                   : Alts ;
 
-    Expr_LookAhead                  : OP_AMPERSAND Expr ;
-    Expr_LookAheadNot               : OP_MINUS Expr ;
-    Expr_Not                        : OP_TILDE Expr ;
+    LookAhead                       : OP_AMPERSAND Expr_NoSuffix ;
+    LookAheadNot                    : OP_MINUS Expr_NoSuffix ;
+    Not                             : OP_TILDE Expr_NoSuffix ;
 
-    Expr_Optional                   : Expr_Optional_Expr OP_QUESTION ;
-    
-    # enumerating exprs must go from lowest -> highest precedence
+    Optional_Suffix                 : OP_QUESTION ;
+    KleeneStar_Suffix               : OP_ASTERISK ;
+    KleenePlus_Suffix               : OP_PLUS ;
 
-    Expr_Optional_Expr              : Expr_Not
-                                    | Expr_LookAheadNot
-                                    | Expr_LookAhead
-                                    | Expr_Group
-                                    | Expr_Primary ;
+    # this handles alternation in sequence exprs and toplevel of rule
 
-    Expr_KleeneStar                 : Expr_KleeneStar_Expr OP_ASTERISK ;
-    
-    # enumerating exprs must go from lowest -> highest precedence
-
-    Expr_KleeneStar_Expr            : Expr_Optional
-                                    | Expr_Not
-                                    | Expr_LookAheadNot
-                                    | Expr_LookAhead
-                                    | Expr_Group
-                                    | Expr_Primary ;
-
-    Expr_KleenePlus                 : Expr_KleenePlus_Expr OP_PLUS ;
-    
-    # enumerating exprs must go from lowest -> highest precedence
-
-    Expr_KleenePlus_Expr            : Expr_KleeneStar
-                                    | Expr_Optional
-                                    | Expr_Not
-                                    | Expr_LookAheadNot
-                                    | Expr_LookAhead
-                                    | Expr_Group
-                                    | Expr_Primary ;
-
-    # for sequences and sets below, we'll only consider them syntactically
-    # present if they have at least two nested subexprs, as w/ only one neither
-    # of them are actually needed, so in those cases we'll just not match them
-
-    # implicit sequence exprs shouldn't contain any immediately nested implicit
-    # sequence exprs, so we'll use Expr_Sequence_Expr over-and-over, rather
-    # than using Expr
-
-    Expr_Sequence                   : Expr_Sequence_Expr Expr_Sequence_Expr+ ;
-    
-    # enumerating exprs must go from lowest -> highest precedence
-
-    Expr_Sequence_Expr              : Expr_KleenePlus
-                                    | Expr_KleeneStar
-                                    | Expr_Optional
-                                    | Expr_Not
-                                    | Expr_LookAheadNot
-                                    | Expr_LookAhead
-                                    | Expr_Group
-                                    | Expr_Primary ;
-
-    # below use of Expr_Set_Expr over-and-over is for same reason as above
-
-    Expr_Set                        : Expr_Set_Expr ( OP_VBAR Expr_Set_Expr )+ ;
-    
-    # enumerating exprs must go from lowest -> highest precedence
-
-    Expr_Set_Expr                   : Expr_Sequence
-                                    | Expr_KleenePlus
-                                    | Expr_KleeneStar
-                                    | Expr_Optional
-                                    | Expr_Not
-                                    | Expr_LookAheadNot
-                                    | Expr_LookAhead
-                                    | Expr_Group
-                                    | Expr_Primary ;
+    Alts                            : Alt ( Alt_Divider Alt )* ;
+    Alt_Divider                     : OP_VBAR ;
+    Alt                             : Expr* ;
 

@@ -2,7 +2,8 @@
 
 #include <gtest/gtest.h>
 
-#include <taul/all.h>
+#include <taul/logger.h>
+#include <taul/string_and_charset.h>
 
 
 TEST(StringAndCharsetTests, ParseTAULChar) {
@@ -373,39 +374,5 @@ TEST(StringAndCharsetTests, FmtTAULCharset) {
     // test w/ all our main escape seqs + ensure works w/ stray nulls
     const char* txt = "\0\0\a\a\b\b\f\f\n\n\r\r\t\t\v\v'']]--\\\\";
     EXPECT_EQ(taul::fmt_taul_charset(std::string_view(txt, 24)), "\\0\\a\\b\\f\\n\\r\\t\\v'\\]\\-\\\\");
-}
-
-TEST(StringAndCharsetTests, InCharsetStr) {
-    const auto lgr = taul::make_stderr_logger();
-    std::string s = "afAF26xzjj\n\r";
-    // this broke when I did 'c <= (char)127', so ya...
-    for (char c = (char)0; c < (char)127; c++) {
-        TAUL_LOG(lgr, "testing (c == {})", (std::size_t)c);
-        EXPECT_EQ(
-            char_is_expected(c, "abcdefABCDEF23456xyzj\n\v\f\r"),
-            taul::in_charset_str(c, s));
-    }
-    // ensure works w/ stray nulls
-    const char* txt = "\0\x04";
-    const char* txt_expected = "\0\x01\x02\x03\x04";
-    for (char c = (char)0; c < (char)127; c++) {
-        TAUL_LOG(lgr, "testing (c == {})", (std::size_t)c);
-        EXPECT_EQ(
-            char_is_expected(c, std::string_view(txt_expected, 5)),
-            taul::in_charset_str(c, std::string_view(txt, 2)));
-    }
-}
-
-// this test depends upon taul::in_charset_str working as expected
-
-TEST(StringAndCharsetTests, OptimizeCharsetStr) {
-    // also, ensure works w/ stray nulls
-    const char* txt_input = "\000\00022aa!!13bf";
-    const char* txt_expected = "\000123abcdef!";
-    std::string original(txt_input, 12);
-    ASSERT_TRUE(charset_has_only_expected(original, std::string_view(txt_expected, 11)));
-    std::string optimized = taul::optimize_charset_str(original);
-    EXPECT_LE(original.length(), optimized.length());
-    ASSERT_TRUE(charset_has_only_expected(optimized, std::string_view(txt_expected, 11)));
 }
 

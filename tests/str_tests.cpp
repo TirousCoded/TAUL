@@ -1,8 +1,9 @@
-
+﻿
 
 #include <gtest/gtest.h>
 
-#include <taul/all.h>
+#include <taul/logger.h>
+#include <taul/str.h>
 
 
 class StrTests : public testing::Test {
@@ -887,6 +888,18 @@ TEST_F(StrTests, ConcatWithCString) {
     EXPECT_EQ(aa2, taul::str::lit("def"));
     EXPECT_EQ(bb2, taul::str::lit("defabc"));
     EXPECT_EQ(cc2, taul::str("defd\0f", 6));
+}
+
+TEST_F(StrTests, Fmt) {
+    using namespace taul::string_literals;
+    // we're just testing some basic usage, w/ us presuming that if these
+    // basics work that the rest of encoding stuff can be presumed also
+    
+    EXPECT_EQ("abc123"_str.fmt(), "abc123");
+    EXPECT_EQ(u8"abc123Δ魂💩"_str.fmt(), taul::convert_encoding<char>(taul::utf32, taul::utf8, U"abc123Δ魂💩"));
+    EXPECT_EQ(u"abc123Δ魂💩"_str.fmt(), taul::convert_encoding<char>(taul::utf32, taul::utf8, U"abc123Δ魂💩"));
+    EXPECT_EQ(U"abc123Δ魂💩"_str.fmt(), taul::convert_encoding<char>(taul::utf32, taul::utf8, U"abc123Δ魂💩"));
+    EXPECT_EQ(L"abc123Δ魂💩"_str.fmt(), taul::convert_encoding<char>(taul::utf32, taul::utf8, U"abc123Δ魂💩"));
 }
 
 TEST_F(StrTests, Hash) {

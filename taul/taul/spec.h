@@ -8,6 +8,7 @@
 #include <span>
 #include <optional>
 
+#include "str.h"
 #include "source_code.h"
 #include "polarity.h"
 #include "qualifier.h"
@@ -48,38 +49,49 @@ namespace taul {
     };
 
 
+    // IMPORTANT: the below use std::string_view rather than taul::str as in this case the
+    //            former is better to use to avoid heap usage
+
+
     class spec_writer final {
     public:
 
-        // writer's need not be copied, nor moved, just used and thrown away
+        // make everything public to auto-gen copy/move ctor/assign
 
-        spec_writer() = default;
-        spec_writer(const spec_writer&) = delete;
-        spec_writer(spec_writer&&) noexcept = delete;
-
-        ~spec_writer() noexcept = default;
-
-        spec_writer& operator=(const spec_writer&) = delete;
-        spec_writer& operator=(spec_writer&&) noexcept = delete;
+        spec _temp = spec{}; // internal, do not use
 
 
         static_assert(spec_opcodes == 20);
 
+        // TODO: the taul::str overloads have not been unit tested
+
+        // the taul::str overloads below are to ensure that taul::str objects
+        // passed in live for the entire duration of the call, as converting
+        // a short-lived taul::str into std::string_view could result in a
+        // dangling pointer
+
         spec_writer& close();
+        spec_writer& alternative();
         spec_writer& lpr_decl(std::string_view name);
+        spec_writer& lpr_decl(const taul::str& name);
         spec_writer& ppr_decl(std::string_view name);
+        spec_writer& ppr_decl(const taul::str& name);
         spec_writer& lpr(std::string_view name, qualifier qualifier = qualifier::none);
+        spec_writer& lpr(const taul::str& name, qualifier qualifier = qualifier::none);
         spec_writer& ppr(std::string_view name, qualifier qualifier = qualifier::none);
+        spec_writer& ppr(const taul::str& name, qualifier qualifier = qualifier::none);
 
         spec_writer& end();
         spec_writer& any();
         spec_writer& string(std::string_view s);
+        spec_writer& string(const taul::str& s);
         spec_writer& charset(std::string_view s);
+        spec_writer& charset(const taul::str& s);
         spec_writer& token();
         spec_writer& failure();
         spec_writer& name(std::string_view name);
+        spec_writer& name(const taul::str& name);
         spec_writer& sequence();
-        spec_writer& set();
         spec_writer& lookahead();
         spec_writer& lookahead_not();
         spec_writer& not0();
@@ -87,16 +99,20 @@ namespace taul {
         spec_writer& kleene_star();
         spec_writer& kleene_plus();
 
+        // write_spec write the entirety of x to the spec being written
+
+        // write_spec behaviour is undefined if &x == this
+
+        // TODO: write_spec hasn't been unit tested
+
+        spec_writer& write_spec(const spec& x);
+        spec_writer& write_spec(const spec_writer& x);
+
 
         // finishes writing, returning the finished spec, resetting
         // the writer's state thereafter
 
         spec done();
-
-
-    private:
-
-        spec _temp;
     };
 
 
@@ -127,6 +143,7 @@ namespace taul {
         static_assert(spec_opcodes == 20);
 
         virtual void on_close() {}
+        virtual void on_alternative() {}
         virtual void on_lpr_decl(std::string_view name) {}
         virtual void on_ppr_decl(std::string_view name) {}
         virtual void on_lpr(std::string_view name, qualifier qualifier) {}
@@ -140,7 +157,6 @@ namespace taul {
         virtual void on_failure() {}
         virtual void on_name(std::string_view name) {}
         virtual void on_sequence() {}
-        virtual void on_set() {}
         virtual void on_lookahead() {}
         virtual void on_lookahead_not() {}
         virtual void on_not() {}
@@ -173,6 +189,43 @@ namespace taul {
         taul::spec_opcode spec_read_opcode(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         taul::qualifier spec_read_qualifier(const spec& s, std::size_t offset, std::size_t& len) noexcept;
         std::string_view spec_read_str(const spec& s, std::size_t offset, std::size_t& len) noexcept;
+
+
+        class write_spec_method_spec_interpreter final : public spec_interpreter {
+        public:
+
+            spec_writer* client;
+
+
+            write_spec_method_spec_interpreter(spec_writer& client) 
+                : client(&client) {}
+
+
+        protected:
+
+            static_assert(spec_opcodes == 20);
+
+            void on_close() override final { TAUL_DEREF_SAFE(client) client->close(); }
+            void on_alternative() override final { TAUL_DEREF_SAFE(client) client->alternative(); }
+            void on_lpr_decl(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->lpr_decl(name); }
+            void on_ppr_decl(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->ppr_decl(name); }
+            void on_lpr(std::string_view name, qualifier qualifier) override final { TAUL_DEREF_SAFE(client) client->lpr(name, qualifier); }
+            void on_ppr(std::string_view name, qualifier qualifier) override final { TAUL_DEREF_SAFE(client) client->ppr(name, qualifier); }
+            void on_end() override final { TAUL_DEREF_SAFE(client) client->end(); }
+            void on_any() override final { TAUL_DEREF_SAFE(client) client->any(); }
+            void on_string(std::string_view s) override final { TAUL_DEREF_SAFE(client) client->string(s); }
+            void on_charset(std::string_view s) override final { TAUL_DEREF_SAFE(client) client->charset(s); }
+            void on_token() override final { TAUL_DEREF_SAFE(client) client->token(); }
+            void on_failure() override final { TAUL_DEREF_SAFE(client) client->failure(); }
+            void on_name(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->name(name); }
+            void on_sequence() override final { TAUL_DEREF_SAFE(client) client->sequence(); }
+            void on_lookahead() override final { TAUL_DEREF_SAFE(client) client->lookahead(); }
+            void on_lookahead_not() override final { TAUL_DEREF_SAFE(client) client->lookahead_not(); }
+            void on_not() override final { TAUL_DEREF_SAFE(client) client->not0(); }
+            void on_optional() override final { TAUL_DEREF_SAFE(client) client->optional(); }
+            void on_kleene_star() override final { TAUL_DEREF_SAFE(client) client->kleene_star(); }
+            void on_kleene_plus() override final { TAUL_DEREF_SAFE(client) client->kleene_plus(); }
+        };
     }
 }
 
