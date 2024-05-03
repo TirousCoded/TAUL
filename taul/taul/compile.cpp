@@ -15,21 +15,20 @@
 using namespace taul::string_literals;
 
 
-std::optional<taul::spec> taul::compile(const std::shared_ptr<source_code>& src, spec_error_counter& ec, const std::shared_ptr<logger>& lgr) {
+std::optional<taul::spec> taul::compile(const std::shared_ptr<source_code>& src, spec_error_counter& ec, const std::shared_ptr<logger>& lgr, bool dbgsyms) {
     if (!src) {
-        internal::raise_spec_error(
-            &ec,
-            spec_error::source_code_not_found,
-            lgr,
+        taul::internal::raise_error(
+            lgr, &ec, nullptr, 0,
+            taul::spec_error::source_code_not_found,
             "passed src argument was nullptr!");
         return std::nullopt;
     }
-    auto gram = load(taul_spec());
+    auto gram = taul::load(taul::taul_spec());
     TAUL_ASSERT(gram);
-    internal::compiler_backend backend(*src, ec, lgr);
-    string_reader rdr(*src);
-    lexer lxr(gram.value());
-    parser psr(gram.value());
+    taul::internal::compiler_backend backend(*src, ec, lgr, dbgsyms);
+    taul::string_reader rdr(*src);
+    taul::lexer lxr(gram.value());
+    taul::parser psr(gram.value());
     lxr.bind_source(&rdr);
     psr.bind_source(&lxr);
     psr.bind_listener(&backend);
@@ -39,38 +38,37 @@ std::optional<taul::spec> taul::compile(const std::shared_ptr<source_code>& src,
     return backend.result;
 }
 
-std::optional<taul::spec> taul::compile(const std::shared_ptr<source_code>& src, const std::shared_ptr<logger>& lgr) {
+std::optional<taul::spec> taul::compile(const std::shared_ptr<source_code>& src, const std::shared_ptr<logger>& lgr, bool dbgsyms) {
     spec_error_counter ec{};
-    return compile(src, ec, lgr);
+    return compile(src, ec, lgr, dbgsyms);
 }
 
-std::optional<taul::spec> taul::compile(const str& src, spec_error_counter& ec, const std::shared_ptr<logger>& lgr) {
-    auto src0 = std::make_shared<source_code>();
+std::optional<taul::spec> taul::compile(const str& src, spec_error_counter& ec, const std::shared_ptr<logger>& lgr, bool dbgsyms) {
+    auto src0 = std::make_shared<taul::source_code>();
     src0->add_str("<src>"_str, src);
-    return compile(src0, ec, lgr);
+    return compile(src0, ec, lgr, dbgsyms);
 }
 
-std::optional<taul::spec> taul::compile(const str& src, const std::shared_ptr<logger>& lgr) {
+std::optional<taul::spec> taul::compile(const str& src, const std::shared_ptr<logger>& lgr, bool dbgsyms) {
     spec_error_counter ec{};
-    return compile(src, ec, lgr);
+    return compile(src, ec, lgr, dbgsyms);
 }
 
-std::optional<taul::spec> taul::compile(const std::filesystem::path& src_path, spec_error_counter& ec, const std::shared_ptr<logger>& lgr) {
-    auto src0 = std::make_shared<source_code>();
+std::optional<taul::spec> taul::compile(const std::filesystem::path& src_path, spec_error_counter& ec, const std::shared_ptr<logger>& lgr, bool dbgsyms) {
+    auto src0 = std::make_shared<taul::source_code>();
     if (!src0->add_file(src_path)) {
-        internal::raise_spec_error(
-            &ec,
-            spec_error::source_code_not_found,
-            lgr,
+        taul::internal::raise_error(
+            lgr, &ec, nullptr, 0,
+            taul::spec_error::source_code_not_found,
             "failed to load source file at \"{}\"!",
             src_path.string());
         return std::nullopt;
     }
-    return compile(src0, ec, lgr);
+    return compile(src0, ec, lgr, dbgsyms);
 }
 
-std::optional<taul::spec> taul::compile(const std::filesystem::path& src_path, const std::shared_ptr<logger>& lgr) {
+std::optional<taul::spec> taul::compile(const std::filesystem::path& src_path, const std::shared_ptr<logger>& lgr, bool dbgsyms) {
     spec_error_counter ec{};
-    return compile(src_path, ec, lgr);
+    return compile(src_path, ec, lgr, dbgsyms);
 }
 

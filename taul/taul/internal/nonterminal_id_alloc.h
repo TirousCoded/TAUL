@@ -53,7 +53,7 @@ namespace taul::internal {
     template<typename Symbol>
     struct nonterminal_id_allocs_debug final {
         struct dbgsym final {
-            size_t inst = 0;
+            source_pos pos = 0;
             str name;
         };
 
@@ -100,8 +100,8 @@ namespace taul::internal {
             TAUL_ASSERT(symbol_traits<Symbol>::legal_nonterminal_id(output.first_helper_id));
         }
 
-        inline symbol_id define(size_t inst, str name) {
-            output_debug.dbgsyms[next_id] = { inst, name }; // define ID alloc
+        inline symbol_id define(source_pos pos, str name) {
+            output_debug.dbgsyms[next_id] = { pos, name }; // define ID alloc
             next_id = next_id + 1; // incr ID counter
             return next_id - 1; // return prev value
         }

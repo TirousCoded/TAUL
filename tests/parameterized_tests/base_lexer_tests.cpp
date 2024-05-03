@@ -563,7 +563,7 @@ TEST_P(BaseLexerTests, ZeroLengthTokenPolicy_IfZeroLengthTokenIsSkip) {
 // these tests are for expected TAUL semantics
 
 
-static_assert(taul::spec_opcodes == 20);
+static_assert(taul::spec_opcodes == 21);
 
 
 // for composite exprs, these tests will largely assume that so long

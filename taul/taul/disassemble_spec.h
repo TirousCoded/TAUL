@@ -32,8 +32,9 @@ namespace taul::internal {
         void on_startup() override final;
         void on_shutdown() override final;
 
-        static_assert(spec_opcodes == 20);
+        static_assert(spec_opcodes == 21);
 
+        void on_pos(source_pos new_pos) override final;
         void on_close() override final;
         void on_alternative() override final;
         void on_lpr_decl(std::string_view name) override final;

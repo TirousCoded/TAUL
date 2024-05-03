@@ -23,7 +23,7 @@ namespace taul::internal {
     class rule_pt_translator final {
     public:
 
-        size_t* instruction_ptr;
+        source_pos* pos_ptr;
 
 
         // this indicates if the loader detected that the spec is invalid, and so that
@@ -187,8 +187,8 @@ namespace taul::internal {
         size_t sequence_counter = 0;
 
 
-        inline rule_pt_translator(size_t& instruction) 
-            : instruction_ptr(&instruction) {}
+        inline rule_pt_translator(source_pos& pos) 
+            : pos_ptr(&pos) {}
 
 
         inline void cancel() noexcept { cancelled = true; }
@@ -252,8 +252,9 @@ namespace taul::internal {
         void on_startup();
         void on_shutdown();
 
-        static_assert(spec_opcodes == 20);
+        static_assert(spec_opcodes == 21);
 
+        void on_pos(source_pos);
         void on_close();
         void on_alternative();
         void on_lpr_decl(std::string_view name);

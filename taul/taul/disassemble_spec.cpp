@@ -30,6 +30,10 @@ void taul::internal::disassemble_spec_interpreter::on_shutdown() {
     result = std::format("spec disassembly ({} insts)", instruction) + result;
 }
 
+void taul::internal::disassemble_spec_interpreter::on_pos(source_pos new_pos) {
+    result += std::format("\n[{}] {} ({})", instruction, spec_opcode::pos, new_pos);
+}
+
 void taul::internal::disassemble_spec_interpreter::on_close() {
     result += std::format("\n[{}] {}", instruction, spec_opcode::close);
     instruction++;

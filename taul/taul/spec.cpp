@@ -5,6 +5,12 @@
 #include "asserts.h"
 
 
+taul::spec_writer& taul::spec_writer::pos(source_pos new_pos) {
+    internal::spec_write_opcode(_temp, spec_opcode::pos);
+    internal::spec_write_u32(_temp, new_pos);
+    return *this;
+}
+
 taul::spec_writer& taul::spec_writer::close() {
     internal::spec_write_opcode(_temp, spec_opcode::close);
     return *this;
@@ -169,10 +175,18 @@ void taul::spec_interpreter::interpret(const spec& x) {
 }
 
 std::size_t taul::spec_interpreter::_step(const spec& s, std::size_t offset) {
-    static_assert(spec_opcodes == 20);
+    static_assert(spec_opcodes == 21);
+    // len gets passed into internal::spec_read_*** functions and gets added-to
+    // each time to record the total number of bytes traversed
     std::size_t len = 0;
     const auto opcode = internal::spec_read_opcode(s, offset, len);
     switch (opcode) {
+    case spec_opcode::pos:
+    {
+        const auto new_pos = internal::spec_read_u32(s, offset + len, len);
+        on_pos(new_pos);
+    }
+    break;
     case spec_opcode::close:
     {
         on_close();

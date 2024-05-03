@@ -24,10 +24,16 @@ namespace taul {
         void bind_source(std::shared_ptr<token_stream> source) override final;
         void bind_listener(listener* listener) override final;
         void bind_listener(std::shared_ptr<listener> listener) override final;
+        void bind_error_handler(error_handler* error_handler) override final;
+        void bind_error_handler(std::shared_ptr<error_handler> error_handler) override final;
         parse_tree parse(ppr_ref start_rule) override final;
         parse_tree parse(const str& name) override final;
         void parse_notree(ppr_ref start_rule) override final;
         void parse_notree(const str& name) override final;
+        token eh_peek() override final;
+        token eh_next() override final;
+        bool eh_done() override final;
+        bool eh_check() override final;
         void reset() override final;
 
 

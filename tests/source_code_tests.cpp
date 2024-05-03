@@ -642,7 +642,7 @@ TEST(source_code_tests, add_file_success) {
     if (sc.pages().size() == 2) {
         EXPECT_EQ(sc.pages()[0].pos, 0);
         EXPECT_EQ(sc.pages()[0].length, 25);
-        EXPECT_EQ(sc.pages()[0].origin, taul::str(fp.string()));
+        EXPECT_EQ(sc.pages()[0].origin, taul::str(std::filesystem::proximate(fp, std::filesystem::current_path()).string()));
         EXPECT_EQ(sc.pages()[1].pos, 25);
         EXPECT_EQ(sc.pages()[1].length, 1);
         EXPECT_EQ(sc.pages()[1].origin, "aa"_str);
@@ -658,7 +658,7 @@ TEST(source_code_tests, add_file_success) {
     if (sc.location_at(0)) {
         const taul::source_location loc = *sc.location_at(0);
         EXPECT_EQ(loc.pos, 0);
-        EXPECT_EQ(loc.origin, taul::str(fp.string()));
+        EXPECT_EQ(loc.origin, taul::str(std::filesystem::proximate(fp, std::filesystem::current_path()).string()));
         EXPECT_EQ(loc.chr, 1);
         EXPECT_EQ(loc.line, 1);
     }
@@ -666,7 +666,7 @@ TEST(source_code_tests, add_file_success) {
     if (sc.location_at(24)) {
         const taul::source_location loc = *sc.location_at(24);
         EXPECT_EQ(loc.pos, 24);
-        EXPECT_EQ(loc.origin, taul::str(fp.string()));
+        EXPECT_EQ(loc.origin, taul::str(std::filesystem::proximate(fp, std::filesystem::current_path()).string()));
         EXPECT_EQ(loc.chr, 25);
         EXPECT_EQ(loc.line, 1);
     }

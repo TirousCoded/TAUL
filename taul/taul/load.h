@@ -28,66 +28,38 @@ namespace taul {
     // these wrap usage of taul::compile
 
     // these have not been unit tested
-    /*
-    std::optional<grammar> load(
-        node_ctx& ctx,
-        const std::shared_ptr<source_code>& src,
-        spec_error_counter& ec,
-        const std::shared_ptr<logger>& lgr = nullptr);
-
-    std::optional<grammar> load(
-        node_ctx& ctx,
-        const std::shared_ptr<source_code>& src,
-        const std::shared_ptr<logger>& lgr = nullptr);
-
+    
     std::optional<grammar> load(
         const std::shared_ptr<source_code>& src,
         spec_error_counter& ec,
-        const std::shared_ptr<logger>& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
 
     std::optional<grammar> load(
         const std::shared_ptr<source_code>& src,
-        const std::shared_ptr<logger>& lgr = nullptr);
-
-    std::optional<grammar> load(
-        node_ctx& ctx,
-        const std::string& src,
-        spec_error_counter& ec,
-        const std::shared_ptr<logger>& lgr = nullptr);
-
-    std::optional<grammar> load(
-        node_ctx& ctx,
-        const std::string& src,
-        const std::shared_ptr<logger>& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
 
     std::optional<grammar> load(
         const std::string& src,
         spec_error_counter& ec,
-        const std::shared_ptr<logger>& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
 
     std::optional<grammar> load(
         const std::string& src,
-        const std::shared_ptr<logger>& lgr = nullptr);
-
-    std::optional<grammar> load(
-        node_ctx& ctx,
-        const std::filesystem::path& src_path,
-        spec_error_counter& ec,
-        const std::shared_ptr<logger>& lgr = nullptr);
-
-    std::optional<grammar> load(
-        node_ctx& ctx,
-        const std::filesystem::path& src_path,
-        const std::shared_ptr<logger>& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
 
     std::optional<grammar> load(
         const std::filesystem::path& src_path,
         spec_error_counter& ec,
-        const std::shared_ptr<logger>& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
 
     std::optional<grammar> load(
         const std::filesystem::path& src_path,
-        const std::shared_ptr<logger>& lgr = nullptr);
-    */
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
 }
 

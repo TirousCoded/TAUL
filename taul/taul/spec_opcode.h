@@ -91,6 +91,20 @@ namespace taul {
         //      - not
 
 
+        // TODO: pos functionality has not really been unit tested, as I'm not
+        //       really sure how I'm to go about unit testing it
+
+        // pos updates the current source code position
+
+        // when loading a spec, the loader will maintain a current source code
+        // position which instructions will be deemed to be *located at* in the
+        // original source code the spec was syntax compiled from
+
+        // by default, this pos is 0, and does not change except when explicitly
+        // told to do so via a pos instruction
+
+        pos,            // not an expr
+
         // close indicates end of composite expr
 
         close,          // not an expr

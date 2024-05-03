@@ -27,6 +27,7 @@ namespace taul {
     // the ec parameters are used for reporting pre-loading errors,
     // such as syntax errors
 
+
     // only this first taul::compile function will be unit tested, 
     // w/ all other overloads being expected to be straight-forward 
     // usages of this first one, w/ some extra behaviour which can be
@@ -36,31 +37,41 @@ namespace taul {
     // unit tested, but only w/ regards to their raising of a spec
     // error if their specified file could not be found
 
-    std::optional<spec> compile(
-        const std::shared_ptr<source_code>& src,
-        spec_error_counter& ec,
-        const std::shared_ptr<logger>& lgr = nullptr);
+    // the behaviour of debug symbol 'pos' instruction generation has
+    // not been unit tested, and is disabled in our unit tests
+
 
     std::optional<spec> compile(
         const std::shared_ptr<source_code>& src,
-        const std::shared_ptr<logger>& lgr = nullptr);
+        spec_error_counter& ec,
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
+
+    std::optional<spec> compile(
+        const std::shared_ptr<source_code>& src,
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
 
     std::optional<spec> compile(
         const str& src,
         spec_error_counter& ec,
-        const std::shared_ptr<logger>& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
 
     std::optional<spec> compile(
         const str& src,
-        const std::shared_ptr<logger>& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
 
     std::optional<spec> compile(
         const std::filesystem::path& src_path,
         spec_error_counter& ec,
-        const std::shared_ptr<logger>& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
 
     std::optional<spec> compile(
         const std::filesystem::path& src_path,
-        const std::shared_ptr<logger>& lgr = nullptr);
+        const std::shared_ptr<logger>& lgr = nullptr,
+        bool dbgsyms = true);
 }
 

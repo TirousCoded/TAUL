@@ -33,8 +33,12 @@ protected:
         output += "shutdown\n";
     }
 
-    static_assert(taul::spec_opcodes == 20);
+    static_assert(taul::spec_opcodes == 21);
 
+    inline void on_pos(taul::source_pos new_pos) override final {
+        output += std::format("pos {}\n", new_pos);
+    }
+    
     inline void on_close() override final {
         output += "close\n";
     }

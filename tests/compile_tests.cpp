@@ -35,14 +35,14 @@ protected:
 
 
 TEST_F(CompileTests, SourceCodeNotFoundError_DueToSrcBeingNullptr) {
-    auto actual = taul::compile(nullptr, ec, lgr);
+    auto actual = taul::compile(nullptr, ec, lgr, false);
 
     EXPECT_GE(ec.count(taul::spec_error::source_code_not_found), 1);
     EXPECT_FALSE(actual);
 }
 
 TEST_F(CompileTests, SourceCodeNotFoundError_DueToSrcFileNotFound) {
-    auto actual = taul::compile(std::filesystem::current_path() / "nonexistent-taul-script.taul", ec, lgr);
+    auto actual = taul::compile(std::filesystem::current_path() / "nonexistent-taul-script.taul", ec, lgr, false);
 
     EXPECT_GE(ec.count(taul::spec_error::source_code_not_found), 1);
     EXPECT_FALSE(actual);
@@ -52,7 +52,7 @@ TEST_F(CompileTests, SyntaxError) {
     auto src = std::make_shared<taul::source_code>();
     ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_1.taul"));
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_GE(ec.count(taul::spec_error::syntax_error), 1);
     EXPECT_FALSE(actual);
@@ -62,7 +62,7 @@ TEST_F(CompileTests, IllegalMultipleQualifiers_forLPRs) {
     auto src = std::make_shared<taul::source_code>();
     ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_2.taul"));
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_GE(ec.count(taul::spec_error::illegal_multiple_qualifiers), 1);
     EXPECT_FALSE(actual);
@@ -72,7 +72,7 @@ TEST_F(CompileTests, IllegalMultipleQualifiers_forPPRs) {
     auto src = std::make_shared<taul::source_code>();
     ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_3.taul"));
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_GE(ec.count(taul::spec_error::illegal_multiple_qualifiers), 1);
     EXPECT_FALSE(actual);
@@ -83,7 +83,7 @@ TEST_F(CompileTests, ReturnedSpecIsImbuedWithSrc) {
     auto src = std::make_shared<taul::source_code>();
     ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_1.taul"));
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -131,7 +131,7 @@ TEST_F(CompileTests, TopLevel) {
         .close()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -147,7 +147,7 @@ TEST_F(CompileTests, TopLevel_Empty) {
         taul::spec_writer()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -179,7 +179,7 @@ TEST_F(CompileTests, TopLevel_ImplicitLexerSectionIfNoExplicitSectionIsDeclared)
         .close()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -218,7 +218,7 @@ TEST_F(CompileTests, PrimaryExprs) {
         .close()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -259,7 +259,7 @@ TEST_F(CompileTests, SequenceExprs) {
         .close()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -287,7 +287,7 @@ TEST_F(CompileTests, LookAheadExprs) {
         .close()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -315,7 +315,7 @@ TEST_F(CompileTests, LookAheadNotExprs) {
         .close()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -343,7 +343,7 @@ TEST_F(CompileTests, NotExprs) {
         .close()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -371,7 +371,7 @@ TEST_F(CompileTests, OptionalExprs) {
         .close()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -402,7 +402,7 @@ TEST_F(CompileTests, KleeneStarExprs) {
         .close()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -433,7 +433,7 @@ TEST_F(CompileTests, KleenePlusExprs) {
         .close()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);
@@ -484,7 +484,7 @@ TEST_F(CompileTests, NonTrivialExprPrecedence) {
         .close()
         .done();
 
-    auto actual = taul::compile(src, ec, lgr);
+    auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_EQ(ec.total(), 0);
     ASSERT_TRUE(actual);

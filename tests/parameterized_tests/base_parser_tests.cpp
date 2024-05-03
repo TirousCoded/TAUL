@@ -574,7 +574,7 @@ TEST_P(BaseParserTests, ParseNoTree_AllowMultipleRoundsOfParsingUsingSameStreamO
 // these tests are for expected TAUL semantics
 
 
-static_assert(taul::spec_opcodes == 20);
+static_assert(taul::spec_opcodes == 21);
 
 
 // for composite exprs, these tests will largely assume that so long

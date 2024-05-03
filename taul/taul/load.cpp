@@ -4,7 +4,7 @@
 
 #include "asserts.h"
 #include "string_and_charset.h"
-//#include "compile.h"
+#include "compile.h"
 
 #include "internal/spec_load_interpreter.h"
 
@@ -20,41 +20,17 @@ std::optional<taul::grammar> taul::load(
     const taul::spec& s, 
     taul::spec_error_counter& ec, 
     const std::shared_ptr<logger>& lgr) {
-    internal::spec_load_interpreter interp{};
-    interp.ec = &ec;
-    interp.lgr = lgr;
+    internal::spec_load_interpreter interp(s.src, ec, lgr);
     interp.interpret(s);
     return interp.get_result();
 }
 
-/*std::optional<taul::grammar> taul::load(
-    node_ctx& ctx, 
-    const std::shared_ptr<source_code>& src, 
-    spec_error_counter& ec, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(ctx, src, ec, lgr);
-    return 
-        compiled 
-        ? load(*compiled, ec, lgr) 
-        : std::nullopt;
-}
-
-std::optional<taul::grammar> taul::load(
-    node_ctx& ctx, 
-    const std::shared_ptr<source_code>& src, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(ctx, src, lgr);
-    return
-        compiled
-        ? load(*compiled, lgr)
-        : std::nullopt;
-}
-
 std::optional<taul::grammar> taul::load(
     const std::shared_ptr<source_code>& src, 
     spec_error_counter& ec, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(src, ec, lgr);
+    const std::shared_ptr<logger>& lgr,
+    bool dbgsyms) {
+    const auto compiled = compile(src, ec, lgr, dbgsyms);
     return
         compiled
         ? load(*compiled, ec, lgr)
@@ -63,31 +39,9 @@ std::optional<taul::grammar> taul::load(
 
 std::optional<taul::grammar> taul::load(
     const std::shared_ptr<source_code>& src, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(src, lgr);
-    return
-        compiled
-        ? load(*compiled, lgr)
-        : std::nullopt;
-}
-
-std::optional<taul::grammar> taul::load(
-    node_ctx& ctx, 
-    const std::string& src, 
-    spec_error_counter& ec, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(ctx, src, ec, lgr);
-    return
-        compiled
-        ? load(*compiled, ec, lgr)
-        : std::nullopt;
-}
-
-std::optional<taul::grammar> taul::load(
-    node_ctx& ctx, 
-    const std::string& src, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(ctx, src, lgr);
+    const std::shared_ptr<logger>& lgr,
+    bool dbgsyms) {
+    const auto compiled = compile(src, lgr, dbgsyms);
     return
         compiled
         ? load(*compiled, lgr)
@@ -97,8 +51,9 @@ std::optional<taul::grammar> taul::load(
 std::optional<taul::grammar> taul::load(
     const std::string& src, 
     spec_error_counter& ec, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(src, lgr);
+    const std::shared_ptr<logger>& lgr,
+    bool dbgsyms) {
+    const auto compiled = compile(src, lgr, dbgsyms);
     return
         compiled
         ? load(*compiled, lgr)
@@ -107,31 +62,9 @@ std::optional<taul::grammar> taul::load(
 
 std::optional<taul::grammar> taul::load(
     const std::string& src, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(src, lgr);
-    return
-        compiled
-        ? load(*compiled, lgr)
-        : std::nullopt;
-}
-
-std::optional<taul::grammar> taul::load(
-    node_ctx& ctx, 
-    const std::filesystem::path& src_path, 
-    spec_error_counter& ec, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(ctx, src_path, ec, lgr);
-    return
-        compiled
-        ? load(*compiled, ec, lgr)
-        : std::nullopt;
-}
-
-std::optional<taul::grammar> taul::load(
-    node_ctx& ctx, 
-    const std::filesystem::path& src_path, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(ctx, src_path, lgr);
+    const std::shared_ptr<logger>& lgr,
+    bool dbgsyms) {
+    const auto compiled = compile(src, lgr, dbgsyms);
     return
         compiled
         ? load(*compiled, lgr)
@@ -141,8 +74,9 @@ std::optional<taul::grammar> taul::load(
 std::optional<taul::grammar> taul::load(
     const std::filesystem::path& src_path, 
     spec_error_counter& ec, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(src_path, lgr);
+    const std::shared_ptr<logger>& lgr,
+    bool dbgsyms) {
+    const auto compiled = compile(src_path, lgr, dbgsyms);
     return
         compiled
         ? load(*compiled, lgr)
@@ -151,11 +85,12 @@ std::optional<taul::grammar> taul::load(
 
 std::optional<taul::grammar> taul::load(
     const std::filesystem::path& src_path, 
-    const std::shared_ptr<logger>& lgr) {
-    const auto compiled = compile(src_path, lgr);
+    const std::shared_ptr<logger>& lgr,
+    bool dbgsyms) {
+    const auto compiled = compile(src_path, lgr, dbgsyms);
     return
         compiled
         ? load(*compiled, lgr)
         : std::nullopt;
-}*/
+}
 

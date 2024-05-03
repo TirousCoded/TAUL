@@ -5,9 +5,12 @@
 #include "../string_and_charset.h"
 
 
-taul::internal::spec_load_interpreter::spec_load_interpreter() 
-    : spec_interpreter(), 
-    rule_pt_trans(instruction),
+taul::internal::spec_load_interpreter::spec_load_interpreter(std::shared_ptr<source_code> src, spec_error_counter& ec, std::shared_ptr<logger> lgr)
+    : spec_interpreter(),
+    src(src),
+    ec(&ec),
+    lgr(lgr),
+    rule_pt_trans(pos),
     gb(rule_pt_trans) {}
 
 void taul::internal::spec_load_interpreter::check_err_scope_not_closed() {
@@ -230,7 +233,7 @@ void taul::internal::spec_load_interpreter::check_err_illegal_in_no_end_subexpr_
 void taul::internal::spec_load_interpreter::check_err_illegal_ambiguity() {
     for (const auto& I : rule_pt_trans.lexer_ptbd.collisions) {
         raise_at(
-            rule_pt_trans.lexer_id_alloc.output_debug.query(I.nonterminal).value().inst,
+            rule_pt_trans.lexer_id_alloc.output_debug.query(I.nonterminal).value().pos,
             spec_error::illegal_ambiguity,
             "{} is ambiguous over the inputs {}!",
             rule_pt_trans.fetch_name_str_lxr(I.nonterminal),
@@ -238,7 +241,7 @@ void taul::internal::spec_load_interpreter::check_err_illegal_ambiguity() {
     }
     for (const auto& I : rule_pt_trans.parser_ptbd.collisions) {
         raise_at(
-            rule_pt_trans.parser_id_alloc.output_debug.query(I.nonterminal).value().inst,
+            rule_pt_trans.parser_id_alloc.output_debug.query(I.nonterminal).value().pos,
             spec_error::illegal_ambiguity,
             "{} is ambiguous over the inputs {}!",
             rule_pt_trans.fetch_name_str_psr(I.nonterminal),
@@ -311,7 +314,7 @@ void taul::internal::spec_load_interpreter::check_for_internal_errors() {
 void taul::internal::spec_load_interpreter::on_startup() {
     TAUL_ASSERT(ec);
     success = true; // <- deem eval successful until proven otherwise
-    instruction = 0;
+    pos = 0;
     rule_pt_trans.on_startup();
 }
 
@@ -321,7 +324,10 @@ void taul::internal::spec_load_interpreter::on_shutdown() {
     rule_pt_trans.on_shutdown();
     check_err_illegal_ambiguity();
     check_for_internal_errors();
-    instruction++;
+}
+
+void taul::internal::spec_load_interpreter::on_pos(source_pos new_pos) {
+    pos = new_pos;
 }
 
 void taul::internal::spec_load_interpreter::on_close() {
@@ -331,7 +337,6 @@ void taul::internal::spec_load_interpreter::on_close() {
         pop_ess();
     }
     rule_pt_trans.on_close();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_alternative() {
@@ -342,7 +347,6 @@ void taul::internal::spec_load_interpreter::on_alternative() {
         check_err_illegal_in_no_alternation_scope(ess.back().opcode);
     }
     rule_pt_trans.on_alternative();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_lpr_decl(std::string_view name) {
@@ -354,7 +358,6 @@ void taul::internal::spec_load_interpreter::on_lpr_decl(std::string_view name) {
     add_lpr_decl(name);
     rule_pt_trans.on_lpr_decl(name);
     gb.add_lpr_decl(str(name));
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_ppr_decl(std::string_view name) {
@@ -366,7 +369,6 @@ void taul::internal::spec_load_interpreter::on_ppr_decl(std::string_view name) {
     add_ppr_decl(name);
     rule_pt_trans.on_ppr_decl(name);
     gb.add_ppr_decl(str(name));
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_lpr(std::string_view name, qualifier qualifier) {
@@ -380,7 +382,6 @@ void taul::internal::spec_load_interpreter::on_lpr(std::string_view name, qualif
     push_dss(dss_frame{ name, true });
     rule_pt_trans.on_lpr(name, qualifier);
     gb.add_lpr(str(name), qualifier);
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_ppr(std::string_view name, qualifier qualifier) {
@@ -395,7 +396,6 @@ void taul::internal::spec_load_interpreter::on_ppr(std::string_view name, qualif
     push_dss(dss_frame{ name, false });
     rule_pt_trans.on_ppr(name, qualifier);
     gb.add_ppr(str(name), qualifier);
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_end() {
@@ -403,14 +403,12 @@ void taul::internal::spec_load_interpreter::on_end() {
     check_err_illegal_in_no_end_subexpr_scope(spec_opcode::end);
     count_subexpr_for_top_ess();
     rule_pt_trans.on_end();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_any() {
     check_err_illegal_in_no_scope(spec_opcode::any);
     count_subexpr_for_top_ess();
     rule_pt_trans.on_any();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_string(std::string_view s) {
@@ -420,7 +418,6 @@ void taul::internal::spec_load_interpreter::on_string(std::string_view s) {
     check_err_illegal_in_single_terminal_scope(spec_opcode::string, ss);
     count_subexpr_for_top_ess();
     rule_pt_trans.on_string(ss);
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_charset(std::string_view s) {
@@ -429,7 +426,6 @@ void taul::internal::spec_load_interpreter::on_charset(std::string_view s) {
     check_err_illegal_in_ppr_scope(spec_opcode::charset);
     count_subexpr_for_top_ess();
     rule_pt_trans.on_charset(ss);
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_token() {
@@ -437,7 +433,6 @@ void taul::internal::spec_load_interpreter::on_token() {
     check_err_illegal_in_lpr_scope(spec_opcode::token);
     count_subexpr_for_top_ess();
     rule_pt_trans.on_token();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_failure() {
@@ -445,7 +440,6 @@ void taul::internal::spec_load_interpreter::on_failure() {
     check_err_illegal_in_lpr_scope(spec_opcode::failure);
     count_subexpr_for_top_ess();
     rule_pt_trans.on_failure();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_name(std::string_view name) {
@@ -457,7 +451,6 @@ void taul::internal::spec_load_interpreter::on_name(std::string_view name) {
     check_err_illegal_in_single_terminal_scope(spec_opcode::name, name);
     count_subexpr_for_top_ess();
     rule_pt_trans.on_name(name);
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_sequence() {
@@ -471,7 +464,6 @@ void taul::internal::spec_load_interpreter::on_sequence() {
     if (single_terminal_scope) mark_single_terminal_scope();
     if (no_end_subexpr_scope) mark_no_end_subexpr_scope();
     rule_pt_trans.on_sequence();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_lookahead() {
@@ -482,7 +474,6 @@ void taul::internal::spec_load_interpreter::on_lookahead() {
     mark_single_terminal_scope();
     mark_no_end_subexpr_scope();
     rule_pt_trans.on_lookahead();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_lookahead_not() {
@@ -493,7 +484,6 @@ void taul::internal::spec_load_interpreter::on_lookahead_not() {
     mark_single_terminal_scope();
     mark_no_end_subexpr_scope();
     rule_pt_trans.on_lookahead_not();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_not() {
@@ -504,7 +494,6 @@ void taul::internal::spec_load_interpreter::on_not() {
     mark_single_terminal_scope();
     mark_no_end_subexpr_scope();
     rule_pt_trans.on_not();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_optional() {
@@ -515,7 +504,6 @@ void taul::internal::spec_load_interpreter::on_optional() {
     mark_no_alternation_scope();
     mark_single_subexpr_scope();
     rule_pt_trans.on_optional();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_kleene_star() {
@@ -526,7 +514,6 @@ void taul::internal::spec_load_interpreter::on_kleene_star() {
     mark_no_alternation_scope();
     mark_single_subexpr_scope();
     rule_pt_trans.on_kleene_star();
-    instruction++;
 }
 
 void taul::internal::spec_load_interpreter::on_kleene_plus() {
@@ -537,6 +524,5 @@ void taul::internal::spec_load_interpreter::on_kleene_plus() {
     mark_no_alternation_scope();
     mark_single_subexpr_scope();
     rule_pt_trans.on_kleene_plus();
-    instruction++;
 }
 

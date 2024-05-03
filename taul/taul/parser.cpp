@@ -37,6 +37,14 @@ void taul::parser::bind_listener(std::shared_ptr<listener> listener) {
     //_valid = false; // <- listener change doesn't require reset
 }
 
+void taul::parser::bind_error_handler(error_handler* error_handler) {
+    //
+}
+
+void taul::parser::bind_error_handler(std::shared_ptr<error_handler> error_handler) {
+    //
+}
+
 taul::parse_tree taul::parser::parse(ppr_ref start_rule) {
     return _parse(start_rule);
 }
@@ -53,6 +61,22 @@ void taul::parser::parse_notree(ppr_ref start_rule) {
 void taul::parser::parse_notree(const str& name) {
     TAUL_ASSERT(gram.has_ppr(name));
     _parse_notree(gram.ppr(name).value());
+}
+
+taul::token taul::parser::eh_peek() {
+    return token();
+}
+
+taul::token taul::parser::eh_next() {
+    return token();
+}
+
+bool taul::parser::eh_done() {
+    return false;
+}
+
+bool taul::parser::eh_check() {
+    return false;
 }
 
 void taul::parser::reset() {

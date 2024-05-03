@@ -10,6 +10,7 @@
 #include <format>
 
 #include "../logger.h"
+#include "../source_code.h"
 #include "../spec.h"
 #include "../spec_error.h"
 
@@ -24,6 +25,7 @@ namespace taul::internal {
     class spec_load_interpreter final : public spec_interpreter {
     public:
 
+        std::shared_ptr<source_code> src = nullptr;
         spec_error_counter* ec = nullptr;
         std::shared_ptr<logger> lgr = nullptr;
 
@@ -31,7 +33,7 @@ namespace taul::internal {
         grammar_builder gb;
 
 
-        spec_load_interpreter();
+        spec_load_interpreter(std::shared_ptr<source_code> src, spec_error_counter& ec, std::shared_ptr<logger> lgr);
 
 
         inline std::optional<grammar> get_result() { return gb.get_result(); }
@@ -49,16 +51,15 @@ namespace taul::internal {
         bool success = false;
 
 
-        // TODO: maybe replace later
+        // this records the current source code position of the loader,
+        // in order to report helpful error info
 
-        // this counts the current instruction
-
-        size_t instruction = 0;
+        source_pos pos = 0;
 
 
         template<typename... Args>
-        inline void raise_at(size_t inst, spec_error err, std::format_string<Args...> fmt, Args&&... args) {
-            raise_spec_error(ec, err, lgr, "[inst {}] {}", inst, std::format(fmt, std::forward<Args&&>(args)...));
+        inline void raise_at(source_pos pos, spec_error err, std::format_string<Args...> fmt, Args&&... args) {
+            raise_error(lgr, ec, src.get(), pos, err, fmt, std::forward<Args&&>(args)...);
             if (success) {
                 gb.cancel();
                 success = false;
@@ -66,7 +67,7 @@ namespace taul::internal {
         }
         template<typename... Args>
         inline void raise(spec_error err, std::format_string<Args...> fmt, Args&&... args) {
-            raise_at(instruction, err, fmt, std::forward<Args&&>(args)...);
+            raise_at(pos, err, fmt, std::forward<Args&&>(args)...);
         }
 
 
@@ -228,8 +229,9 @@ namespace taul::internal {
         void on_startup() override final;
         void on_shutdown() override final;
 
-        static_assert(spec_opcodes == 20);
+        static_assert(spec_opcodes == 21);
 
+        void on_pos(source_pos new_pos) override final;
         void on_close() override final;
         void on_alternative() override final;
         void on_lpr_decl(std::string_view name) override final;

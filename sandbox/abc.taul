@@ -1,0 +1,15 @@
+
+
+lexer section:
+
+	A		: 'a' ;
+	B		: 'b' ;
+	C		: 'c' ;
+	D		: 'd' ;
+
+parser section:
+
+	Start	: ABC+ ;
+
+	ABC		: A ( B | D ) C ;
+

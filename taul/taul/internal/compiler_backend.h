@@ -17,6 +17,8 @@ namespace taul::internal {
     class compiler_backend final : public listener {
     public:
 
+        const bool dbgsyms = false; // if debug symbol 'pos' instructions should be generated
+
         const source_code* src = nullptr;
         spec_error_counter* ec = nullptr;
 
@@ -27,11 +29,9 @@ namespace taul::internal {
         bool cancelled = false; // if an error occurred during syntax compilation
 
         template<typename... Args>
-        inline void raise(spec_error err, std::format_string<Args...> fmt, Args&&... args) {
-            TAUL_DEREF_SAFE(src && ec) {
-                raise_spec_error(ec, err, lgr, fmt, std::forward<Args&&>(args)...);
-                cancelled = true;
-            }
+        inline void raise(source_pos pos, spec_error err, std::format_string<Args...> fmt, Args&&... args) {
+            raise_error(lgr, ec, src, pos, err, fmt, std::forward<Args&&>(args)...);
+            cancelled = true;
         }
 
 
@@ -76,10 +76,15 @@ namespace taul::internal {
             size_t suffixes; // how many suffix stack frames belong to this expr frame
         };
 
-        enum class suffix : std::uint8_t {
+        enum class suffix_type : std::uint8_t {
             optional,
             kleene_star,
             kleene_plus,
+        };
+
+        struct suffix final {
+            suffix_type type;
+            source_pos pos;
         };
 
         std::vector<expr> expr_stk;
@@ -90,7 +95,7 @@ namespace taul::internal {
         void push_expr();
         void pop_expr();
 
-        void push_suffix(suffix x);
+        void push_suffix(suffix_type type, source_pos pos);
         void pop_suffix();
 
 
@@ -114,7 +119,8 @@ namespace taul::internal {
         compiler_backend(
             const source_code& src,
             spec_error_counter& ec,
-            std::shared_ptr<logger> lgr);
+            std::shared_ptr<logger> lgr,
+            bool dbgsyms);
 
 
         void on_startup() override final;

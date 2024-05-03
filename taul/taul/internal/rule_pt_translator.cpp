@@ -51,8 +51,8 @@ taul::symbol_id taul::internal::rule_pt_translator::add_main_symbol_lxr(str name
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> add_main_symbol_lxr(\"{}\")", name);
 #endif
-    TAUL_DEREF_SAFE(instruction_ptr) {
-        main_nonterminal_name_map_lxr[name] = lexer_id_alloc.define(*instruction_ptr, name);
+    TAUL_DEREF_SAFE(pos_ptr) {
+        main_nonterminal_name_map_lxr[name] = lexer_id_alloc.define(*pos_ptr, name);
     }
     return main_nonterminal_name_map_lxr.at(name);
 }
@@ -62,8 +62,8 @@ taul::symbol_id taul::internal::rule_pt_translator::add_main_symbol_psr(str name
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> add_main_symbol_psr(\"{}\")", name);
 #endif
-    TAUL_DEREF_SAFE(instruction_ptr) {
-        main_nonterminal_name_map_psr[name] = parser_id_alloc.define(*instruction_ptr, name);
+    TAUL_DEREF_SAFE(pos_ptr) {
+        main_nonterminal_name_map_psr[name] = parser_id_alloc.define(*pos_ptr, name);
     }
     return main_nonterminal_name_map_psr.at(name);
 }
@@ -73,9 +73,9 @@ taul::symbol_id taul::internal::rule_pt_translator::add_helper_symbol_lxr(str na
     TAUL_LOG(make_stderr_logger(), "-> add_helper_symbol_lxr(\"{}\")", name);
 #endif
     symbol_id result{};
-    TAUL_DEREF_SAFE(instruction_ptr) {
+    TAUL_DEREF_SAFE(pos_ptr) {
         if (lexer_id_alloc.is_defining_main()) lexer_id_alloc.done_defining_main();
-        result = lexer_id_alloc.define(*instruction_ptr, name);
+        result = lexer_id_alloc.define(*pos_ptr, name);
     }
     return result;
 }
@@ -85,9 +85,9 @@ taul::symbol_id taul::internal::rule_pt_translator::add_helper_symbol_psr(str na
     TAUL_LOG(make_stderr_logger(), "-> add_helper_symbol_psr(\"{}\")", name);
 #endif
     symbol_id result{};
-    TAUL_DEREF_SAFE(instruction_ptr) {
+    TAUL_DEREF_SAFE(pos_ptr) {
         if (parser_id_alloc.is_defining_main()) parser_id_alloc.done_defining_main();
-        result = parser_id_alloc.define(*instruction_ptr, name);
+        result = parser_id_alloc.define(*pos_ptr, name);
     }
     return result;
 }
@@ -331,6 +331,12 @@ void taul::internal::rule_pt_translator::on_shutdown() {
     TAUL_LOG(make_stderr_logger(), "(for PPRs)");
     TAUL_LOG(make_stderr_logger(), "{}", parser_ptbd.fmt(parser_pt.grouper));
     TAUL_LOG(make_stderr_logger(), "{}", parser_pt.fmt());
+#endif
+}
+
+void taul::internal::rule_pt_translator::on_pos(source_pos) {
+#if _DUMP_LOG
+    TAUL_LOG(make_stderr_logger(), "-> on_pos");
 #endif
 }
 

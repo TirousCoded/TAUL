@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "../logger.h"
+#include "../source_code.h"
 #include "../spec_error.h"
 
 
@@ -17,16 +18,29 @@ namespace taul::internal {
 
 
     template<typename... Args>
-    inline void raise_spec_error(
+    inline void raise_error(
+        std::shared_ptr<logger> lgr,
         spec_error_counter* ec,
+        const source_code* src,
+        source_pos pos,
         spec_error err,
-        const std::shared_ptr<taul::logger>& lgr,
         std::format_string<Args...> fmt,
         Args&&... args) {
-        if (ec) {
-            ec->raise(err);
+        if (ec) ec->raise(err);
+        if (src) {
+            TAUL_ASSERT(src->location_at(pos));
+            TAUL_LOG(lgr,
+                "TAUL error: {} {} ({})",
+                src->location_at(pos).value(),
+                std::format(fmt, std::forward<Args&&>(args)...),
+                err);
         }
-        TAUL_LOG(lgr, "TAUL error: ({}) {}", err, std::format(fmt, std::forward<Args&&>(args)...));
+        else {
+            TAUL_LOG(lgr,
+                "TAUL error: {} ({})",
+                std::format(fmt, std::forward<Args&&>(args)...),
+                err);
+        }
     }
 
 

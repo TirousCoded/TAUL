@@ -61,7 +61,7 @@ namespace taul {
         spec _temp = spec{}; // internal, do not use
 
 
-        static_assert(spec_opcodes == 20);
+        static_assert(spec_opcodes == 21);
 
         // TODO: the taul::str overloads have not been unit tested
 
@@ -70,6 +70,7 @@ namespace taul {
         // a short-lived taul::str into std::string_view could result in a
         // dangling pointer
 
+        spec_writer& pos(source_pos new_pos);
         spec_writer& close();
         spec_writer& alternative();
         spec_writer& lpr_decl(std::string_view name);
@@ -140,8 +141,9 @@ namespace taul {
         virtual void on_startup() {}
         virtual void on_shutdown() {}
 
-        static_assert(spec_opcodes == 20);
+        static_assert(spec_opcodes == 21);
 
+        virtual void on_pos(source_pos new_pos) {}
         virtual void on_close() {}
         virtual void on_alternative() {}
         virtual void on_lpr_decl(std::string_view name) {}
@@ -203,8 +205,9 @@ namespace taul {
 
         protected:
 
-            static_assert(spec_opcodes == 20);
+            static_assert(spec_opcodes == 21);
 
+            void on_pos(source_pos new_pos) override final { TAUL_DEREF_SAFE(client) client->pos(new_pos); }
             void on_close() override final { TAUL_DEREF_SAFE(client) client->close(); }
             void on_alternative() override final { TAUL_DEREF_SAFE(client) client->alternative(); }
             void on_lpr_decl(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->lpr_decl(name); }

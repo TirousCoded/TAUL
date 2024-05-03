@@ -56,7 +56,7 @@
 
 #include "listener.h"
 
-//#include "error_handler.h" TODO
+#include "error_handler.h"
 
 #include "taul_spec.h"
 #include "compile.h"

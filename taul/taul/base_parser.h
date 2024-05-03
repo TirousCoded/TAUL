@@ -7,6 +7,7 @@
 #include "pipeline_component.h"
 #include "symbol_stream.h"
 #include "listener.h"
+#include "error_handler.h"
 
 
 namespace taul {
@@ -68,6 +69,15 @@ namespace taul {
         virtual void bind_listener(std::shared_ptr<listener> listener) = 0;
 
 
+        // bind_error_handler specifies the error handler of the parser, if any
+
+        virtual void bind_error_handler(error_handler* error_handler) = 0;
+
+        // this version takes ownership of the error handler
+
+        virtual void bind_error_handler(std::shared_ptr<error_handler> error_handler) = 0;
+
+
         // parse and parse_notree invoke the parser w/ start_rule
 
         // parse_notree forgos the allocation of a parse tree
@@ -84,6 +94,18 @@ namespace taul {
 
         virtual void parse_notree(ppr_ref start_rule) = 0;
         virtual void parse_notree(const str& name) = 0;
+
+
+        // these are used by error handler impls to query/manipulate parser
+
+        // behaviour is undefined if these are used outside the context
+        // of parser error recovery
+
+        virtual token eh_peek() = 0; // forwards 'peek' call to lexer
+        virtual token eh_next() = 0; // forwards 'next' call to lexer
+        virtual bool eh_done() = 0; // forwards 'done' call to lexer
+
+        virtual bool eh_check() = 0; // checks if parser error has been recovered from
     };
 }
 

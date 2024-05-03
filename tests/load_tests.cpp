@@ -227,7 +227,7 @@ TEST(LoadTests, success_empty_multipleLPRsAndPPRs) {
 // conditions, w/ things like nesting being assumed to work if these
 // basic usages, and error usages, behaviour as expected
 
-static_assert(taul::spec_opcodes == 20); // we only care about expr instructions
+static_assert(taul::spec_opcodes == 21); // we only care about expr instructions
 
 // end
 
@@ -1935,7 +1935,7 @@ TEST(LoadTests, success_withCharsetWithDuplicateChars) {
 // tests testing that the expected FIRST/FOLLOW/prefix sets are generated
 // for LPRs/PPRs for each type of expr
 
-static_assert(taul::spec_opcodes == 20); // we only care about expr instructions
+static_assert(taul::spec_opcodes == 21); // we only care about expr instructions
 
 // top-level
 
@@ -3997,7 +3997,7 @@ TEST(LoadTests, HasExpectedPrefixes_PPRs_KleenePlus) {
 // the below detail what errors each instruction can raise, and thus which must
 // be unit tested, and being specified *in order*
 
-static_assert(taul::spec_opcodes == 20);
+static_assert(taul::spec_opcodes == 21);
 static_assert(taul::spec_errors == 22);
 
 // notice that a lot of errors actually arise on the close instruction, however, most
