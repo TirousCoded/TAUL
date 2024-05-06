@@ -19,9 +19,8 @@ std::string taul::fmt_symbol_id(symbol_id x) {
         else return std::format("lpr:{}", std::size_t(x - TAUL_FIRST_ID(lpr)));
     }
     else if (is_ppr_id(x)) {
-        if (is_abort_id(x)) return "ppr:<abort>";
-        else return std::format("ppr:{}", std::size_t(x - TAUL_FIRST_ID(ppr)));
+        return std::format("ppr:{}", std::size_t(x - TAUL_FIRST_ID(ppr)));
     }
-    return "<illegal-symbol-ID>";
+    return std::format("<illegal ({})>", size_t(x));
 }
 

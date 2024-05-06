@@ -57,6 +57,8 @@
 #include "listener.h"
 
 #include "error_handler.h"
+#include "regular_error_handler.h"
+#include "no_recovery_error_handler.h"
 
 #include "taul_spec.h"
 #include "compile.h"

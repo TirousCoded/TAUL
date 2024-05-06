@@ -22,11 +22,14 @@ std::int32_t main(std::int32_t argc, const char** argv) {
         taul::string_reader rdr(src);
         taul::lexer lxr(loaded.value(), lgr);
         taul::parser psr(loaded.value(), lgr);
+        taul::regular_error_handler eh(lgr);
         lxr.bind_source(&rdr);
         psr.bind_source(&lxr);
+        psr.bind_error_handler(&eh);
         psr.reset();
         auto result = psr.parse("Start"_str);
         TAUL_LOG(lgr, "{}", result);
+        if (result.is_aborted()) TAUL_LOG(lgr, "aborted!");
     }
     return EXIT_SUCCESS;
 }

@@ -53,6 +53,9 @@ namespace taul {
         // behaviour is undefined if the lexer upstream to the parser has
         // a different grammar association
 
+        // behaviour is undefined if this is called from an error handler
+        // during one of its events
+
         virtual void bind_source(token_stream* source) = 0;
 
         // this version takes ownership of the upstream stream
@@ -62,6 +65,9 @@ namespace taul {
 
         // bind_listener specifies the listener of the parser, if any
 
+        // behaviour is undefined if this is called from an error handler
+        // during one of its events
+
         virtual void bind_listener(listener* listener) = 0;
 
         // this version takes ownership of the listener
@@ -70,6 +76,9 @@ namespace taul {
 
 
         // bind_error_handler specifies the error handler of the parser, if any
+
+        // behaviour is undefined if this is called from an error handler
+        // during one of its events
 
         virtual void bind_error_handler(error_handler* error_handler) = 0;
 
@@ -87,6 +96,9 @@ namespace taul {
 
         // behaviour is undefined if the grammar has no PPR under name
 
+        // behaviour is undefined if this is called from an error handler
+        // during one of its events
+
         // TODO: the '(grammar gram, const str& name)' overloads haven't really been unit tested
 
         virtual parse_tree parse(ppr_ref start_rule) = 0;
@@ -96,10 +108,12 @@ namespace taul {
         virtual void parse_notree(const str& name) = 0;
 
 
-        // these are used by error handler impls to query/manipulate parser
+        // these are used by error handler impls to query/manipulate the pipeline
 
         // behaviour is undefined if these are used outside the context
         // of parser error recovery
+
+        // TODO: the below methods haven't really been unit tested
 
         virtual token eh_peek() = 0; // forwards 'peek' call to lexer
         virtual token eh_next() = 0; // forwards 'next' call to lexer

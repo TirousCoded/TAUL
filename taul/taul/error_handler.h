@@ -11,7 +11,7 @@
 namespace taul {
 
 
-    class parser;
+    class base_parser;
 
 
     class error_handler : public api_component {
@@ -22,16 +22,19 @@ namespace taul {
         virtual ~error_handler() noexcept = default;
 
 
-        // begin_session and end_session are used to specify the beginning,
+        // startup and shutdown are used to specify the beginning,
         // and ending, of a round of parsing, during which syntax errors
         // may arise which the error handler is responsible for attempting
         // to recover from
 
+        // the impl should expect client != nullptr, and should presume
+        // that client == nullptr means the parser impl is defective
+
         // behaviour is undefined if these methods are used outside of the
         // context of a parser impl
 
-        virtual void begin_session(parser& client) = 0;
-        virtual void end_session() = 0;
+        virtual void startup(base_parser* client) = 0;
+        virtual void shutdown() = 0;
 
 
         // terminal_error and nonterminal_error report syntax errors to

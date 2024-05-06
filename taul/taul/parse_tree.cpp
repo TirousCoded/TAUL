@@ -14,17 +14,20 @@ taul::parse_tree::parse_tree(grammar gram)
 taul::parse_tree::parse_tree(const parse_tree& x) 
     : _gram(x._gram), 
     _nodes(x._nodes), 
-    _current(x._current) {}
+    _current(x._current), 
+    _aborted(x._aborted) {}
 
 taul::parse_tree::parse_tree(parse_tree&& x) noexcept
     : _gram(std::move(x._gram)),
     _nodes(std::move(x._nodes)),
-    _current(std::move(x._current)) {}
+    _current(std::move(x._current)), 
+    _aborted(std::move(x._aborted)) {}
 
 taul::parse_tree& taul::parse_tree::operator=(const parse_tree& rhs) {
     _gram = rhs._gram;
     _nodes = rhs._nodes;
     _current = rhs._current;
+    _aborted = rhs._aborted;
     return *this;
 }
 
@@ -33,16 +36,17 @@ taul::parse_tree& taul::parse_tree::operator=(parse_tree&& rhs) noexcept {
         _gram = std::move(rhs._gram);
         _nodes = std::move(rhs._nodes);
         _current = std::move(rhs._current);
+        _aborted = std::move(rhs._aborted);
     }
     return *this;
 }
 
-bool taul::parse_tree::finished() const noexcept {
+bool taul::parse_tree::is_sealed() const noexcept {
     return has_nodes() && _current == internal::no_index;
 }
 
-bool taul::parse_tree::contains_abort() const noexcept {
-    return _contains_abort;
+bool taul::parse_tree::is_aborted() const noexcept {
+    return _aborted;
 }
 
 std::size_t taul::parse_tree::nodes() const noexcept {
@@ -82,8 +86,6 @@ taul::parse_tree::iterator taul::parse_tree::end() const noexcept {
 }
 
 bool taul::parse_tree::equal(const parse_tree& other) const noexcept {
-    TAUL_ASSERT(finished());
-    TAUL_ASSERT(other.finished());
     if (nodes() != other.nodes()) return false;
     for (iterator it0 = begin(), it1 = other.begin(); it0 != end(); it0++, it1++) {
         if (!it0->_equal(*it1)) return false;
@@ -152,11 +154,10 @@ taul::parse_tree& taul::parse_tree::close() noexcept {
     return *this;
 }
 
-taul::parse_tree& taul::parse_tree::abort(source_pos pos) {
+taul::parse_tree& taul::parse_tree::abort() {
 #if _DUMP_LOG
-    TAUL_LOG(make_stderr_logger(), "taul::parse_tree::abort({})", size_t(pos));
+    TAUL_LOG(make_stderr_logger(), "taul::parse_tree::abort()");
 #endif
-    _leaf(abort_ppr_id, pos, 0, _make_no_rule());
     _mark_abort();
     return *this;
 }
@@ -253,8 +254,7 @@ void taul::parse_tree::_contribute_to_current_len(source_len len) {
 }
 
 void taul::parse_tree::_leaf(symbol_id id, source_pos pos, source_len len, std::optional<std::variant<lpr_ref, ppr_ref>> rule) {
-    TAUL_ASSERT(!finished());
-    TAUL_ASSERT(_has_current());
+    TAUL_ASSERT(!is_sealed());
     _create_latest_node();
     _setup_latest_node(id, pos, len, rule);
     // contribute immediately, as leaf nodes know their lengths up front
@@ -262,7 +262,7 @@ void taul::parse_tree::_leaf(symbol_id id, source_pos pos, source_len len, std::
 }
 
 void taul::parse_tree::_open_branch(symbol_id id, source_pos pos, std::optional<std::variant<lpr_ref, ppr_ref>> rule) {
-    TAUL_ASSERT(!finished());
+    TAUL_ASSERT(!is_sealed());
     _create_latest_node();
     _setup_latest_node(id, pos, 0, rule);
     _make_latest_node_the_current_node();
@@ -277,7 +277,7 @@ void taul::parse_tree::_close_branch() {
 }
 
 void taul::parse_tree::_mark_abort() {
-    _contains_abort = true;
+    _aborted = true;
 }
 
 std::optional<std::variant<taul::lpr_ref, taul::ppr_ref>> taul::parse_tree::_make_no_rule() const {
@@ -398,10 +398,6 @@ bool taul::parse_tree::node::is_end() const noexcept {
     return is_end_id(id());
 }
 
-bool taul::parse_tree::node::is_abort() const noexcept {
-    return is_abort_id(id());
-}
-
 taul::symbol_id taul::parse_tree::node::id() const noexcept {
     return _data._id;
 }
@@ -423,7 +419,7 @@ std::optional<taul::lpr_ref> taul::parse_tree::node::lpr() const {
 
 std::optional<taul::ppr_ref> taul::parse_tree::node::ppr() const {
     return
-        (_data._rule && is_syntactic() && !is_abort())
+        is_syntactic()
         ? (TAUL_ASSERT(std::holds_alternative<ppr_ref>(_data._rule.value())), std::make_optional(std::get<ppr_ref>(_data._rule.value())))
         : std::nullopt;
 }
@@ -446,7 +442,6 @@ std::optional<taul::token> taul::parse_tree::node::tkn() const {
 
 std::string taul::parse_tree::node::fmt() const {
     if (is_lexical()) return tkn().value().fmt();
-    else if (is_abort()) return std::format("{} {}", fmt_pos_and_len(pos(), len()), id());
     else return std::format("{} {} {}", fmt_pos_and_len(pos(), len()), id(), ppr().value().name());
 }
 

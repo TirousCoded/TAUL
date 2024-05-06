@@ -75,26 +75,19 @@ namespace taul {
         parse_tree& operator=(parse_tree&& rhs) noexcept;
 
 
-        // finished returns if the parse_tree is *finished*, which
+        // is_sealed returns if the parse_tree is *sealed*, which
         // is defined as it both having a root node, and having
         // an empty node stack
 
-        // if a parse_tree is finished it can no longer be ammended
+        // if a parse_tree is sealed it can no longer be ammended
 
-        bool finished() const noexcept;
+        bool is_sealed() const noexcept;
 
 
-        // when a fatal syntax error occurs, an 'abort point' may
-        // be added to the parse_tree, which indicates where the
-        // fatal syntax error occurred
+        // aborted returns if the parse_tree described is *incomplete*
+        // as a result of it being a product of aborted parsing
 
-        // abort points don't otherwise interfere w/ the open/close
-        // semantics of the parse_tree
-
-        // contains_abort queries if the parse_tree contains an
-        // abort point
-
-        bool contains_abort() const noexcept;
+        bool is_aborted() const noexcept;
 
 
         // nodes returns the total node count of the parse_tree
@@ -140,11 +133,12 @@ namespace taul {
 
         // parse_tree objects may be equality compared by value
 
-        // structural comparison requires both parse trees to
-        // be 'finished'
+        // it does matter whether or not the two parse trees differ
+        // w/ regards to being closing their syntactic nodes, as 
+        // closing modifies other nodes in the tree
 
-        // behaviour is undefined if finished() == false
-        // behaviour is undefined if other.finished() == false
+        // whether *this and other are marked as 'aborted' or not
+        // does not matter when judging structural equivalence
 
         bool equal(const parse_tree& other) const noexcept;
 
@@ -164,9 +158,9 @@ namespace taul {
 
         // lexical nodes are leaf nodes, not allowing children
 
-        // behaviour is undefined if there is no current node
+        // lexical nodes may be added as root nodes
 
-        // behaviour is undefined if finished() == true
+        // behaviour is undefined if is_sealed() == true
 
         // behaviour is undefined if lpr is not part of the parse
         // tree's associated grammar
@@ -191,8 +185,8 @@ namespace taul {
         // will be defined by the aggregate length of its children
 
         // if there is no root node, the node created becomes the root
-
-        // behaviour is undefined if finished() == true
+        
+        // behaviour is undefined if is_sealed() == true
 
         // behaviour is undefined if ppr is not part of the parse
         // tree's associated grammar
@@ -210,17 +204,10 @@ namespace taul {
 
         parse_tree& close() noexcept;
 
-        // abort adds an abort point node to the parse_tree
+        // abort marks the parse_tree as being the result of an
+        // aborted parsing process
 
-        // abort point nodes are classified as syntactic nodes, as 
-        // their symbol ID is a PPR ID sentinel, however they function
-        // as leaf nodes, not allowing children
-
-        // behaviour is undefined if there is no current node
-
-        // behaviour is undefined if finished() == true
-
-        parse_tree& abort(source_pos pos);
+        parse_tree& abort();
 
 
         std::string fmt(const char* tab = "    ") const;
@@ -235,7 +222,7 @@ namespace taul {
 
         std::size_t _current = internal::no_index;
 
-        bool _contains_abort = false;
+        bool _aborted = false;
 
 
         inline bool _has_current() const noexcept { return _current != internal::no_index; }
@@ -341,7 +328,6 @@ namespace taul {
         bool is_normal() const noexcept;
         bool is_failure() const noexcept;
         bool is_end() const noexcept;
-        bool is_abort() const noexcept;
 
 
         // id returns the symbol ID of the node

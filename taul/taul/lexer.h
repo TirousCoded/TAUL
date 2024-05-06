@@ -148,6 +148,12 @@ namespace taul {
                 void output_nonterminal_end();
                 void output_terminal_error(symbol_range<symbol_type> ids, symbol_type input);
                 void output_nonterminal_error(symbol_id id, symbol_type input);
+                static constexpr bool uses_eh() noexcept { return false; }
+                inline void eh_startup() {}
+                inline void eh_shutdown() {}
+                inline void eh_terminal_error(symbol_range<symbol_type>, symbol_type) {}
+                inline void eh_nonterminal_error(symbol_id, symbol_type) {}
+                inline void eh_recovery_failed() {}
 
 
                 lexer* _self_ptr = nullptr; // link to _self

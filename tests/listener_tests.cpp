@@ -29,9 +29,9 @@ std::string build_expected_output(taul::grammar gram) {
     lstnr.on_lexical(taul::token::normal(gram, "c"_str, 3, 1));
     lstnr.on_close();
     lstnr.on_lexical(taul::token::normal(gram, "c"_str, 4, 1));
-    lstnr.on_abort(5);
     lstnr.on_lexical(taul::token::failure(5));
     lstnr.on_close();
+    lstnr.on_abort();
     lstnr.on_shutdown();
     return lstnr.output;
 }
@@ -76,10 +76,12 @@ TEST(ListenerTests, Playback) {
         .lexical(gram.lpr("c"_str).value(), 3, 1)
         .close()
         .lexical(gram.lpr("c"_str).value(), 4, 1)
-        .abort(5)
         .lexical(taul::token::failure(5))
-        .close();
-    ASSERT_TRUE(pt.finished());
+        .close()
+        .abort();
+
+    ASSERT_TRUE(pt.is_sealed());
+    ASSERT_TRUE(pt.is_aborted());
 
     std::string expected_output = build_expected_output(gram);
 

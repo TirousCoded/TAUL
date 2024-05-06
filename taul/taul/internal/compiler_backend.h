@@ -22,6 +22,8 @@ namespace taul::internal {
         const source_code* src = nullptr;
         spec_error_counter* ec = nullptr;
 
+        grammar gram; // the TAUL grammar
+
 
         std::optional<spec> result; // will be std::nullopt if compiler encountered an error
 
@@ -119,6 +121,7 @@ namespace taul::internal {
         compiler_backend(
             const source_code& src,
             spec_error_counter& ec,
+            grammar gram,
             std::shared_ptr<logger> lgr,
             bool dbgsyms);
 
@@ -128,7 +131,9 @@ namespace taul::internal {
         void on_lexical(token tkn) override final;
         void on_syntactic(ppr_ref ppr, source_pos pos) override final;
         void on_close() override final;
-        void on_abort(source_pos pos) override final;
+        void on_abort() override final;
+        void on_terminal_error(token_range ids, token input) override final;
+        void on_nonterminal_error(symbol_id id, token input) override final;
 
 
     private:

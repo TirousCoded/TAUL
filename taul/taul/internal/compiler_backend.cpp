@@ -38,10 +38,11 @@ void taul::internal::compiler_backend::pop_nonterminal() {
     nonterminal_stk.pop_back();
 }
 
-taul::internal::compiler_backend::compiler_backend(const source_code& src, spec_error_counter& ec, std::shared_ptr<logger> lgr, bool dbgsyms)
+taul::internal::compiler_backend::compiler_backend(const source_code& src, spec_error_counter& ec, grammar gram, std::shared_ptr<logger> lgr, bool dbgsyms)
     : listener(lgr),
     src(&src),
-    ec(&ec), 
+    ec(&ec),
+    gram(gram),
     dbgsyms(dbgsyms) {}
 
 void taul::internal::compiler_backend::on_startup() {
@@ -66,13 +67,47 @@ void taul::internal::compiler_backend::on_close() {
     pop_nonterminal();
 }
 
-void taul::internal::compiler_backend::on_abort(source_pos pos) {
+void taul::internal::compiler_backend::on_abort() {
+    // do nothing
+}
+
+void taul::internal::compiler_backend::on_terminal_error(token_range ids, token input) {
     TAUL_DEREF_SAFE(src) {
-        TAUL_ASSERT(src->location_at(pos));
+        TAUL_ASSERT(src->location_at(input.pos));
+
+        str input_name{};
+        if (input.is_normal()) input_name = input.lpr.value().name();
+        else if (input.is_failure()) input_name = "** lexical error **"_str;
+        else if (input.is_end()) input_name = "** end-of-input **"_str;
+        else TAUL_DEADEND;
+
         raise(
-            pos,
-            spec_error::syntax_error, 
-            "syntax error!");
+            input.pos,
+            spec_error::syntax_error,
+            "unexpected {}!",
+            input_name);
+    }
+}
+
+void taul::internal::compiler_backend::on_nonterminal_error(symbol_id id, token input) {
+    TAUL_DEREF_SAFE(src) {
+        TAUL_ASSERT(src->location_at(input.pos));
+        TAUL_ASSERT(is_ppr_id(id));
+
+        str nonterminal_name = gram.ppr_at(size_t(id) - size_t(TAUL_FIRST_ID(ppr))).name();
+
+        str input_name{};
+        if (input.is_normal()) input_name = input.lpr.value().name();
+        else if (input.is_failure()) input_name = "** lexical error **"_str;
+        else if (input.is_end()) input_name = "** end-of-input **"_str;
+        else TAUL_DEADEND;
+
+        raise(
+            input.pos,
+            spec_error::syntax_error,
+            "expected {}, but found {}!",
+            nonterminal_name,
+            input_name);
     }
 }
 

@@ -10,7 +10,8 @@
 taul::parser::parser(grammar gram, std::shared_ptr<logger> lgr)
     : base_parser(gram, lgr),
     _source(nullptr),
-    _listener(nullptr), 
+    _listener(nullptr),
+    _eh(nullptr),
     _ps(_policy{ this }, gram, _reserved_mem_for_parse_stack, lgr) {}
 
 void taul::parser::bind_source(token_stream* source) {
@@ -38,11 +39,15 @@ void taul::parser::bind_listener(std::shared_ptr<listener> listener) {
 }
 
 void taul::parser::bind_error_handler(error_handler* error_handler) {
-    //
+    _eh = error_handler;
+    _eh_ownership = nullptr;
+    //_valid = false; // <- error handler change doesn't require reset
 }
 
 void taul::parser::bind_error_handler(std::shared_ptr<error_handler> error_handler) {
-    //
+    _eh = error_handler.get();
+    _eh_ownership = error_handler;
+    //_valid = false; // <- error handler change doesn't require reset
 }
 
 taul::parse_tree taul::parser::parse(ppr_ref start_rule) {
@@ -64,19 +69,28 @@ void taul::parser::parse_notree(const str& name) {
 }
 
 taul::token taul::parser::eh_peek() {
-    return token();
+    return
+        _source
+        ? _source->peek()
+        : token::end(0);
 }
 
 taul::token taul::parser::eh_next() {
-    return token();
+    return
+        _source
+        ? _source->next()
+        : token::end(0);
 }
 
 bool taul::parser::eh_done() {
-    return false;
+    return
+        _source
+        ? _source->done()
+        : true;
 }
 
 bool taul::parser::eh_check() {
-    return false;
+    return _ps.check();
 }
 
 void taul::parser::reset() {
@@ -123,12 +137,17 @@ std::string taul::parser::_policy::fmt_output() const {
 
 void taul::parser::_policy::output_startup() {
     TAUL_DEREF_SAFE(_self_ptr) {
+        _self_ptr->_aborted = false;
         if (_self_ptr->_listener) _self_ptr->_listener->on_startup();
     }
 }
 
 void taul::parser::_policy::output_shutdown() {
     TAUL_DEREF_SAFE(_self_ptr) {
+        if (_self_ptr->_aborted) {
+            if (_self_ptr->_result) _self_ptr->_result->abort();
+            if (_self_ptr->_listener) _self_ptr->_listener->on_abort();
+        }
         if (_self_ptr->_listener) _self_ptr->_listener->on_shutdown();
     }
 }
@@ -159,16 +178,42 @@ void taul::parser::_policy::output_nonterminal_end() {
 
 void taul::parser::_policy::output_terminal_error(symbol_range<symbol_type> ids, symbol_type input) {
     TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_result) _self_ptr->_result->abort(input.pos);
-        if (_self_ptr->_listener) _self_ptr->_listener->on_abort(input.pos);
+        if (_self_ptr->_listener) _self_ptr->_listener->on_terminal_error(ids, input);
     }
 }
 
 void taul::parser::_policy::output_nonterminal_error(symbol_id id, symbol_type input) {
     TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_result) _self_ptr->_result->abort(input.pos);
-        if (_self_ptr->_listener) _self_ptr->_listener->on_abort(input.pos);
+        if (_self_ptr->_listener) _self_ptr->_listener->on_nonterminal_error(id, input);
     }
+}
+
+void taul::parser::_policy::eh_startup() {
+    TAUL_DEREF_SAFE(_self_ptr) {
+        if (_self_ptr->_eh) _self_ptr->_eh->startup(_self_ptr);
+    }
+}
+
+void taul::parser::_policy::eh_shutdown() {
+    TAUL_DEREF_SAFE(_self_ptr) {
+        if (_self_ptr->_eh) _self_ptr->_eh->shutdown();
+    }
+}
+
+void taul::parser::_policy::eh_terminal_error(symbol_range<symbol_type> ids, symbol_type input) {
+    TAUL_DEREF_SAFE(_self_ptr) {
+        if (_self_ptr->_eh) _self_ptr->_eh->terminal_error(ids, input);
+    }
+}
+
+void taul::parser::_policy::eh_nonterminal_error(symbol_id id, symbol_type input) {
+    TAUL_DEREF_SAFE(_self_ptr) {
+        if (_self_ptr->_eh) _self_ptr->_eh->nonterminal_error(id, input);
+    }
+}
+
+void taul::parser::_policy::eh_recovery_failed() {
+    TAUL_DEREF_SAFE(_self_ptr) _self_ptr->_aborted = true;
 }
 
 void taul::parser::_perform_parse(ppr_ref start_rule) {
@@ -181,7 +226,7 @@ taul::parse_tree taul::parser::_parse(ppr_ref start_rule) {
     TAUL_ASSERT(!_result);
     _result = std::make_optional(parse_tree(gram));
     _perform_parse(start_rule);
-    auto result = std::move(_result.value());
+    parse_tree result = std::move(_result.value());
     _result.reset();
     return result;
 }

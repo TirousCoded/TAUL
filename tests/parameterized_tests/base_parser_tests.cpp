@@ -10,12 +10,71 @@
 
 #include "../helpers/test_listener.h"
 #include "../helpers/test_token_stream_for_reset.h"
+#include "../helpers/test_error_handler_for_input_recording.h"
 
 
 using namespace taul::string_literals;
 
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(BaseParserTests);
+
+
+// these two error handler impls are used to test error handler invocation
+
+// success_error_handler advancing the lexer stream by one token, which is to
+// be enough to recover from the error
+
+class success_error_handler final : public taul::error_handler {
+public:
+
+    taul::base_parser* client = nullptr;
+
+
+    success_error_handler(std::shared_ptr<taul::logger> lgr = nullptr) 
+        : error_handler(lgr) {}
+
+
+    void startup(taul::base_parser* client) override final {
+        TAUL_ASSERT(client);
+        this->client = client;
+    }
+    void shutdown() override final {
+        // do nothing
+    }
+    void terminal_error(taul::token_range ids, taul::token input) override final {
+        TAUL_DEREF_SAFE(client) {
+            client->eh_next();
+        }
+    }
+    void nonterminal_error(taul::symbol_id id, taul::token input) override final {
+        TAUL_DEREF_SAFE(client) {
+            client->eh_next();
+        }
+    }
+};
+
+// failure_error_handler does nothing to recover from the error
+
+class failure_error_handler final : public taul::error_handler {
+public:
+
+    failure_error_handler(std::shared_ptr<taul::logger> lgr = nullptr)
+        : error_handler(lgr) {}
+
+
+    void startup(taul::base_parser*) override final {
+        // do nothing
+    }
+    void shutdown() override final {
+        // do nothing
+    }
+    void terminal_error(taul::token_range, taul::token) override final {
+        // do nothing
+    }
+    void nonterminal_error(taul::symbol_id, taul::token) override final {
+        // do nothing
+    }
+};
 
 
 // these are tests for the basic usage of the parser as a component
@@ -71,15 +130,12 @@ TEST_P(BaseParserTests, Parse) {
     test_listener lstnr{};
     psr->bind_listener(&lstnr);
 
+    test_error_handler_for_input_recording eh{};
+    psr->bind_error_handler(&eh);
+
     psr->reset();
 
     taul::parse_tree result = psr->parse(gram->ppr("abcabc"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
-    test_listener playback{};
-    playback.playback(result);
 
     test_listener expected{};
     expected.on_startup();
@@ -93,11 +149,138 @@ TEST_P(BaseParserTests, Parse) {
     expected.on_close();
     expected.on_shutdown();
 
+    test_listener playback{};
+    playback.playback(result);
+
+    test_error_handler_for_input_recording eh_expected{};
+    eh_expected.startup(psr.get());
+    eh_expected.shutdown();
+
     EXPECT_EQ(expected.output, lstnr.output);
     EXPECT_EQ(expected.output, playback.output);
+    EXPECT_EQ(eh.output, eh_expected.output);
+
+    EXPECT_EQ(lstnr.terminal_errors, 0);
+    EXPECT_EQ(lstnr.nonterminal_errors, 0);
 }
 
-TEST_P(BaseParserTests, Parse_Abort) {
+TEST_P(BaseParserTests, Parse_ErrorRecovery_TerminalError) {
+    auto gram = make_grammar_1a(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("A"_str));
+    ASSERT_TRUE(gram->has_lpr("B"_str));
+    ASSERT_TRUE(gram->has_lpr("C"_str));
+    ASSERT_TRUE(gram->has_ppr("abcabc"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    taul::string_reader input("abcadbc"_str);
+    taul::lexer lxr(gram.value());
+    lxr.bind_source(&input);
+    psr->bind_source(&lxr);
+
+    test_listener lstnr{};
+    psr->bind_listener(&lstnr);
+
+    success_error_handler eh_inner{};
+    test_error_handler_for_input_recording eh(&eh_inner);
+    psr->bind_error_handler(&eh);
+
+    psr->reset();
+
+    taul::parse_tree result = psr->parse(gram->ppr("abcabc"_str).value());
+
+    test_listener expected{};
+    expected.on_startup();
+    expected.on_syntactic(gram->ppr("abcabc"_str).value(), 0);
+    expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 0, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "B"_str, 1, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "C"_str, 2, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 3, 1));
+    // error at 4
+    expected.on_lexical(taul::token::normal(gram.value(), "B"_str, 5, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "C"_str, 6, 1));
+    expected.on_close();
+    expected.on_shutdown();
+
+    test_listener playback{};
+    playback.playback(result);
+
+    test_error_handler_for_input_recording eh_expected{};
+    eh_expected.startup(psr.get());
+    eh_expected.terminal_error(
+        taul::token_range::create(gram->lpr("B"_str).value().id(), gram->lpr("B"_str).value().id()), 
+        taul::token::failure(4, 1));
+    eh_expected.shutdown();
+
+    EXPECT_EQ(expected.output, lstnr.output);
+    EXPECT_EQ(expected.output, playback.output);
+    EXPECT_EQ(eh.output, eh_expected.output);
+
+    EXPECT_GE(lstnr.terminal_errors, 1);
+    EXPECT_EQ(lstnr.nonterminal_errors, 0);
+}
+
+TEST_P(BaseParserTests, Parse_ErrorRecovery_NonTerminalError) {
+    auto gram = make_grammar_1a(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("A"_str));
+    ASSERT_TRUE(gram->has_lpr("B"_str));
+    ASSERT_TRUE(gram->has_lpr("C"_str));
+    ASSERT_TRUE(gram->has_ppr("abcabc"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    taul::string_reader input("dabcabc"_str);
+    taul::lexer lxr(gram.value());
+    lxr.bind_source(&input);
+    psr->bind_source(&lxr);
+
+    test_listener lstnr{};
+    psr->bind_listener(&lstnr);
+
+    success_error_handler eh_inner{};
+    test_error_handler_for_input_recording eh(&eh_inner);
+    psr->bind_error_handler(&eh);
+
+    psr->reset();
+
+    taul::parse_tree result = psr->parse(gram->ppr("abcabc"_str).value());
+
+    test_listener expected{};
+    expected.on_startup();
+    // error at 0
+    expected.on_syntactic(gram->ppr("abcabc"_str).value(), 1);
+    expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 1, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "B"_str, 2, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "C"_str, 3, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 4, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "B"_str, 5, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "C"_str, 6, 1));
+    expected.on_close();
+    expected.on_shutdown();
+
+    test_listener playback{};
+    playback.playback(result);
+
+    test_error_handler_for_input_recording eh_expected{};
+    eh_expected.startup(psr.get());
+    eh_expected.nonterminal_error(gram->ppr("abcabc"_str).value().id(), taul::token::failure(0, 1));
+    eh_expected.shutdown();
+
+    EXPECT_EQ(expected.output, lstnr.output);
+    EXPECT_EQ(expected.output, playback.output);
+    EXPECT_EQ(eh.output, eh_expected.output);
+
+    EXPECT_EQ(lstnr.terminal_errors, 0);
+    EXPECT_GE(lstnr.nonterminal_errors, 1);
+}
+
+TEST_P(BaseParserTests, Parse_FailErrorRecovery_TerminalError) {
     auto gram = make_grammar_1a(lgr);
     //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
     ASSERT_TRUE(gram);
@@ -117,15 +300,13 @@ TEST_P(BaseParserTests, Parse_Abort) {
     test_listener lstnr{};
     psr->bind_listener(&lstnr);
 
+    failure_error_handler eh_inner{};
+    test_error_handler_for_input_recording eh(&eh_inner);
+    psr->bind_error_handler(&eh);
+
     psr->reset();
 
     taul::parse_tree result = psr->parse(gram->ppr("abcabc"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
-    test_listener playback{};
-    playback.playback(result);
 
     test_listener expected{};
     expected.on_startup();
@@ -134,12 +315,75 @@ TEST_P(BaseParserTests, Parse_Abort) {
     expected.on_lexical(taul::token::normal(gram.value(), "B"_str, 1, 1));
     expected.on_lexical(taul::token::normal(gram.value(), "C"_str, 2, 1));
     expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 3, 1));
-    expected.on_abort(4);
     expected.on_close();
+    expected.on_abort();
     expected.on_shutdown();
+
+    test_listener playback{};
+    playback.playback(result);
+
+    test_error_handler_for_input_recording eh_expected{};
+    eh_expected.startup(psr.get());
+    eh_expected.terminal_error(
+        taul::token_range::create(gram->lpr("B"_str).value().id(), gram->lpr("B"_str).value().id()), 
+        taul::token::failure(4, 1));
+    eh_expected.shutdown();
 
     EXPECT_EQ(expected.output, lstnr.output);
     EXPECT_EQ(expected.output, playback.output);
+    EXPECT_EQ(eh.output, eh_expected.output);
+
+    EXPECT_GE(lstnr.terminal_errors, 1);
+    EXPECT_EQ(lstnr.nonterminal_errors, 0);
+}
+
+TEST_P(BaseParserTests, Parse_FailErrorRecovery_NonTerminalError) {
+    auto gram = make_grammar_1a(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("A"_str));
+    ASSERT_TRUE(gram->has_lpr("B"_str));
+    ASSERT_TRUE(gram->has_lpr("C"_str));
+    ASSERT_TRUE(gram->has_ppr("abcabc"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    taul::string_reader input("d"_str);
+    taul::lexer lxr(gram.value());
+    lxr.bind_source(&input);
+    psr->bind_source(&lxr);
+
+    test_listener lstnr{};
+    psr->bind_listener(&lstnr);
+
+    failure_error_handler eh_inner{};
+    test_error_handler_for_input_recording eh(&eh_inner);
+    psr->bind_error_handler(&eh);
+
+    psr->reset();
+
+    taul::parse_tree result = psr->parse(gram->ppr("abcabc"_str).value());
+
+    test_listener expected{};
+    expected.on_startup();
+    expected.on_abort();
+    expected.on_shutdown();
+
+    test_listener playback{};
+    playback.playback(result);
+
+    test_error_handler_for_input_recording eh_expected{};
+    eh_expected.startup(psr.get());
+    eh_expected.nonterminal_error(gram->ppr("abcabc"_str).value().id(), taul::token::failure(0, 1));
+    eh_expected.shutdown();
+
+    EXPECT_EQ(expected.output, lstnr.output);
+    EXPECT_EQ(expected.output, playback.output);
+    EXPECT_EQ(eh.output, eh_expected.output);
+
+    EXPECT_EQ(lstnr.terminal_errors, 0);
+    EXPECT_GE(lstnr.nonterminal_errors, 1);
 }
 
 TEST_P(BaseParserTests, ParseNoTree) {
@@ -166,9 +410,6 @@ TEST_P(BaseParserTests, ParseNoTree) {
 
     psr->parse_notree(gram->ppr("abcabc"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     test_listener expected{};
     expected.on_startup();
     expected.on_syntactic(gram->ppr("abcabc"_str).value(), 0);
@@ -182,9 +423,120 @@ TEST_P(BaseParserTests, ParseNoTree) {
     expected.on_shutdown();
 
     EXPECT_EQ(expected.output, lstnr.output);
+
+    EXPECT_EQ(lstnr.terminal_errors, 0);
+    EXPECT_EQ(lstnr.nonterminal_errors, 0);
 }
 
-TEST_P(BaseParserTests, ParseNoTree_Abort) {
+TEST_P(BaseParserTests, ParseNoTree_ErrorRecovery_TerminalError) {
+    auto gram = make_grammar_1a(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("A"_str));
+    ASSERT_TRUE(gram->has_lpr("B"_str));
+    ASSERT_TRUE(gram->has_lpr("C"_str));
+    ASSERT_TRUE(gram->has_ppr("abcabc"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    taul::string_reader input("abcadbc"_str);
+    taul::lexer lxr(gram.value());
+    lxr.bind_source(&input);
+    psr->bind_source(&lxr);
+
+    test_listener lstnr{};
+    psr->bind_listener(&lstnr);
+
+    success_error_handler eh_inner{};
+    test_error_handler_for_input_recording eh(&eh_inner);
+    psr->bind_error_handler(&eh);
+
+    psr->reset();
+
+    psr->parse_notree(gram->ppr("abcabc"_str).value());
+
+    test_listener expected{};
+    expected.on_startup();
+    expected.on_syntactic(gram->ppr("abcabc"_str).value(), 0);
+    expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 0, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "B"_str, 1, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "C"_str, 2, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 3, 1));
+    // error at 4
+    expected.on_lexical(taul::token::normal(gram.value(), "B"_str, 5, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "C"_str, 6, 1));
+    expected.on_close();
+    expected.on_shutdown();
+
+    test_error_handler_for_input_recording eh_expected{};
+    eh_expected.startup(psr.get());
+    eh_expected.terminal_error(
+        taul::token_range::create(gram->lpr("B"_str).value().id(), gram->lpr("B"_str).value().id()),
+        taul::token::failure(4, 1));
+    eh_expected.shutdown();
+
+    EXPECT_EQ(expected.output, lstnr.output);
+    EXPECT_EQ(eh.output, eh_expected.output);
+
+    EXPECT_GE(lstnr.terminal_errors, 1);
+    EXPECT_EQ(lstnr.nonterminal_errors, 0);
+}
+
+TEST_P(BaseParserTests, ParseNoTree_ErrorRecovery_NonTerminalError) {
+    auto gram = make_grammar_1a(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("A"_str));
+    ASSERT_TRUE(gram->has_lpr("B"_str));
+    ASSERT_TRUE(gram->has_lpr("C"_str));
+    ASSERT_TRUE(gram->has_ppr("abcabc"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    taul::string_reader input("dabcabc"_str);
+    taul::lexer lxr(gram.value());
+    lxr.bind_source(&input);
+    psr->bind_source(&lxr);
+
+    test_listener lstnr{};
+    psr->bind_listener(&lstnr);
+
+    success_error_handler eh_inner{};
+    test_error_handler_for_input_recording eh(&eh_inner);
+    psr->bind_error_handler(&eh);
+
+    psr->reset();
+
+    psr->parse_notree(gram->ppr("abcabc"_str).value());
+
+    test_listener expected{};
+    expected.on_startup();
+    // error at 0
+    expected.on_syntactic(gram->ppr("abcabc"_str).value(), 1);
+    expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 1, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "B"_str, 2, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "C"_str, 3, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 4, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "B"_str, 5, 1));
+    expected.on_lexical(taul::token::normal(gram.value(), "C"_str, 6, 1));
+    expected.on_close();
+    expected.on_shutdown();
+
+    test_error_handler_for_input_recording eh_expected{};
+    eh_expected.startup(psr.get());
+    eh_expected.nonterminal_error(gram->ppr("abcabc"_str).value().id(), taul::token::failure(0, 1));
+    eh_expected.shutdown();
+
+    EXPECT_EQ(expected.output, lstnr.output);
+    EXPECT_EQ(eh.output, eh_expected.output);
+
+    EXPECT_EQ(lstnr.terminal_errors, 0);
+    EXPECT_GE(lstnr.nonterminal_errors, 1);
+}
+
+TEST_P(BaseParserTests, ParseNoTree_FailErrorRecovery_TerminalError) {
     auto gram = make_grammar_1a(lgr);
     //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
     ASSERT_TRUE(gram);
@@ -204,12 +556,13 @@ TEST_P(BaseParserTests, ParseNoTree_Abort) {
     test_listener lstnr{};
     psr->bind_listener(&lstnr);
 
+    failure_error_handler eh_inner{};
+    test_error_handler_for_input_recording eh(&eh_inner);
+    psr->bind_error_handler(&eh);
+
     psr->reset();
 
     psr->parse_notree(gram->ppr("abcabc"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected{};
     expected.on_startup();
@@ -218,11 +571,67 @@ TEST_P(BaseParserTests, ParseNoTree_Abort) {
     expected.on_lexical(taul::token::normal(gram.value(), "B"_str, 1, 1));
     expected.on_lexical(taul::token::normal(gram.value(), "C"_str, 2, 1));
     expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 3, 1));
-    expected.on_abort(4);
     expected.on_close();
+    expected.on_abort();
     expected.on_shutdown();
 
+    test_error_handler_for_input_recording eh_expected{};
+    eh_expected.startup(psr.get());
+    eh_expected.terminal_error(
+        taul::token_range::create(gram->lpr("B"_str).value().id(), gram->lpr("B"_str).value().id()),
+        taul::token::failure(4, 1));
+    eh_expected.shutdown();
+
     EXPECT_EQ(expected.output, lstnr.output);
+    EXPECT_EQ(eh.output, eh_expected.output);
+
+    EXPECT_GE(lstnr.terminal_errors, 1);
+    EXPECT_EQ(lstnr.nonterminal_errors, 0);
+}
+
+TEST_P(BaseParserTests, ParseNoTree_FailErrorRecovery_NonTerminalError) {
+    auto gram = make_grammar_1a(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("A"_str));
+    ASSERT_TRUE(gram->has_lpr("B"_str));
+    ASSERT_TRUE(gram->has_lpr("C"_str));
+    ASSERT_TRUE(gram->has_ppr("abcabc"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    taul::string_reader input("d"_str);
+    taul::lexer lxr(gram.value());
+    lxr.bind_source(&input);
+    psr->bind_source(&lxr);
+
+    test_listener lstnr{};
+    psr->bind_listener(&lstnr);
+
+    failure_error_handler eh_inner{};
+    test_error_handler_for_input_recording eh(&eh_inner);
+    psr->bind_error_handler(&eh);
+
+    psr->reset();
+
+    psr->parse_notree(gram->ppr("abcabc"_str).value());
+
+    test_listener expected{};
+    expected.on_startup();
+    expected.on_abort();
+    expected.on_shutdown();
+
+    test_error_handler_for_input_recording eh_expected{};
+    eh_expected.startup(psr.get());
+    eh_expected.nonterminal_error(gram->ppr("abcabc"_str).value().id(), taul::token::failure(0, 1));
+    eh_expected.shutdown();
+
+    EXPECT_EQ(expected.output, lstnr.output);
+    EXPECT_EQ(eh.output, eh_expected.output);
+
+    EXPECT_EQ(lstnr.terminal_errors, 0);
+    EXPECT_GE(lstnr.nonterminal_errors, 1);
 }
 
 TEST_P(BaseParserTests, Reset_PropagateUpstream) {
@@ -678,40 +1087,26 @@ TEST_P(BaseParserTests, PPR_NonEmpty_WithNoAlts) {
     auto psr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(psr);
 
-    taul::string_reader input("a"_str);
+    taul::string_reader input(""_str);
     taul::lexer lxr(gram.value());
     lxr.bind_source(&input);
     psr->bind_source(&lxr);
-    psr->reset();
 
+    input.change_input("a"_str);
+    psr->reset();
     taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-    
     input.change_input("b"_str);
     psr->reset();
-
     taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-    
     input.change_input(""_str);
     psr->reset();
-
     taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-    
     input.change_input("aa"_str);
     psr->reset();
-
     taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -722,16 +1117,12 @@ TEST_P(BaseParserTests, PPR_NonEmpty_WithNoAlts) {
     
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
     
     test_listener expected2{};
     expected2.on_startup();
-    expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected2.on_abort(0);
-    expected2.on_close();
+    expected2.on_abort();
     expected2.on_shutdown();
 
     test_listener expected3{};
@@ -788,40 +1179,26 @@ TEST_P(BaseParserTests, PPR_NonEmpty_WithAlts_WithNoEmptyAlts) {
     auto psr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(psr);
 
-    taul::string_reader input("a"_str);
+    taul::string_reader input(""_str);
     taul::lexer lxr(gram.value());
     lxr.bind_source(&input);
     psr->bind_source(&lxr);
+
+    input.change_input("a"_str);
     psr->reset();
-
     taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("b"_str);
     psr->reset();
-
     taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-    
     input.change_input(""_str);
     psr->reset();
-
     taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-    
     input.change_input("ab"_str);
     psr->reset();
-
     taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -839,9 +1216,7 @@ TEST_P(BaseParserTests, PPR_NonEmpty_WithAlts_WithNoEmptyAlts) {
     
     test_listener expected2{};
     expected2.on_startup();
-    expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected2.on_abort(0);
-    expected2.on_close();
+    expected2.on_abort();
     expected2.on_shutdown();
     
     test_listener expected3{};
@@ -1073,15 +1448,13 @@ TEST_P(BaseParserTests, PPR_Nesting) {
     expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
     expected2.on_lexical(taul::token::normal(gram.value(), "A"_str, 0, 1));
     expected2.on_lexical(taul::token::normal(gram.value(), "B"_str, 1, 1));
-    expected2.on_abort(2);
     expected2.on_close();
+    expected2.on_abort();
     expected2.on_shutdown();
     
     test_listener expected3{};
     expected3.on_startup();
-    expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected3.on_abort(0);
-    expected3.on_close();
+    expected3.on_abort();
     expected3.on_shutdown();
 
     test_listener actual0{};
@@ -1175,8 +1548,8 @@ TEST_P(BaseParserTests, End) {
     expected1.on_lexical(taul::token::normal(gram.value(), "A"_str, 0, 1));
     expected1.on_lexical(taul::token::normal(gram.value(), "B"_str, 1, 1));
     expected1.on_lexical(taul::token::normal(gram.value(), "C"_str, 2, 1));
-    expected1.on_abort(3);
     expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener actual0{};
@@ -1217,20 +1590,14 @@ TEST_P(BaseParserTests, End_EndOnly) {
     taul::lexer lxr(gram.value());
     lxr.bind_source(&input);
     psr->bind_source(&lxr);
+
+    input.change_input(""_str);
     psr->reset();
-
     taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("a"_str);
     psr->reset();
-
     taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -1240,9 +1607,7 @@ TEST_P(BaseParserTests, End_EndOnly) {
 
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener actual0{};
@@ -1383,9 +1748,7 @@ TEST_P(BaseParserTests, Any) {
     
     test_listener expected5{};
     expected5.on_startup();
-    expected5.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected5.on_abort(0);
-    expected5.on_close();
+    expected5.on_abort();
     expected5.on_shutdown();
 
     test_listener actual0{};
@@ -1524,9 +1887,7 @@ TEST_P(BaseParserTests, Token) {
 
     test_listener expected3{};
     expected3.on_startup();
-    expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected3.on_abort(0);
-    expected3.on_close();
+    expected3.on_abort();
     expected3.on_shutdown();
 
     test_listener expected4{};
@@ -1538,9 +1899,7 @@ TEST_P(BaseParserTests, Token) {
 
     test_listener expected5{};
     expected5.on_startup();
-    expected5.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected5.on_abort(0);
-    expected5.on_close();
+    expected5.on_abort();
     expected5.on_shutdown();
 
     test_listener actual0{};
@@ -1658,23 +2017,17 @@ TEST_P(BaseParserTests, Failure) {
 
     test_listener expected0{};
     expected0.on_startup();
-    expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected0.on_abort(0);
-    expected0.on_close();
+    expected0.on_abort();
     expected0.on_shutdown();
 
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener expected2{};
     expected2.on_startup();
-    expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected2.on_abort(0);
-    expected2.on_close();
+    expected2.on_abort();
     expected2.on_shutdown();
 
     test_listener expected3{};
@@ -1693,9 +2046,7 @@ TEST_P(BaseParserTests, Failure) {
 
     test_listener expected5{};
     expected5.on_startup();
-    expected5.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected5.on_abort(0);
-    expected5.on_close();
+    expected5.on_abort();
     expected5.on_shutdown();
 
     test_listener actual0{};
@@ -1794,9 +2145,7 @@ TEST_P(BaseParserTests, Name_RefToLPR) {
 
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener expected2{};
@@ -1808,9 +2157,7 @@ TEST_P(BaseParserTests, Name_RefToLPR) {
 
     test_listener expected3{};
     expected3.on_startup();
-    expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected3.on_abort(0);
-    expected3.on_close();
+    expected3.on_abort();
     expected3.on_shutdown();
 
     test_listener actual0{};
@@ -1906,9 +2253,7 @@ TEST_P(BaseParserTests, Name_RefToPPR) {
 
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener expected2{};
@@ -1922,9 +2267,7 @@ TEST_P(BaseParserTests, Name_RefToPPR) {
 
     test_listener expected3{};
     expected3.on_startup();
-    expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected3.on_abort(0);
-    expected3.on_close();
+    expected3.on_abort();
     expected3.on_shutdown();
 
     test_listener actual0{};
@@ -2258,16 +2601,12 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithNoAlts) {
 
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener expected2{};
     expected2.on_startup();
-    expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected2.on_abort(0);
-    expected2.on_close();
+    expected2.on_abort();
     expected2.on_shutdown();
 
     test_listener expected3{};
@@ -2377,9 +2716,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithAlts_WithNoEmptyAlt) {
 
     test_listener expected2{};
     expected2.on_startup();
-    expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected2.on_abort(0);
-    expected2.on_close();
+    expected2.on_abort();
     expected2.on_shutdown();
 
     test_listener expected3{};
@@ -2617,15 +2954,13 @@ TEST_P(BaseParserTests, Sequence_Nesting) {
     expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
     expected2.on_lexical(taul::token::normal(gram.value(), "A"_str, 0, 1));
     expected2.on_lexical(taul::token::normal(gram.value(), "B"_str, 1, 1));
-    expected2.on_abort(2);
     expected2.on_close();
+    expected2.on_abort();
     expected2.on_shutdown();
 
     test_listener expected3{};
     expected3.on_startup();
-    expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected3.on_abort(0);
-    expected3.on_close();
+    expected3.on_abort();
     expected3.on_shutdown();
 
     test_listener actual0{};
@@ -2732,36 +3067,27 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithNoAlts) {
     test_listener expected0{};
     expected0.on_startup();
     expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected0.on_abort(0);
     expected0.on_close();
     expected0.on_shutdown();
 
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener expected2{};
     expected2.on_startup();
-    expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected2.on_abort(0);
-    expected2.on_close();
+    expected2.on_abort();
     expected2.on_shutdown();
 
     test_listener expected3{};
     expected3.on_startup();
-    expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected3.on_abort(0);
-    expected3.on_close();
+    expected3.on_abort();
     expected3.on_shutdown();
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
     
     test_listener actual0{};
@@ -2869,36 +3195,28 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithAlts) {
     test_listener expected0{};
     expected0.on_startup();
     expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected0.on_abort(0);
     expected0.on_close();
     expected0.on_shutdown();
 
     test_listener expected1{};
     expected1.on_startup();
     expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected1.on_abort(0);
     expected1.on_close();
     expected1.on_shutdown();
 
     test_listener expected2{};
     expected2.on_startup();
-    expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected2.on_abort(0);
-    expected2.on_close();
+    expected2.on_abort();
     expected2.on_shutdown();
 
     test_listener expected3{};
     expected3.on_startup();
-    expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected3.on_abort(0);
-    expected3.on_close();
+    expected3.on_abort();
     expected3.on_shutdown();
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener actual0{};
@@ -3006,36 +3324,28 @@ TEST_P(BaseParserTests, LookAhead_WithFailureAlt) {
     test_listener expected0{};
     expected0.on_startup();
     expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected0.on_abort(0);
     expected0.on_close();
     expected0.on_shutdown();
 
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener expected2{};
     expected2.on_startup();
-    expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected2.on_abort(0);
-    expected2.on_close();
+    expected2.on_abort();
     expected2.on_shutdown();
 
     test_listener expected3{};
     expected3.on_startup();
     expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected3.on_abort(0);
     expected3.on_close();
     expected3.on_shutdown();
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener actual0{};
@@ -3145,36 +3455,28 @@ TEST_P(BaseParserTests, LookAhead_Nesting) {
     test_listener expected0{};
     expected0.on_startup();
     expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected0.on_abort(0);
     expected0.on_close();
     expected0.on_shutdown();
 
     test_listener expected1{};
     expected1.on_startup();
     expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected1.on_abort(0);
     expected1.on_close();
     expected1.on_shutdown();
 
     test_listener expected2{};
     expected2.on_startup();
-    expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected2.on_abort(0);
-    expected2.on_close();
+    expected2.on_abort();
     expected2.on_shutdown();
 
     test_listener expected3{};
     expected3.on_startup();
-    expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected3.on_abort(0);
-    expected3.on_close();
+    expected3.on_abort();
     expected3.on_shutdown();
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener actual0{};
@@ -3283,37 +3585,30 @@ TEST_P(BaseParserTests, LookAheadNot_NonEmpty_WithNoAlts) {
 
     test_listener expected0{};
     expected0.on_startup();
-    expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected0.on_abort(0);
-    expected0.on_close();
+    expected0.on_abort();
     expected0.on_shutdown();
 
     test_listener expected1{};
     expected1.on_startup();
     expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected1.on_abort(0);
     expected1.on_close();
     expected1.on_shutdown();
 
     test_listener expected2{};
     expected2.on_startup();
     expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected2.on_abort(0);
     expected2.on_close();
     expected2.on_shutdown();
 
     test_listener expected3{};
     expected3.on_startup();
     expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected3.on_abort(0);
     expected3.on_close();
     expected3.on_shutdown();
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener actual0{};
@@ -3380,77 +3675,49 @@ TEST_P(BaseParserTests, LookAheadNot_NonEmpty_WithAlts) {
 
     input.change_input("a"_str);
     psr->reset();
-
     taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("b"_str);
     psr->reset();
-
     taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
-
     taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
-
     taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input(""_str);
     psr->reset();
-
     taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
-    expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected0.on_abort(0);
-    expected0.on_close();
+    expected0.on_abort();
     expected0.on_shutdown();
 
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener expected2{};
     expected2.on_startup();
     expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected2.on_abort(0);
     expected2.on_close();
     expected2.on_shutdown();
 
     test_listener expected3{};
     expected3.on_startup();
     expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected3.on_abort(0);
     expected3.on_close();
     expected3.on_shutdown();
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener actual0{};
@@ -3517,77 +3784,49 @@ TEST_P(BaseParserTests, LookAheadNot_WithFailureAlt) {
 
     input.change_input("a"_str);
     psr->reset();
-
     taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("b"_str);
     psr->reset();
-
     taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
-
     taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
-
     taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input(""_str);
     psr->reset();
-
     taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
-    expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected0.on_abort(0);
-    expected0.on_close();
+    expected0.on_abort();
     expected0.on_shutdown();
 
     test_listener expected1{};
     expected1.on_startup();
     expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected1.on_abort(0);
     expected1.on_close();
     expected1.on_shutdown();
 
     test_listener expected2{};
     expected2.on_startup();
     expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected2.on_abort(0);
     expected2.on_close();
     expected2.on_shutdown();
 
     test_listener expected3{};
     expected3.on_startup();
-    expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected3.on_abort(0);
-    expected3.on_close();
+    expected3.on_abort();
     expected3.on_shutdown();
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener actual0{};
@@ -3656,77 +3895,49 @@ TEST_P(BaseParserTests, LookAheadNot_Nesting) {
 
     input.change_input("a"_str);
     psr->reset();
-
     taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("b"_str);
     psr->reset();
-
     taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
-
     taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
-
     taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input(""_str);
     psr->reset();
-
     taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
-    expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected0.on_abort(0);
-    expected0.on_close();
+    expected0.on_abort();
     expected0.on_shutdown();
 
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener expected2{};
     expected2.on_startup();
     expected2.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected2.on_abort(0);
     expected2.on_close();
     expected2.on_shutdown();
 
     test_listener expected3{};
     expected3.on_startup();
     expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    //expected3.on_abort(0);
     expected3.on_close();
     expected3.on_shutdown();
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener actual0{};
@@ -3835,9 +4046,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithNoAlts) {
 
     test_listener expected0{};
     expected0.on_startup();
-    expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected0.on_abort(0);
-    expected0.on_close();
+    expected0.on_abort();
     expected0.on_shutdown();
 
     test_listener expected1{};
@@ -3863,9 +4072,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithNoAlts) {
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener actual0{};
@@ -3972,16 +4179,12 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithAlts) {
 
     test_listener expected0{};
     expected0.on_startup();
-    expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected0.on_abort(0);
-    expected0.on_close();
+    expected0.on_abort();
     expected0.on_shutdown();
 
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener expected2{};
@@ -4000,9 +4203,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithAlts) {
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener actual0{};
@@ -4109,9 +4310,7 @@ TEST_P(BaseParserTests, Not_WithFailureAlt) {
 
     test_listener expected0{};
     expected0.on_startup();
-    expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected0.on_abort(0);
-    expected0.on_close();
+    expected0.on_abort();
     expected0.on_shutdown();
 
     test_listener expected1{};
@@ -4130,16 +4329,12 @@ TEST_P(BaseParserTests, Not_WithFailureAlt) {
 
     test_listener expected3{};
     expected3.on_startup();
-    expected3.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected3.on_abort(0);
-    expected3.on_close();
+    expected3.on_abort();
     expected3.on_shutdown();
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener actual0{};
@@ -4248,16 +4443,12 @@ TEST_P(BaseParserTests, Not_Nesting) {
 
     test_listener expected0{};
     expected0.on_startup();
-    expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected0.on_abort(0);
-    expected0.on_close();
+    expected0.on_abort();
     expected0.on_shutdown();
 
     test_listener expected1{};
     expected1.on_startup();
-    expected1.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected1.on_abort(0);
-    expected1.on_close();
+    expected1.on_abort();
     expected1.on_shutdown();
 
     test_listener expected2{};
@@ -4276,9 +4467,7 @@ TEST_P(BaseParserTests, Not_Nesting) {
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener actual0{};
@@ -5173,9 +5362,7 @@ TEST_P(BaseParserTests, KleenePlus) {
 
     test_listener expected0{};
     expected0.on_startup();
-    expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected0.on_abort(0);
-    expected0.on_close();
+    expected0.on_abort();
     expected0.on_shutdown();
 
     test_listener expected1{};
@@ -5204,9 +5391,7 @@ TEST_P(BaseParserTests, KleenePlus) {
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener expected5{};
@@ -5218,9 +5403,7 @@ TEST_P(BaseParserTests, KleenePlus) {
 
     test_listener expected6{};
     expected6.on_startup();
-    expected6.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected6.on_abort(0);
-    expected6.on_close();
+    expected6.on_abort();
     expected6.on_shutdown();
 
     test_listener expected7{};
@@ -5367,9 +5550,7 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
 
     test_listener expected0{};
     expected0.on_startup();
-    expected0.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected0.on_abort(0);
-    expected0.on_close();
+    expected0.on_abort();
     expected0.on_shutdown();
 
     test_listener expected1{};
@@ -5398,9 +5579,7 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
 
     test_listener expected4{};
     expected4.on_startup();
-    expected4.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected4.on_abort(0);
-    expected4.on_close();
+    expected4.on_abort();
     expected4.on_shutdown();
 
     test_listener expected5{};
@@ -5412,9 +5591,7 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
 
     test_listener expected6{};
     expected6.on_startup();
-    expected6.on_syntactic(gram->ppr("f"_str).value(), 0);
-    expected6.on_abort(0);
-    expected6.on_close();
+    expected6.on_abort();
     expected6.on_shutdown();
 
     test_listener expected7{};

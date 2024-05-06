@@ -14,6 +14,10 @@ public:
 
     std::string output;
 
+    // since they don't participate in playback, we'll use counters for errors instead
+
+    size_t terminal_errors = 0, nonterminal_errors = 0;
+
 
     inline void on_startup() override {
         output += "\non_startup()";
@@ -35,8 +39,16 @@ public:
         output += "\non_close()";
     }
 
-    inline void on_abort(taul::source_pos pos) override {
-        output += std::format("\non_abort({})", pos);
+    inline void on_abort() override {
+        output += std::format("\non_abort()");
+    }
+
+    inline void on_terminal_error(taul::token_range ids, taul::token input) override {
+        terminal_errors++;
+    }
+
+    inline void on_nonterminal_error(taul::symbol_id id, taul::token input) override {
+        nonterminal_errors++;
     }
 };
 

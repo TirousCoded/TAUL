@@ -76,7 +76,7 @@ namespace taul {
 
     constexpr symbol_id_num sentinel_cp_ids = 1;
     constexpr symbol_id_num sentinel_lpr_ids = 2;
-    constexpr symbol_id_num sentinel_ppr_ids = 1;
+    constexpr symbol_id_num sentinel_ppr_ids = 0;
 
 
 #define TAUL_NORMAL_IDS(section) taul::normal_ ## section ## _ids
@@ -116,8 +116,6 @@ namespace taul {
 
     constexpr symbol_id failure_lpr_id = TAUL_SENTINEL_ID(lpr, 0);
     constexpr symbol_id end_lpr_id = TAUL_SENTINEL_ID(lpr, 1);
-
-    constexpr symbol_id abort_ppr_id = TAUL_SENTINEL_ID(ppr, 0);
 
 
     // TODO: add static_assert *unit tests* for below
@@ -164,7 +162,6 @@ namespace taul {
     constexpr bool is_normal_id(symbol_id id) noexcept { return is_normal_cp_id(id) || is_normal_lpr_id(id) || is_normal_ppr_id(id); }
     constexpr bool is_end_id(symbol_id id) noexcept { return id == end_cp_id || id == end_lpr_id; }
     constexpr bool is_failure_id(symbol_id id) noexcept { return id == failure_lpr_id; }
-    constexpr bool is_abort_id(symbol_id id) noexcept { return id == abort_ppr_id; }
 
     constexpr bool is_symbol_id(symbol_id id) noexcept { return is_cp_id(id) || is_lpr_id(id) || is_ppr_id(id); }
 }

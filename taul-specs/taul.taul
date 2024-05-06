@@ -127,6 +127,19 @@ lexer section:
 
 parser section:
 
+    # TODO: one flaw w/ this grammar is that if a syntax error occurs BETWEEN clauses,
+    #       the parser will STOP parsing entirely, as it'll exit the kleene-star, and
+    #       then proceed to the 'end', which'll be the thing the error handler will be
+    #       skipping tokens until it reaches
+    #
+    #       in order to properly fix this, we need to add 'shadowing', then have the
+    #       final alt of Clause being to a 'Clause_Malformed' non-terminal, which in
+    #       turn simply contains 'any' (who's FIRST set will be shadowed), and then w/
+    #       this we can then impl the error reporting as a special behaviour which
+    #       occurs during Clause_Malformed's eval, rather than a *true* error, but w/
+    #       this nevertheless (maybe) addressing the problem we're having, and doing
+    #       so in a way that can be generalized to such use cases more broadly
+
     Spec                            : Clause* end ;
 
     Clause                          : LexerSection

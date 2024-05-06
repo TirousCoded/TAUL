@@ -8,6 +8,7 @@
 #include "grammar.h"
 #include "api_component.h"
 #include "parse_tree.h"
+#include "symbol_range.h"
 
 
 namespace taul {
@@ -59,9 +60,23 @@ namespace taul {
         virtual void on_close() = 0;
 
         // this event arises when a fatal syntax error aborts parsing,
-        // during parsing or playback
+        // during parsing or playback, occurring after all others
 
-        virtual void on_abort(source_pos pos) = 0;
+        virtual void on_abort() = 0;
+
+
+        // TODO: for now I'm just having these not participate in playback,
+        //       but in the future we may want to change that maybe
+
+        // these events are used to report errors which arise during parsing
+
+        // these arise whether or not they were able to be recovered from
+
+        // unlike the above events, these do not participate in playback, as
+        // they are not part of the parse tree
+
+        virtual void on_terminal_error(token_range ids, token input) = 0;
+        virtual void on_nonterminal_error(symbol_id id, token input) = 0;
     };
 }
 

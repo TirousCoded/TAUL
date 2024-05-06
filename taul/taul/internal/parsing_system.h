@@ -49,6 +49,15 @@ namespace taul::internal {
     //      void output_nonterminal_error(symbol_id id, symbol_type input)
     //          * reports errors arising w/ terminal/non-terminal symbols
     //          * reports symbol ID(s) and input at place of error
+    //      static constexpr bool uses_eh() noexcept
+    //          * returns if the system uses an error handler at all (ie. it's a parser)
+    //      void eh_startup()
+    //      void eh_shutdown()
+    //      void eh_terminal_error(symbol_range<symbol_type> ids, symbol_type input)
+    //      void eh_nonterminal_error(symbol_id id, symbol_type input)
+    //      void eh_recovery_failed()
+    //          * these invoke the error handler
+    //          * eh_recovery_failed is called upon a failed recovery attempt
 
     
     template<typename Policy>
@@ -70,6 +79,11 @@ namespace taul::internal {
 
 
         inline bool parse(rule_ref_type start_rule);
+
+
+        // this is used to impl eh_check for the parser
+
+        inline bool check();
 
 
         inline std::string fmt_stack(const char* tab = "    ") const;
@@ -149,6 +163,34 @@ namespace taul::internal {
         inline void _output_terminal(symbol_type terminal);
         inline void _output_nonterminal_begin(symbol_id nonterminal);
         inline void _output_nonterminal_end();
+
+        inline void _startup();
+        inline void _shutdown();
+
+        inline bool _match_terminal_with_eh(const pt_terminal<symbol_type>& terminal);
+        inline bool _match_nonterminal_with_eh(const pt_nonterminal& nonterminal);
+        inline bool _match_term(const pt_term<symbol_type>& term);
+
+        inline bool _parse(rule_ref_type start_rule);
+
+
+        bool _check_is_for_terminal = true;
+        symbol_range<symbol_type> _check_terminal_ids = {};
+        symbol_id _check_nonterminal_id = {};
+
+
+        inline void _bind_check_for_terminal(const pt_terminal<symbol_type>& terminal);
+        inline void _bind_check_for_nonterminal(const pt_nonterminal& nonterminal);
+
+        inline bool _check();
+
+
+        inline void _debug_transparent_nonterminal();
+        inline void _debug_match_terminal_fail();
+        inline void _debug_match_nonterminal_fail();
+        inline void _debug_parse_begin();
+        inline void _debug_parse_end_success();
+        inline void _debug_parse_step();
     };
 
 
@@ -162,101 +204,12 @@ namespace taul::internal {
 
     template<typename Policy>
     inline bool taul::internal::parsing_system<Policy>::parse(rule_ref_type start_rule) {
-        _setup(start_rule);
-        if constexpr (std::is_same_v<symbol_type, glyph>) {
-#if _DUMP_LEXER_PARSING_SYSTEM_LOG
-            TAUL_LOG(lgr, "\ninternal::parsing_system<Policy>::parse({})", start_rule);
-            TAUL_LOG(lgr, "*** begin ***");
-#endif
-        }
-        else {
-#if _DUMP_PARSER_PARSING_SYSTEM_LOG
-            TAUL_LOG(lgr, "\ninternal::parsing_system<Policy>::parse({})", start_rule);
-            TAUL_LOG(lgr, "*** begin ***");
-#endif
-        }
-        _output_startup();
-        while (true) {
-            if constexpr (std::is_same_v<symbol_type, glyph>) {
-#if _DUMP_LEXER_PARSING_SYSTEM_LOG
-                TAUL_LOG(lgr, "\n*** step ***");
-                TAUL_LOG(lgr, "input: {}", _policy.peek());
-                TAUL_LOG(lgr, "output: {}", _policy.fmt_output());
-                TAUL_LOG(lgr, "{}", fmt_stack());
-#endif
-            }
-            else {
-#if _DUMP_PARSER_PARSING_SYSTEM_LOG
-                TAUL_LOG(lgr, "\n*** step ***");
-                TAUL_LOG(lgr, "input: {}", _policy.peek());
-                TAUL_LOG(lgr, "output: {}", _policy.fmt_output());
-                TAUL_LOG(lgr, "{}", fmt_stack());
-#endif
-            }
-            const auto top = _consume_top();
-            if (!top) break; // exiting here means we're successful
-            _handle_nonterminal_ending(top.value().depth);
-            if (top.value().term.is_terminal()) {
-                const auto& terminal = top.value().term.terminal();
-                const auto input =
-                    terminal.assertion
-                    ? _fetch_input_noadvance()
-                    : _fetch_input_advance();
-                if (!_try_apply_terminal(terminal, input)) {
-                    if constexpr (std::is_same_v<symbol_type, glyph>) {
-#if _DUMP_LEXER_PARSING_SYSTEM_LOG
-                        TAUL_LOG(lgr, "\n*** end (failure) ***");
-                        TAUL_LOG(lgr, "cause: failed terminal comparison");
-#endif
-                    }
-                    else {
-#if _DUMP_PARSER_PARSING_SYSTEM_LOG
-                        TAUL_LOG(lgr, "\n*** end (failure) ***");
-                        TAUL_LOG(lgr, "cause: failed terminal comparison");
-#endif
-                    }
-                    _policy.output_terminal_error(terminal.ids, input);
-                    _output_shutdown();
-                    return false; // failure
-                }
-            }
-            else if (top.value().term.is_nonterminal()) {
-                const auto& nonterminal = top.value().term.nonterminal();
-                const auto input = _fetch_input_noadvance();
-                if (!_try_apply_nonterminal(nonterminal, input)) {
-                    if constexpr (std::is_same_v<symbol_type, glyph>) {
-#if _DUMP_LEXER_PARSING_SYSTEM_LOG
-                        TAUL_LOG(lgr, "\n*** end (failure) ***");
-                        TAUL_LOG(lgr, "cause: failed parse table lookup");
-#endif
-                    }
-                    else {
-#if _DUMP_PARSER_PARSING_SYSTEM_LOG
-                        TAUL_LOG(lgr, "\n*** end (failure) ***");
-                        TAUL_LOG(lgr, "cause: failed parse table lookup");
-#endif
-                    }
-                    _policy.output_nonterminal_error(nonterminal.id, input);
-                    _output_shutdown();
-                    return false; // failure
-                }
-            }
-            else TAUL_DEADEND;
-        }
-        _output_shutdown();
-        if constexpr (std::is_same_v<symbol_type, glyph>) {
-#if _DUMP_LEXER_PARSING_SYSTEM_LOG
-            TAUL_LOG(lgr, "\n*** end (success) ***");
-            TAUL_LOG(lgr, "result: {}", _policy.fmt_output());
-#endif
-        }
-        else {
-#if _DUMP_PARSER_PARSING_SYSTEM_LOG
-            TAUL_LOG(lgr, "\n*** end (success) ***");
-            TAUL_LOG(lgr, "result: {}", _policy.fmt_output());
-#endif
-        }
-        return true; // success
+        return _parse(start_rule);
+    }
+
+    template<typename Policy>
+    inline bool parsing_system<Policy>::check() {
+        return _check();
     }
 
     template<typename Policy>
@@ -323,9 +276,11 @@ namespace taul::internal {
     
     template<typename Policy>
     inline bool parsing_system<Policy>::_try_apply_nonterminal(const pt_nonterminal& nonterminal, symbol_type input) {
-        _output_nonterminal_begin(nonterminal.id);
         const auto pt_index = _lookup_in_pt(nonterminal.id, input.id);
-        if (pt_index) _push_terms(pt_index.value());
+        if (pt_index) {
+            _output_nonterminal_begin(nonterminal.id);
+            _push_terms(pt_index.value());
+        }
         return (bool)pt_index;
     }
     
@@ -386,16 +341,7 @@ namespace taul::internal {
     template<typename Policy>
     inline void parsing_system<Policy>::_output_nonterminal_begin(symbol_id nonterminal) {
         if (_policy.fetch_ntia(_gram).is_transparent(nonterminal)) {
-            if constexpr (std::is_same_v<symbol_type, glyph>) {
-#if _DUMP_LEXER_PARSING_SYSTEM_LOG
-                TAUL_LOG(lgr, "forgoing begin call for transparent non-terminal {}", nonterminal);
-#endif
-            }
-            else {
-#if _DUMP_PARSER_PARSING_SYSTEM_LOG
-                TAUL_LOG(lgr, "forgoing begin call for transparent non-terminal {}", nonterminal);
-#endif
-            }
+            _debug_transparent_nonterminal();
             return;
         }
         _policy.output_nonterminal_begin(nonterminal);
@@ -407,6 +353,214 @@ namespace taul::internal {
         TAUL_ASSERT(_current_depth > 0);
         _policy.output_nonterminal_end();
         _current_depth--;
+    }
+
+    template<typename Policy>
+    inline void parsing_system<Policy>::_startup() {
+        _output_startup();
+        if constexpr (Policy::uses_eh()) _policy.eh_startup();
+    }
+    
+    template<typename Policy>
+    inline void parsing_system<Policy>::_shutdown() {
+        if constexpr (Policy::uses_eh()) _policy.eh_shutdown();
+        _output_shutdown();
+    }
+
+    template<typename Policy>
+    inline bool parsing_system<Policy>::_match_terminal_with_eh(const pt_terminal<symbol_type>& terminal) {
+        auto input = _fetch_input_noadvance();
+        auto result = _try_apply_terminal(terminal, input);
+
+        if (!result) { // if failed, try recovering, then try again
+            _policy.output_terminal_error(terminal.ids, input); // report error
+            if constexpr (Policy::uses_eh()) { // only attempt recovery if uses eh
+                _bind_check_for_terminal(terminal); // prep for recovery attempt
+                _policy.eh_terminal_error(terminal.ids, input); // attempt recovery
+
+                input = _fetch_input_noadvance(); // resample input
+                result = _try_apply_terminal(terminal, input); // retry
+            }
+        }
+        if (result) {
+            // for terminals, for the error handler to work as expected, we want to
+            // NOT advance the input state until AFTER we've finished everything above
+            if (!terminal.assertion) _fetch_input_advance();
+        }
+        else {
+            _policy.eh_recovery_failed();
+            _debug_match_terminal_fail();
+        }
+        return result;
+    }
+
+    template<typename Policy>
+    inline bool parsing_system<Policy>::_match_nonterminal_with_eh(const pt_nonterminal& nonterminal) {
+        auto input = _fetch_input_noadvance();
+        auto result = _try_apply_nonterminal(nonterminal, input);
+
+        if (!result) { // if failed, try recovering, then try again
+            _policy.output_nonterminal_error(nonterminal.id, input); // report error
+            if constexpr (Policy::uses_eh()) { // only attempt recovery if uses eh
+                _bind_check_for_nonterminal(nonterminal); // prep for recovery attempt
+                _policy.eh_nonterminal_error(nonterminal.id, input); // attempt recovery
+
+                input = _fetch_input_noadvance(); // resample input
+                result = _try_apply_nonterminal(nonterminal, input); // retry
+            }
+        }
+        if (!result) {
+            _policy.eh_recovery_failed();
+            _debug_match_nonterminal_fail();
+        }
+        return result;
+    }
+
+    template<typename Policy>
+    inline bool parsing_system<Policy>::_match_term(const pt_term<symbol_type>& term) {
+        TAUL_ASSERT(term.is_terminal() || term.is_nonterminal());
+        return
+            term.is_terminal()
+            ? _match_terminal_with_eh(term.terminal())
+            : _match_nonterminal_with_eh(term.nonterminal());
+    }
+
+    template<typename Policy>
+    inline bool parsing_system<Policy>::_parse(rule_ref_type start_rule) {
+        _setup(start_rule);
+        _debug_parse_begin();
+        _startup();
+        while (true) {
+            _debug_parse_step();
+            const auto top = _consume_top();
+            if (!top) break; // exiting here means we're successful
+            _handle_nonterminal_ending(top.value().depth);
+            if (!_match_term(top.value().term)) {
+                _shutdown();
+                return false; // failure
+            }
+        }
+        _shutdown();
+        _debug_parse_end_success();
+        return true; // success
+    }
+
+    template<typename Policy>
+    inline void parsing_system<Policy>::_bind_check_for_terminal(const pt_terminal<symbol_type>& terminal) {
+        _check_is_for_terminal = true;
+        _check_terminal_ids = terminal.ids;
+    }
+    
+    template<typename Policy>
+    inline void parsing_system<Policy>::_bind_check_for_nonterminal(const pt_nonterminal& nonterminal) {
+        _check_is_for_terminal = false;
+        _check_nonterminal_id = nonterminal.id;
+    }
+    
+    template<typename Policy>
+    inline bool parsing_system<Policy>::_check() {
+        return
+            _check_is_for_terminal
+            ? _check_terminal_ids.contains(_fetch_input_noadvance().id)
+            : _lookup_in_pt(_check_nonterminal_id, _fetch_input_noadvance().id).has_value();
+    }
+
+    template<typename Policy>
+    inline void parsing_system<Policy>::_debug_transparent_nonterminal() {
+        if constexpr (std::is_same_v<symbol_type, glyph>) {
+#if _DUMP_LEXER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "forgoing begin call for transparent non-terminal {}", nonterminal);
+#endif
+        }
+        else {
+#if _DUMP_PARSER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "forgoing begin call for transparent non-terminal {}", nonterminal);
+#endif
+        }
+    }
+
+    template<typename Policy>
+    inline void parsing_system<Policy>::_debug_match_terminal_fail() {
+        if constexpr (std::is_same_v<symbol_type, glyph>) {
+#if _DUMP_LEXER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "\n*** end (failure) ***");
+            TAUL_LOG(lgr, "cause: failed terminal comparison");
+#endif
+        }
+        else {
+#if _DUMP_PARSER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "\n*** end (failure) ***");
+            TAUL_LOG(lgr, "cause: failed terminal comparison");
+#endif
+        }
+    }
+
+    template<typename Policy>
+    inline void parsing_system<Policy>::_debug_match_nonterminal_fail() {
+        if constexpr (std::is_same_v<symbol_type, glyph>) {
+#if _DUMP_LEXER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "\n*** end (failure) ***");
+            TAUL_LOG(lgr, "cause: failed parse table lookup");
+#endif
+        }
+        else {
+#if _DUMP_PARSER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "\n*** end (failure) ***");
+            TAUL_LOG(lgr, "cause: failed parse table lookup");
+#endif
+        }
+    }
+
+    template<typename Policy>
+    inline void parsing_system<Policy>::_debug_parse_begin() {
+        if constexpr (std::is_same_v<symbol_type, glyph>) {
+#if _DUMP_LEXER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "\ninternal::parsing_system<Policy>::parse({})", start_rule);
+            TAUL_LOG(lgr, "*** begin ***");
+#endif
+        }
+        else {
+#if _DUMP_PARSER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "\ninternal::parsing_system<Policy>::parse({})", start_rule);
+            TAUL_LOG(lgr, "*** begin ***");
+#endif
+        }
+    }
+    
+    template<typename Policy>
+    inline void parsing_system<Policy>::_debug_parse_end_success() {
+        if constexpr (std::is_same_v<symbol_type, glyph>) {
+#if _DUMP_LEXER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "\n*** end (success) ***");
+            TAUL_LOG(lgr, "result: {}", _policy.fmt_output());
+#endif
+        }
+        else {
+#if _DUMP_PARSER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "\n*** end (success) ***");
+            TAUL_LOG(lgr, "result: {}", _policy.fmt_output());
+#endif
+        }
+    }
+    
+    template<typename Policy>
+    inline void parsing_system<Policy>::_debug_parse_step() {
+        if constexpr (std::is_same_v<symbol_type, glyph>) {
+#if _DUMP_LEXER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "\n*** step ***");
+            TAUL_LOG(lgr, "input: {}", _policy.peek());
+            TAUL_LOG(lgr, "output: {}", _policy.fmt_output());
+            TAUL_LOG(lgr, "{}", fmt_stack());
+#endif
+        }
+        else {
+#if _DUMP_PARSER_PARSING_SYSTEM_LOG
+            TAUL_LOG(lgr, "\n*** step ***");
+            TAUL_LOG(lgr, "input: {}", _policy.peek());
+            TAUL_LOG(lgr, "output: {}", _policy.fmt_output());
+            TAUL_LOG(lgr, "{}", fmt_stack());
+#endif
+        }
     }
 }
 

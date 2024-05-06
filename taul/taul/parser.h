@@ -4,6 +4,7 @@
 
 
 #include "base_parser.h"
+#include "error_handler.h"
 
 #include "internal/parse_table.h"
 #include "internal/parsing_system.h"
@@ -55,6 +56,12 @@ namespace taul {
             void output_nonterminal_end();
             void output_terminal_error(symbol_range<symbol_type> ids, symbol_type input);
             void output_nonterminal_error(symbol_id id, symbol_type input);
+            static constexpr bool uses_eh() noexcept { return true; }
+            void eh_startup();
+            void eh_shutdown();
+            void eh_terminal_error(symbol_range<symbol_type> ids, symbol_type input);
+            void eh_nonterminal_error(symbol_id id, symbol_type input);
+            void eh_recovery_failed();
 
 
             parser* _self_ptr = nullptr; // link to parser
@@ -67,6 +74,11 @@ namespace taul {
         std::shared_ptr<token_stream> _source_ownership;
         listener* _listener;
         std::shared_ptr<listener> _listener_ownership;
+        error_handler* _eh;
+        std::shared_ptr<error_handler> _eh_ownership;
+
+
+        bool _aborted = false; // if an abort occurred
 
         std::optional<parse_tree> _result; // the parse tree in production, if any
 
