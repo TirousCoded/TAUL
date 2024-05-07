@@ -4,7 +4,7 @@
 
 #include <taul/source_code.h>
 #include <taul/disassemble_spec.h>
-#include <taul/string_reader.h>
+#include <taul/source_reader.h>
 #include <taul/lexer.h>
 #include <taul/parser.h>
 #include <taul/taul_spec.h>
@@ -169,7 +169,7 @@ TEST_F(TAULSpecTests, PPRs) {
 #define _SETUP_FOR_LPR(_NAME_) \
 ASSERT_TRUE(gram);\
 ASSERT_TRUE(gram->has_lpr(_NAME_));\
-taul::string_reader reader(""_str);\
+taul::source_reader reader(""_str);\
 taul::lexer lexer(gram.value());\
 lexer.bind_source(&reader);\
 auto _succeed =\
@@ -511,7 +511,7 @@ TEST_F(TAULSpecTests, COMMENT) {
 
 #define _SETUP_FOR_PPR(src) \
 ASSERT_TRUE(gram);\
-taul::string_reader reader(src);\
+taul::source_reader reader(src);\
 taul::lexer lexer(gram.value());\
 taul::parser parser(gram.value(), lgr);\
 lexer.bind_source(&reader);\

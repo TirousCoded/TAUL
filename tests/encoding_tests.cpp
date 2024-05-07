@@ -28,6 +28,9 @@ using namespace taul::string_literals;
 // we'll use the following chars in our tests:
 //      a b c 1 2 3 Δ 魂 💩
 
+// the last three I like using as they let me test w/ each distinct
+// UTF-8 encoded unit size
+
 constexpr taul::unicode_t decoded_a() noexcept { return U'a'; }
 constexpr taul::unicode_t decoded_b() noexcept { return U'b'; }
 constexpr taul::unicode_t decoded_c() noexcept { return U'c'; }

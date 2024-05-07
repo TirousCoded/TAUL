@@ -11,13 +11,13 @@
 namespace taul {
 
 
-    class string_reader final : public reader {
+    class source_reader final : public reader {
     public:
 
-        string_reader(str input);
-        string_reader(const source_code& input);
+        source_reader(str input, encoding in_e = utf8);
+        source_reader(const source_code& input);
 
-        virtual ~string_reader() noexcept = default;
+        virtual ~source_reader() noexcept = default;
 
 
         virtual void bind_observer(glyph_observer* observer) override final;
@@ -32,14 +32,16 @@ namespace taul {
 
         // change_input invalidates the current pipeline usage state
 
-        void change_input(str new_input);
+        void change_input(str new_input, encoding in_e = utf8);
         void change_input(const source_code& new_input);
 
 
     private:
 
         str _input;
-        source_pos _pos;
+        encoding _in_e;
+        decoder<char> _decoder;
+
         glyph_observer* _observer;
         std::shared_ptr<glyph_observer> _observer_ownership;
 

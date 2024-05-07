@@ -5,7 +5,7 @@
 #include <taul/spec.h>
 #include <taul/grammar.h>
 #include <taul/load.h>
-#include <taul/string_reader.h>
+#include <taul/source_reader.h>
 #include <taul/parser.h>
 
 #include "parameterized_tests/base_parser_tests.h"

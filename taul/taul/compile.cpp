@@ -2,7 +2,7 @@
 
 #include "compile.h"
 
-#include "string_reader.h"
+#include "source_reader.h"
 #include "lexer.h"
 #include "parser.h"
 #include "regular_error_handler.h"
@@ -27,7 +27,7 @@ std::optional<taul::spec> taul::compile(const std::shared_ptr<source_code>& src,
     auto gram = taul::load(taul::taul_spec());
     TAUL_ASSERT(gram);
     taul::internal::compiler_backend backend(*src, ec, gram.value(), lgr, dbgsyms);
-    taul::string_reader rdr(*src);
+    taul::source_reader rdr(*src);
     taul::lexer lxr(gram.value());
     taul::parser psr(gram.value());
     taul::regular_error_handler eh{};

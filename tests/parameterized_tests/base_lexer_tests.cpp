@@ -4,7 +4,7 @@
 
 #include <taul/spec.h>
 #include <taul/load.h>
-#include <taul/string_reader.h>
+#include <taul/source_reader.h>
 
 #include "../helpers/test_token_observer.h"
 #include "../helpers/test_glyph_stream_for_reset.h"
@@ -43,7 +43,7 @@ TEST_P(BaseLexerTests, Observers) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("aaaa"_str);
+    taul::source_reader input("aaaa"_str);
     lxr->bind_source(&input);
 
     test_token_observer obsvr{};
@@ -77,7 +77,7 @@ TEST_P(BaseLexerTests, PeekNextAndDone) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("aaaa"_str);
+    taul::source_reader input("aaaa"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -138,7 +138,7 @@ TEST_P(BaseLexerTests, Reset_PipelineReuse) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input1("aaa"_str);
+    taul::source_reader input1("aaa"_str);
     lxr->bind_source(&input1);
 
     lxr->reset();
@@ -149,7 +149,7 @@ TEST_P(BaseLexerTests, Reset_PipelineReuse) {
     ASSERT_TRUE(lxr->done());
     ASSERT_EQ(lxr->next(), taul::token::end(3));
 
-    taul::string_reader input2("bbbb"_str);
+    taul::source_reader input2("bbbb"_str);
     lxr->bind_source(&input2); // test that impl can handle switching out upstream
     lxr->reset(); // reset progress made
 
@@ -200,7 +200,7 @@ TEST_P(BaseLexerTests, MultipleLexerRules_PickFirstMatch) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcbbabc"_str);
+    taul::source_reader input("abcbbabc"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -244,7 +244,7 @@ TEST_P(BaseLexerTests, SkipLexerRules_Cut_IfCutSkipTokensEqualsTrue_ButStillSend
 
     lxr->cut_skip_tokens = true;
 
-    taul::string_reader input("aababbaba"_str);
+    taul::source_reader input("aababbaba"_str);
     lxr->bind_source(&input);
 
     test_token_observer obsvr{};
@@ -291,7 +291,7 @@ TEST_P(BaseLexerTests, SkipLexerRules_DoNotCut_IfCutSkipTokensEqualsFalse) {
 
     lxr->cut_skip_tokens = false;
 
-    taul::string_reader input("aababbaba"_str);
+    taul::source_reader input("aababbaba"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -344,7 +344,7 @@ TEST_P(BaseLexerTests, SupportLexerRules_DoNotEval) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcabcabc"_str);
+    taul::source_reader input("abcabcabc"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -392,7 +392,7 @@ TEST_P(BaseLexerTests, SupportLexerRules_EdgeCaseWhereAllLPRsAreSupport) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcabcabc"_str);
+    taul::source_reader input("abcabcabc"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -429,7 +429,7 @@ TEST_P(BaseLexerTests, FailureTokenPolicy) {
 
     lxr->cut_skip_tokens = true; // note we want to cut skip tokens for this test
 
-    taul::string_reader input("aa ab& baabcdaab "_str);
+    taul::source_reader input("aa ab& baabcdaab "_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -476,7 +476,7 @@ TEST_P(BaseLexerTests, ZeroLengthTokenPolicy) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("aaaaa"_str);
+    taul::source_reader input("aaaaa"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -520,7 +520,7 @@ TEST_P(BaseLexerTests, ZeroLengthTokenPolicy_IfZeroLengthTokenIsSkip) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("aaaaa"_str);
+    taul::source_reader input("aaaaa"_str);
     lxr->bind_source(&input);
 
     test_token_observer obsvr{};
@@ -592,7 +592,7 @@ TEST_P(BaseLexerTests, LPR_Empty) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abc"_str);
+    taul::source_reader input("abc"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -628,7 +628,7 @@ TEST_P(BaseLexerTests, LPR_NonEmpty_WithNoAlts) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abaab"_str);
+    taul::source_reader input("abaab"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -664,7 +664,7 @@ TEST_P(BaseLexerTests, LPR_NonEmpty_WithAlts_WithNoEmptyAlt) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcbaabc"_str);
+    taul::source_reader input("abcbaabc"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -702,7 +702,7 @@ TEST_P(BaseLexerTests, LPR_NonEmpty_WithAlts_WithEmptyAlt) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abaab"_str);
+    taul::source_reader input("abaab"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -743,7 +743,7 @@ TEST_P(BaseLexerTests, LPR_Nesting) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcabcabcdabc"_str);
+    taul::source_reader input("abcabcabcdabc"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -781,7 +781,7 @@ TEST_P(BaseLexerTests, End) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("a"_str);
+    taul::source_reader input("a"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -801,7 +801,7 @@ TEST_P(BaseLexerTests, End_EmptyInput) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input(""_str);
+    taul::source_reader input(""_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -837,7 +837,7 @@ TEST_P(BaseLexerTests, Any) {
 
     // TODO: this is an extremely *incomplete* sample of the different inputs we could give it
 
-    taul::string_reader input("abc\n\t 123!@(*$#_+-=;\\~"_str);
+    taul::source_reader input("abc\n\t 123!@(*$#_+-=;\\~"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -877,7 +877,7 @@ TEST_P(BaseLexerTests, Any_EmptyInput) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input(""_str);
+    taul::source_reader input(""_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -910,7 +910,7 @@ TEST_P(BaseLexerTests, String) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcabcdabcdef"_str);
+    taul::source_reader input("abcabcdabcdef"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -933,7 +933,7 @@ TEST_P(BaseLexerTests, String_EmptyInput) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input(""_str);
+    taul::source_reader input(""_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -966,7 +966,7 @@ TEST_P(BaseLexerTests, Charset) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcdefghi01234567"_str);
+    taul::source_reader input("abcdefghi01234567"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -997,7 +997,7 @@ TEST_P(BaseLexerTests, Charset_EmptyInput) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input(""_str);
+    taul::source_reader input(""_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1034,7 +1034,7 @@ TEST_P(BaseLexerTests, Name) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcdabcdef"_str);
+    taul::source_reader input("abcdabcdef"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1056,7 +1056,7 @@ TEST_P(BaseLexerTests, Name_EmptyInput) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input(""_str);
+    taul::source_reader input(""_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1089,7 +1089,7 @@ TEST_P(BaseLexerTests, Name_RefRuleCanFormZeroLengthToken) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("a"_str);
+    taul::source_reader input("a"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1111,7 +1111,7 @@ TEST_P(BaseLexerTests, Name_RefRuleCanFormZeroLengthToken_EmptyInput) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input(""_str);
+    taul::source_reader input(""_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1146,7 +1146,7 @@ TEST_P(BaseLexerTests, Name_RefSkip) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcdabcdef"_str);
+    taul::source_reader input("abcdabcdef"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1184,7 +1184,7 @@ TEST_P(BaseLexerTests, Name_RefSupport) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcdabcdef"_str);
+    taul::source_reader input("abcdabcdef"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1220,7 +1220,7 @@ TEST_P(BaseLexerTests, Name_Recursion) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("aaabbabaa"_str);
+    taul::source_reader input("aaabbabaa"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1264,7 +1264,7 @@ TEST_P(BaseLexerTests, Sequence_Empty) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abc"_str);
+    taul::source_reader input("abc"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1302,7 +1302,7 @@ TEST_P(BaseLexerTests, Sequence_NonEmpty_WithNoAlts) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abaab"_str);
+    taul::source_reader input("abaab"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1340,7 +1340,7 @@ TEST_P(BaseLexerTests, Sequence_NonEmpty_WithAlts_WithNoEmptyAlt) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcbaabc"_str);
+    taul::source_reader input("abcbaabc"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1380,7 +1380,7 @@ TEST_P(BaseLexerTests, Sequence_NonEmpty_WithAlts_WithEmptyAlt) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abaab"_str);
+    taul::source_reader input("abaab"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1423,7 +1423,7 @@ TEST_P(BaseLexerTests, Sequence_Nesting) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcabcabcdabc"_str);
+    taul::source_reader input("abcabcabcdabc"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1463,7 +1463,7 @@ TEST_P(BaseLexerTests, LookAhead_NonEmpty_WithNoAlts) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("aabbaa"_str);
+    taul::source_reader input("aabbaa"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1506,7 +1506,7 @@ TEST_P(BaseLexerTests, LookAhead_NonEmpty_WithAlts) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcdef"_str);
+    taul::source_reader input("abcdef"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1549,7 +1549,7 @@ TEST_P(BaseLexerTests, LookAhead_Nesting) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcdef"_str);
+    taul::source_reader input("abcdef"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1590,7 +1590,7 @@ TEST_P(BaseLexerTests, LookAheadNot_NonEmpty_WithNoAlts) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("bbaabb"_str);
+    taul::source_reader input("bbaabb"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1633,7 +1633,7 @@ TEST_P(BaseLexerTests, LookAheadNot_NonEmpty_WithAlts) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcdef"_str);
+    taul::source_reader input("abcdef"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1677,7 +1677,7 @@ TEST_P(BaseLexerTests, LookAheadNot_Nesting) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcdef"_str);
+    taul::source_reader input("abcdef"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1719,7 +1719,7 @@ TEST_P(BaseLexerTests, Not_NonEmpty_WithNoAlts) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("bbaabb"_str);
+    taul::source_reader input("bbaabb"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1759,7 +1759,7 @@ TEST_P(BaseLexerTests, Not_NonEmpty_WithAlts) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcdef"_str);
+    taul::source_reader input("abcdef"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1801,7 +1801,7 @@ TEST_P(BaseLexerTests, Not_Nesting) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcdef"_str);
+    taul::source_reader input("abcdef"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1841,7 +1841,7 @@ TEST_P(BaseLexerTests, Optional) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcabcdabc"_str);
+    taul::source_reader input("abcabcdabc"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1865,7 +1865,7 @@ TEST_P(BaseLexerTests, Optional_EmptyInput) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input(""_str);
+    taul::source_reader input(""_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1899,7 +1899,7 @@ TEST_P(BaseLexerTests, Optional_Nesting) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcabcdabc"_str);
+    taul::source_reader input("abcabcdabc"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1940,7 +1940,7 @@ TEST_P(BaseLexerTests, KleeneStar) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcabcabcdabcabcd"_str);
+    taul::source_reader input("abcabcabcdabcabcd"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1965,7 +1965,7 @@ TEST_P(BaseLexerTests, KleeneStar_EmptyInput) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input(""_str);
+    taul::source_reader input(""_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -1999,7 +1999,7 @@ TEST_P(BaseLexerTests, KleeneStar_Nesting) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcabcabcdabcabcd"_str);
+    taul::source_reader input("abcabcabcdabcabcd"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -2041,7 +2041,7 @@ TEST_P(BaseLexerTests, KleenePlus) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcabcabcdabcabcd"_str);
+    taul::source_reader input("abcabcabcdabcabcd"_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -2063,7 +2063,7 @@ TEST_P(BaseLexerTests, KleenePlus_EmptyInput) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input(""_str);
+    taul::source_reader input(""_str);
     lxr->bind_source(&input);
 
     lxr->reset();
@@ -2096,7 +2096,7 @@ TEST_P(BaseLexerTests, KleenePlus_Nesting) {
     auto lxr = GetParam().factory(gram.value(), lgr);
     ASSERT_TRUE(lxr);
 
-    taul::string_reader input("abcabcabcdabcabcd"_str);
+    taul::source_reader input("abcabcabcdabcabcd"_str);
     lxr->bind_source(&input);
 
     lxr->reset();

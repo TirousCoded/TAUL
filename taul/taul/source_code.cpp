@@ -41,18 +41,18 @@ taul::str taul::source_code::str() const noexcept {
 }
 
 bool taul::source_code::pos_in_bounds(source_pos pos) const noexcept {
-    return std::size_t(pos) < str().length();
+    return size_t(pos) < str().length();
 }
 
 std::span<const taul::source_page> taul::source_code::pages() const noexcept {
     return std::span<const taul::source_page>(_pages.begin(), _pages.size());
 }
 
-std::optional<std::size_t> taul::source_code::page_at(source_pos pos) const noexcept {
+std::optional<size_t> taul::source_code::page_at(source_pos pos) const noexcept {
     if (!pos_in_bounds(pos)) {
         return std::nullopt;
     }
-    std::size_t ind = 0;
+    size_t ind = 0;
     for (const auto& I : pages()) {
         if (pos >= I.pos && pos < I.pos + I.length) {
             break;
@@ -79,7 +79,25 @@ std::optional<taul::source_location> taul::source_code::location_at(source_pos p
     return std::make_optional(std::move(loc));
 }
 
-void taul::source_code::add_str(taul::str origin, taul::str x) {
+bool taul::source_code::to_file(const std::filesystem::path& out_path) const {
+    if (!out_path.has_filename()) return false;
+    std::ofstream stream(out_path);
+    stream.seekp(0);
+    stream.write(str().data(), str().length());
+    stream.close();
+    return true;
+}
+
+void taul::source_code::add_str(
+    taul::str origin,
+    taul::str x,
+    encoding in_e) {
+    if (in_e != utf8) {
+        // TODO: this way of doing things should be refactored
+        auto temp = convert_encoding<char>(in_e, utf8, std::string_view(x));
+        TAUL_ASSERT(temp);
+        x = taul::str(temp.value());
+    }
     _addLineStarts(x);
     source_page _new_page{
         (source_pos)str().size(),
@@ -91,7 +109,7 @@ void taul::source_code::add_str(taul::str origin, taul::str x) {
 }
 
 bool taul::source_code::add_file(
-    const std::filesystem::path& src_path, 
+    const std::filesystem::path& src_path,
     const std::shared_ptr<logger>& lgr) {
     // try make a short path string to use as origin
     auto short_path = std::filesystem::proximate(src_path, std::filesystem::current_path());
@@ -100,10 +118,10 @@ bool taul::source_code::add_file(
     TAUL_LOG(lgr, "loading source code page from \"{}\"...", short_path_s);
     std::ifstream ifs(src_path, std::ios::binary | std::ios::ate);
     if (ifs.is_open()) {
-        const std::size_t file_size = (std::size_t)ifs.tellg();
+        const size_t file_size = (size_t)ifs.tellg();
         ifs.seekg(0);
         std::string buff{};
-        buff.resize(file_size, '\0'); // <- TODO: std::string can handle stray nulls, right?
+        buff.resize(file_size, '\0');
         ifs.read(buff.data(), file_size);
         add_str(taul::str(short_path.string()), taul::str(buff));
         TAUL_LOG(lgr, "loaded source code page ({} char) from \"{}\"!", ifs.gcount(), short_path_s);
@@ -127,12 +145,12 @@ void taul::source_code::_addLineStarts(taul::str s) {
     }
 }
 
-std::pair<std::size_t, std::size_t> taul::source_code::resolveChrAndLine(std::size_t pageInd, source_pos pos) const noexcept {
+std::pair<size_t, size_t> taul::source_code::resolveChrAndLine(size_t pageInd, source_pos pos) const noexcept {
     TAUL_ASSERT(pos_in_bounds(pos));
     TAUL_ASSERT(pageInd < pages().size());
-    std::size_t line = 1;
-    std::size_t offset = pages()[pageInd].pos;
-    for (std::size_t i = _pageLineStartOffsets[pageInd]; i < _lineStarts.size(); i++) {
+    size_t line = 1;
+    size_t offset = pages()[pageInd].pos;
+    for (size_t i = _pageLineStartOffsets[pageInd]; i < _lineStarts.size(); i++) {
         const auto& lineStart = _lineStarts[i];
         if (pos < lineStart) {
             break;
@@ -140,7 +158,7 @@ std::pair<std::size_t, std::size_t> taul::source_code::resolveChrAndLine(std::si
         line++;
         offset = lineStart;
     }
-    const std::size_t chr = (pos - offset) + 1;
+    const size_t chr = (pos - offset) + 1;
     return std::make_pair(chr, line);
 }
 

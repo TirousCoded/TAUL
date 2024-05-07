@@ -59,7 +59,7 @@ namespace taul {
     // convert_encoding returns x converted from encoding in_e, to encoding
     // out_e, possibly alongside a change in the char type of the string
 
-    // convert_encoding may involve w/ BOM information
+    // convert_encoding can handle BOM information, and will auto-detect BOMs
 
     // convert_encoding returns std::nullopt if allowed_char_type<InChar>(in_e) == false
     // convert_encoding returns std::nullopt if allowed_char_type<OutChar>(out_e) == false

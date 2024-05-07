@@ -32,6 +32,10 @@ namespace taul {
     // character/line values index from 1, not 0
 
 
+    // source code objects store injected source code as UTF-8 internally, converting
+    // from other encodings as needed
+
+
     // take note that source_pos can be used to refer to positions in ANY source
     // string, not just taul::source_code, w/ this being the case so that we're
     // not semantically coupled stricly to JUST using taul::source_code
@@ -130,14 +134,37 @@ namespace taul {
         std::optional<source_location> location_at(source_pos pos) const noexcept;
 
 
+        // TODO: if we figure out how to do it properly, maybe add option for 
+        //       exporting non-UTF-8 text files, whatever that means...
+
+        // to_file writes the source code object to a file at out_path, encoded as UTF-8
+
+        // to_file returns if it succeeded
+
+        // to_file will fail if out_path does not have a valid filename component
+
+        bool to_file(const std::filesystem::path& out_path) const;
+
+
+        // TODO: maybe add support for other char types later on, not just encodings
+
         // these allocate a new taul::str, replacing the old one, if any
+        
+        void add_str(
+            taul::str origin, 
+            taul::str x,
+            encoding in_e = utf8);
 
-        void add_str(taul::str origin, taul::str x);
+        // TODO: if we figure out how to do it properly, maybe add option for 
+        //       importing non-UTF-8 text files, whatever that means...
 
-        // returns if successful
+        // add_file imports a text file from src_path, encoded as UTF-8, adding 
+        // it as a source code page
+
+        // add_file returns if successful
 
         bool add_file(
-            const std::filesystem::path& src_path, 
+            const std::filesystem::path& src_path,
             const std::shared_ptr<logger>& lgr = nullptr);
 
 

@@ -1,4 +1,4 @@
-
+﻿
 
 #include <gtest/gtest.h>
 
@@ -10,7 +10,7 @@
 using namespace taul::string_literals;
 
 
-TEST(source_code_tests, defaultCtor) {
+TEST(SourceCodeTests, DefaultCtor) {
     
     taul::source_code sc{};
 
@@ -33,7 +33,7 @@ TEST(source_code_tests, defaultCtor) {
 }
 
 
-TEST(source_code_tests, moveCtor) {
+TEST(SourceCodeTests, MoveCtor) {
 
     taul::source_code old_sc{};
 
@@ -134,7 +134,7 @@ TEST(source_code_tests, moveCtor) {
 }
 
 
-TEST(source_code_tests, moveAssign) {
+TEST(SourceCodeTests, MoveAssign) {
 
     taul::source_code old_sc{};
 
@@ -237,7 +237,7 @@ TEST(source_code_tests, moveAssign) {
 }
 
 
-TEST(source_code_tests, moveAssign_ontoSelf) {
+TEST(SourceCodeTests, MoveAssignOntoSelf) {
 
     taul::source_code sc{};
 
@@ -338,19 +338,55 @@ TEST(source_code_tests, moveAssign_ontoSelf) {
 }
 
 
+TEST(SourceCodeTests, ToFile) {
+    auto path = std::filesystem::current_path() / "outputs\\source_code_to_file_output.txt";
+
+    std::filesystem::remove(path);
+    ASSERT_FALSE(std::filesystem::exists(path));
+    
+    auto txt_1 = "abc123Δ魂💩"_str;
+    auto txt_2 = "new text contents!"_str;
+
+    taul::source_code src_1{};
+    src_1.add_str("a"_str, txt_1);
+
+    EXPECT_TRUE(src_1.to_file(path)); // creation of new file
+    EXPECT_TRUE(std::filesystem::exists(path));
+
+    // sample contents to see if it worked
+    taul::source_code sample_1{};
+    EXPECT_TRUE(sample_1.add_file(path));
+    EXPECT_EQ(sample_1.str(), txt_1);
+
+    taul::source_code src_2{};
+    src_2.add_str("a"_str, txt_2);
+
+    EXPECT_TRUE(src_2.to_file(path)); // overwriting of existing file
+    EXPECT_TRUE(std::filesystem::exists(path));
+
+    // sample contents to see if it worked
+    taul::source_code sample_2{};
+    EXPECT_TRUE(sample_2.add_file(path));
+    EXPECT_EQ(sample_2.str(), txt_2);
+}
+
+TEST(SourceCodeTests, ToFile_FailDueToNoFilename) {
+    auto path = std::filesystem::current_path() / "outputs\\";
+    ASSERT_FALSE(path.has_filename());
+
+    taul::source_code src{};
+    EXPECT_FALSE(src.to_file(path));
+}
+
+
 // newlines within source string w/ them being tested seperately
 
-TEST(source_code_tests, add_str) {
-
+TEST(SourceCodeTests, AddStr) {
     taul::source_code sc{};
-
-
     // test all overloads
-
     sc.add_str("aa"_str, "abc"_str);
     sc.add_str("bb"_str, "def"_str);
     sc.add_str("cc"_str, "ghi"_str);
-
 
     EXPECT_EQ(sc.str(), "abcdefghi"_str);
 
@@ -468,18 +504,13 @@ TEST(source_code_tests, add_str) {
 }
 
 
-TEST(source_code_tests, add_str_withNewlines) {
-
+TEST(SourceCodeTests, AddStr_WithNewlines) {
     taul::source_code sc{};
-
-
     sc.add_str("aa"_str, "ab\ncd\nef"_str);
     sc.add_str("bb"_str, "g\nhi"_str);
 
-
     ASSERT_EQ(sc.str(), "ab\ncd\nefg\nhi"_str);
     ASSERT_EQ(sc.pages().size(), 2);
-
 
     {
         taul::source_pos pos = 0;
@@ -615,8 +646,35 @@ TEST(source_code_tests, add_str_withNewlines) {
     }
 }
 
+TEST(SourceCodeTests, AddStr_InputEncodingNotUTF8) {
+    // these tests largely presume that TAUL's encoding conversion stuff
+    // is used under the hood
 
-TEST(source_code_tests, add_file_success) {
+    auto input_utf32_bom = taul::convert_encoding<char, char8_t>(taul::utf8, taul::utf32_bom, u8"abc123Δ魂💩");
+    auto input_utf16_be = taul::convert_encoding<char, char8_t>(taul::utf8, taul::utf16_be, u8"abc123Δ魂💩");
+    auto input_utf16_le = taul::convert_encoding<char, char8_t>(taul::utf8, taul::utf16_le, u8"abc123Δ魂💩");
+    ASSERT_TRUE(input_utf32_bom);
+    ASSERT_TRUE(input_utf16_be);
+    ASSERT_TRUE(input_utf16_le);
+
+    auto expected_output_s = taul::convert_encoding<char, char8_t>(taul::utf8, taul::utf8, u8"abc123Δ魂💩abc123Δ魂💩abc123Δ魂💩"_str);
+    ASSERT_TRUE(expected_output_s);
+    auto expected_output = taul::str(expected_output_s.value());
+
+    taul::source_code src{};
+    src.add_str("a"_str, taul::str(input_utf32_bom.value()), taul::utf32_bom);
+    src.add_str("b"_str, taul::str(input_utf16_be.value()), taul::utf16_be);
+    src.add_str("c"_str, taul::str(input_utf16_le.value()), taul::utf16_le);
+
+    TAUL_LOG(taul::make_stderr_logger(), "expected_output==\"{}\"", expected_output);
+    TAUL_LOG(taul::make_stderr_logger(), "src.str()==\"{}\"", src.str());
+
+    ASSERT_EQ(src.str(), expected_output);
+    ASSERT_EQ(src.pages().size(), 3);
+}
+
+
+TEST(SourceCodeTests, AddFile_Success) {
 
     taul::source_code sc{};
 
@@ -684,7 +742,7 @@ TEST(source_code_tests, add_file_success) {
 }
 
 
-TEST(source_code_tests, add_file_failure) {
+TEST(SourceCodeTests, AddFile_Failure) {
 
     taul::source_code sc{};
 
@@ -714,8 +772,7 @@ TEST(source_code_tests, add_file_failure) {
     EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 
-
-TEST(source_code_tests, reset) {
+TEST(SourceCodeTests, Reset) {
 
     taul::source_code sc{};
 

@@ -3,7 +3,7 @@
 #include "error_handler_tests.h"
 
 #include <taul/spec.h>
-#include <taul/string_reader.h>
+#include <taul/source_reader.h>
 #include <taul/lexer.h>
 #include <taul/parser.h>
 #include <taul/load.h>
@@ -17,7 +17,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ErrorHandlerTests);
 
 TEST_P(ErrorHandlerTests, RecoverableError_ArisingFromTerminal) {
     ASSERT_TRUE(gram);
-    taul::string_reader rdr(""_str);
+    taul::source_reader rdr(""_str);
     taul::lexer lxr(gram.value());
     taul::parser psr(gram.value());
     auto eh = GetParam().factory(gram.value(), lgr);
@@ -68,7 +68,7 @@ TEST_P(ErrorHandlerTests, RecoverableError_ArisingFromTerminal) {
 
 TEST_P(ErrorHandlerTests, RecoverableError_ArisingFromNonTerminal_NonRoot) {
     ASSERT_TRUE(gram);
-    taul::string_reader rdr(""_str);
+    taul::source_reader rdr(""_str);
     taul::lexer lxr(gram.value());
     taul::parser psr(gram.value());
     auto eh = GetParam().factory(gram.value(), lgr);
@@ -116,7 +116,7 @@ TEST_P(ErrorHandlerTests, RecoverableError_ArisingFromNonTerminal_NonRoot) {
 
 TEST_P(ErrorHandlerTests, RecoverableError_ArisingFromNonTerminal_Root) {
     ASSERT_TRUE(gram);
-    taul::string_reader rdr(""_str);
+    taul::source_reader rdr(""_str);
     taul::lexer lxr(gram.value());
     taul::parser psr(gram.value());
     auto eh = GetParam().factory(gram.value(), lgr);
@@ -157,7 +157,7 @@ TEST_P(ErrorHandlerTests, RecoverableError_ArisingFromNonTerminal_Root) {
 
 TEST_P(ErrorHandlerTests, UnrecoverableError_ArisingFromTerminal) {
     ASSERT_TRUE(gram);
-    taul::string_reader rdr(""_str);
+    taul::source_reader rdr(""_str);
     taul::lexer lxr(gram.value());
     taul::parser psr(gram.value());
     auto eh = GetParam().factory(gram.value(), lgr);
@@ -189,7 +189,7 @@ TEST_P(ErrorHandlerTests, UnrecoverableError_ArisingFromTerminal) {
 
 TEST_P(ErrorHandlerTests, UnrecoverableError_ArisingFromNonTerminal_NonRoot) {
     ASSERT_TRUE(gram);
-    taul::string_reader rdr(""_str);
+    taul::source_reader rdr(""_str);
     taul::lexer lxr(gram.value());
     taul::parser psr(gram.value());
     auto eh = GetParam().factory(gram.value(), lgr);
@@ -218,7 +218,7 @@ TEST_P(ErrorHandlerTests, UnrecoverableError_ArisingFromNonTerminal_NonRoot) {
 
 TEST_P(ErrorHandlerTests, UnrecoverableError_ArisingFromNonTerminal_Root) {
     ASSERT_TRUE(gram);
-    taul::string_reader rdr(""_str);
+    taul::source_reader rdr(""_str);
     taul::lexer lxr(gram.value());
     taul::parser psr(gram.value());
     auto eh = GetParam().factory(gram.value(), lgr);

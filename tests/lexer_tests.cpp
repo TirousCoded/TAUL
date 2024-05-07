@@ -5,7 +5,7 @@
 #include <taul/spec.h>
 #include <taul/grammar.h>
 #include <taul/load.h>
-#include <taul/string_reader.h>
+#include <taul/source_reader.h>
 #include <taul/lexer.h>
 
 #include "parameterized_tests/token_stream_tests.h"
@@ -29,7 +29,7 @@ TokenStreamParam _make_param_1() {
     // abort test if grammar load fails
     if (!loaded) return TokenStreamParam::init(nullptr, 0);
     auto stream = std::make_shared<taul::lexer>(loaded.value(), taul::make_stderr_logger());
-    stream->bind_source(std::make_shared<taul::string_reader>("abcabcabc"_str));
+    stream->bind_source(std::make_shared<taul::source_reader>("abcabcabc"_str));
     stream->reset();
     std::size_t n_after_done = 3;
     return TokenStreamParam::init(stream, n_after_done);
@@ -55,7 +55,7 @@ TokenStreamParam _make_param_2() {
     // abort test if grammar load fails
     if (!loaded) return TokenStreamParam::init(nullptr, 0);
     auto stream = std::make_shared<taul::lexer>(loaded.value(), taul::make_stderr_logger());
-    stream->bind_source(std::make_shared<taul::string_reader>(""_str));
+    stream->bind_source(std::make_shared<taul::source_reader>(""_str));
     stream->reset();
     std::size_t n_after_done = 0;
     return TokenStreamParam::init(stream, n_after_done);

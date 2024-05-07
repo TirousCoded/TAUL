@@ -10,6 +10,17 @@ using namespace taul::string_literals;
 
 
 std::int32_t main(std::int32_t argc, const char** argv) {
+    auto spec =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr("a"_str)
+        .close()
+        .done();
+    taul::export_fetcher(spec, "abc").to_file(std::filesystem::current_path() / "abc_fetcher.h");
+    return EXIT_SUCCESS;
+}
+
+std::int32_t main_disabled1(std::int32_t argc, const char** argv) {
     auto lgr = taul::make_stderr_logger();
     auto loaded = taul::load(std::filesystem::current_path() / "abc.taul", lgr);
     if (!loaded) return EXIT_FAILURE;
@@ -19,7 +30,7 @@ std::int32_t main(std::int32_t argc, const char** argv) {
         if (input == "exit") break;
         taul::source_code src{};
         src.add_str(""_str, taul::str(input));
-        taul::string_reader rdr(src);
+        taul::source_reader rdr(src);
         taul::lexer lxr(loaded.value(), lgr);
         taul::parser psr(loaded.value(), lgr);
         taul::regular_error_handler eh(lgr);

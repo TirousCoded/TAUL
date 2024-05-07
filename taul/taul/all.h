@@ -47,7 +47,7 @@
 #include "parse_tree.h"
 
 #include "reader.h"
-#include "string_reader.h"
+#include "source_reader.h"
 
 #include "base_lexer.h"
 #include "base_parser.h"
@@ -63,4 +63,5 @@
 #include "taul_spec.h"
 #include "compile.h"
 #include "load.h"
+#include "export_fetcher.h"
 
