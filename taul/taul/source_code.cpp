@@ -113,8 +113,10 @@ bool taul::source_code::add_file(
     const std::shared_ptr<logger>& lgr) {
     // try make a short path string to use as origin
     auto short_path = std::filesystem::proximate(src_path, std::filesystem::current_path());
+
     // using this to format short_path, but avoiding heap allocating if lgr == nullptr
     const std::string short_path_s = bool(lgr) ? short_path.string() : std::string();
+    
     TAUL_LOG(lgr, "loading source code page from \"{}\"...", short_path_s);
     std::ifstream ifs(src_path, std::ios::binary | std::ios::ate);
     if (ifs.is_open()) {
@@ -123,6 +125,12 @@ bool taul::source_code::add_file(
         std::string buff{};
         buff.resize(file_size, '\0');
         ifs.read(buff.data(), file_size);
+        
+        // gotta do this to *filter out* BOM if src_path file is actually UTF-8 BOM
+        if (check_bom(utf8, std::string_view(buff)) != bom_status::no_bom) {
+            buff = convert_encoding<char>(utf8, utf8, buff).value();
+        }
+
         add_str(taul::str(short_path.string()), taul::str(buff));
         TAUL_LOG(lgr, "loaded source code page ({} char) from \"{}\"!", ifs.gcount(), short_path_s);
     }

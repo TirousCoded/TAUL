@@ -1,7 +1,9 @@
-
+﻿
 
 #include <cstdint>
 #include <iostream>
+
+#include <future>
 
 #include <taul/all.h>
 
@@ -10,13 +12,18 @@ using namespace taul::string_literals;
 
 
 std::int32_t main(std::int32_t argc, const char** argv) {
-    auto spec =
+    /*auto spec =
         taul::spec_writer()
-        .lpr_decl("a"_str)
-        .lpr("a"_str)
+        .lpr_decl("a魂"_str)
+        .lpr_decl(taul::str(taul::convert_encoding<char>(taul::utf8, taul::utf8, u8"a\r\n魂").value()))
+        .lpr(taul::str(taul::convert_encoding<char>(taul::utf8, taul::utf8, u8"a\r\n元気ですか").value()))
+        .pos(105)
         .close()
-        .done();
-    taul::export_fetcher(spec, "abc").to_file(std::filesystem::current_path() / "abc_fetcher.h");
+        .done();*/
+    auto lgr = taul::make_stderr_logger();
+    auto compiled = taul::compile(std::filesystem::current_path() / "abc.taul", lgr);
+    if (!compiled) return EXIT_FAILURE;
+    taul::export_fetcher(compiled.value(), "abc").to_file(std::filesystem::current_path() / "abc_fetcher.h");
     return EXIT_SUCCESS;
 }
 

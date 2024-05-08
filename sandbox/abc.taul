@@ -6,6 +6,7 @@ lexer section:
 	B		: 'b' ;
 	C		: 'c' ;
 	D		: 'd' ;
+	JP		: '元気ですか' ;
 
 parser section:
 

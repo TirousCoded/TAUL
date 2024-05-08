@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <fstream>
+
 #include <taul/logger.h>
 #include <taul/str.h>
 #include <taul/source_code.h>
@@ -31,7 +33,6 @@ TEST(SourceCodeTests, DefaultCtor) {
     EXPECT_FALSE(sc.location_at(1));
     EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
-
 
 TEST(SourceCodeTests, MoveCtor) {
 
@@ -132,7 +133,6 @@ TEST(SourceCodeTests, MoveCtor) {
     EXPECT_FALSE(sc.location_at(6));
     EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
-
 
 TEST(SourceCodeTests, MoveAssign) {
 
@@ -236,7 +236,6 @@ TEST(SourceCodeTests, MoveAssign) {
     EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 
-
 TEST(SourceCodeTests, MoveAssignOntoSelf) {
 
     taul::source_code sc{};
@@ -337,7 +336,6 @@ TEST(SourceCodeTests, MoveAssignOntoSelf) {
     EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 
-
 TEST(SourceCodeTests, ToFile) {
     auto path = std::filesystem::current_path() / "outputs\\source_code_to_file_output.txt";
 
@@ -377,7 +375,6 @@ TEST(SourceCodeTests, ToFile_FailDueToNoFilename) {
     taul::source_code src{};
     EXPECT_FALSE(src.to_file(path));
 }
-
 
 // newlines within source string w/ them being tested seperately
 
@@ -502,7 +499,6 @@ TEST(SourceCodeTests, AddStr) {
     EXPECT_FALSE(sc.location_at(9));
     EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
-
 
 TEST(SourceCodeTests, AddStr_WithNewlines) {
     taul::source_code sc{};
@@ -673,7 +669,6 @@ TEST(SourceCodeTests, AddStr_InputEncodingNotUTF8) {
     ASSERT_EQ(src.pages().size(), 3);
 }
 
-
 TEST(SourceCodeTests, AddFile_Success) {
 
     taul::source_code sc{};
@@ -741,7 +736,6 @@ TEST(SourceCodeTests, AddFile_Success) {
     EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
 }
 
-
 TEST(SourceCodeTests, AddFile_Failure) {
 
     taul::source_code sc{};
@@ -770,6 +764,31 @@ TEST(SourceCodeTests, AddFile_Failure) {
     EXPECT_FALSE(sc.location_at(0));
     EXPECT_FALSE(sc.location_at(1));
     EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
+}
+
+TEST(SourceCodeTests, AddFile_FileIsEncodedAsUTF8BOM) {
+    auto path = std::filesystem::current_path() / "support\\txt_file_encoded_as_utf8_bom.txt";
+    ASSERT_TRUE(std::filesystem::exists(path));
+
+    // confirm that txt_file_encoded_as_utf8_bom.txt is actually UTF-8 BOM encoded
+    {
+        std::ifstream ifs(path, std::ios::binary | std::ios::ate);//元気ですか
+        ASSERT_TRUE(ifs.is_open());
+        const size_t file_size = (size_t)ifs.tellg();
+        ifs.seekg(0);
+        std::string buff{};
+        buff.resize(file_size, '\0');
+        ifs.read(buff.data(), file_size);
+
+        auto status = taul::check_bom(taul::utf8, std::string_view(buff).substr(0, ifs.gcount()));
+
+        ASSERT_EQ(status, taul::bom_status::bom);
+    }
+
+    taul::source_code src{};
+    src.add_file(path);
+
+    ASSERT_EQ(taul::check_bom(taul::utf8, std::string_view(src.str())), taul::bom_status::no_bom);
 }
 
 TEST(SourceCodeTests, Reset) {

@@ -163,6 +163,9 @@ namespace taul {
 
         // add_file returns if successful
 
+        // add_file can handle also text files encoded as UTF-8 BOM, in which
+        // case it'll be converted into UTF-8
+
         bool add_file(
             const std::filesystem::path& src_path,
             const std::shared_ptr<logger>& lgr = nullptr);

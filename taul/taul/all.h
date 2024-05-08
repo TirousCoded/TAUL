@@ -13,6 +13,7 @@
 
 #include "endian.h"
 #include "strings.h"
+#include "hex.h"
 
 #include "unicode.h"
 #include "encoding.h"

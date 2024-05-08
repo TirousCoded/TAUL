@@ -16,7 +16,11 @@ namespace taul {
         none,
         skip,       // skip qualified lexers participates in grammar-wide usage, but is discarded during tokenization
         support,    // support qualified lexers does not participate in grammar-wide usage
+
+        num,        // not a valid qualifier
     };
+
+    constexpr size_t qualifiers = size_t(qualifier::num);
 
     std::string fmt_qualifier(qualifier x);
 

@@ -18,7 +18,7 @@ namespace taul {
     source_code export_fetcher(
         const spec& s,
         const char* fetcher_name,
-        const char* include_prefix = "taul",
+        const char* taul_include_path_prefix = "taul",
         const char* tab = "    ");
 }
 
