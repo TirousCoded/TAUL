@@ -3,6 +3,7 @@
 project "Sandbox"
 	
 	kind "ConsoleApp"
+	targetname "sandbox"
 	
 	files
 	{

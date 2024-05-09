@@ -3,15 +3,16 @@
 #include <cstdint>
 #include <iostream>
 
-#include <future>
-
 #include <taul/all.h>
+
+#define TAUL_SRCGEN_IMPLEMENTATION 1
+#include "abc_fetcher.h"
 
 
 using namespace taul::string_literals;
 
 
-std::int32_t main(std::int32_t argc, const char** argv) {
+std::int32_t main_disabled1(std::int32_t argc, const char** argv) {
     /*auto spec =
         taul::spec_writer()
         .lpr_decl("a魂"_str)
@@ -27,10 +28,12 @@ std::int32_t main(std::int32_t argc, const char** argv) {
     return EXIT_SUCCESS;
 }
 
-std::int32_t main_disabled1(std::int32_t argc, const char** argv) {
+std::int32_t main(std::int32_t argc, const char** argv) {
     auto lgr = taul::make_stderr_logger();
     auto loaded = taul::load(std::filesystem::current_path() / "abc.taul", lgr);
     if (!loaded) return EXIT_FAILURE;
+    taul::grammar gram = loaded.value();
+    //taul::grammar gram = taul::fetchers::abc();
     while (true) {
         std::string input{};
         std::cin >> input;
@@ -38,8 +41,8 @@ std::int32_t main_disabled1(std::int32_t argc, const char** argv) {
         taul::source_code src{};
         src.add_str(""_str, taul::str(input));
         taul::source_reader rdr(src);
-        taul::lexer lxr(loaded.value(), lgr);
-        taul::parser psr(loaded.value(), lgr);
+        taul::lexer lxr(gram, lgr);
+        taul::parser psr(gram, lgr);
         taul::regular_error_handler eh(lgr);
         lxr.bind_source(&rdr);
         psr.bind_source(&lxr);

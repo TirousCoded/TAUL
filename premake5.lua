@@ -49,6 +49,7 @@ workspace "TAUL"
 		architecture "x86_64"
 	
 include "taul"
+include "taulc"
 include "tests"
 include "sandbox"
 

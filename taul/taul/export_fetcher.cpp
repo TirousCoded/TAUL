@@ -55,7 +55,7 @@ static std::string _sanitize_s(std::string_view s) {
 }
 
 static std::string _fmt_string(std::string_view s) {
-    return std::format("\"{}\"_str", _sanitize_s(s));
+    return std::format("taul::str::lit(\"{}\")", _sanitize_s(s));
 }
 
 static std::string _fmt_qualifier(taul::qualifier q) {
@@ -168,10 +168,11 @@ taul::source_code taul::export_fetcher(
     src += std::format("#include <{0}/load.h>\n", taul_include_path_prefix);
     src += std::format("#endif\n");
     src += std::format("\n");
-    src += std::format("// write \"#define TAUL_SRCGEN_IMPLEMENTATION 1\" in a *.cpp file to host the implementation\n");
+    src += std::format("// write \"#define TAUL_SRCGEN_IMPLEMENTATION 1\" in a *.cpp file to host the implementation,\n");
+    src += std::format("// placing it prior to the #include for the generated fetcher header file");
     src += std::format("\n");
     src += std::format("namespace taul::fetchers {{\n");
-    src += std::format("{0}const taul::grammar& {1}() noexcept;\n", tab, fetcher_name);
+    src += std::format("{0}taul::grammar {1}() noexcept;\n", tab, fetcher_name);
     src += std::format("}}\n");
     src += std::format("\n");
     src += std::format("#if TAUL_SRCGEN_IMPLEMENTATION\n");
@@ -187,7 +188,7 @@ taul::source_code taul::export_fetcher(
     src += std::format("}}\n");
     src += std::format("static const taul::grammar _TAUL_SRCGEN_{0}_object = _TAUL_SRCGEN_init_{0}();\n", fetcher_name);
     src += std::format("\n");
-    src += std::format("const taul::grammar& taul::fetchers::{0}() noexcept {{\n", fetcher_name);
+    src += std::format("taul::grammar taul::fetchers::{0}() noexcept {{\n", fetcher_name);
     src += std::format("{0}return _TAUL_SRCGEN_{1}_object;\n", tab, fetcher_name);
     src += std::format("}}\n");
     src += std::format("#endif");

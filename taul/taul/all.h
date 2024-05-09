@@ -3,6 +3,8 @@
 #pragma once
 
 
+#include "repo_info.h"
+
 #include "asserts.h"
 
 #include "error_counter.h"

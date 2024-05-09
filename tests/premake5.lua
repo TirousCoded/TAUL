@@ -3,6 +3,7 @@
 project "Tests"
 	
 	kind "ConsoleApp"
+	targetname "tests"
 	
 	files
 	{

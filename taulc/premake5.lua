@@ -1,9 +1,9 @@
 
 
-project "TAUL"
+project "TAULC"
 	
-	kind "StaticLib"
-	targetname "taul"
+	kind "ConsoleApp"
+	targetname "taulc"
 	
 	files
 	{
@@ -11,16 +11,16 @@ project "TAUL"
 		"**.cpp",
 		"**.c",
 		"**.txt",
-		"**.taul"
+		"**.taul",
 	}
 	
 	includedirs
 	{
-        --
+		"../taul",
 	}
 	
 	links
 	{
-		--
+		"TAUL"
 	}
 

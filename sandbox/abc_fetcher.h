@@ -7,10 +7,10 @@
 #include <taul/load.h>
 #endif
 
-// write "#define TAUL_SRCGEN_IMPLEMENTATION 1" in a *.cpp file to host the implementation
-
+// write "#define TAUL_SRCGEN_IMPLEMENTATION 1" in a *.cpp file to host the implementation,
+// placing it prior to the #include for the generated fetcher header file
 namespace taul::fetchers {
-    const taul::grammar& abc() noexcept;
+    taul::grammar abc() noexcept;
 }
 
 #if TAUL_SRCGEN_IMPLEMENTATION
@@ -18,75 +18,75 @@ static taul::grammar _TAUL_SRCGEN_init_abc() {
     auto lgr = taul::make_stderr_logger();
     taul::spec_writer sw{};
     sw.pos(28);
-    sw.lpr_decl("A"_str);
+    sw.lpr_decl(taul::str::lit("A"));
     sw.pos(41);
-    sw.lpr_decl("B"_str);
+    sw.lpr_decl(taul::str::lit("B"));
     sw.pos(54);
-    sw.lpr_decl("C"_str);
+    sw.lpr_decl(taul::str::lit("C"));
     sw.pos(67);
-    sw.lpr_decl("D"_str);
+    sw.lpr_decl(taul::str::lit("D"));
     sw.pos(81);
-    sw.lpr_decl("JP"_str);
+    sw.lpr_decl(taul::str::lit("JP"));
     sw.pos(132);
-    sw.ppr_decl("Start"_str);
+    sw.ppr_decl(taul::str::lit("Start"));
     sw.pos(150);
-    sw.ppr_decl("ABC"_str);
+    sw.ppr_decl(taul::str::lit("ABC"));
     sw.pos(28);
-    sw.lpr("A"_str, taul::qualifier::none);
+    sw.lpr(taul::str::lit("A"), taul::qualifier::none);
     sw.pos(28);
-    sw.string("a"_str);
+    sw.string(taul::str::lit("a"));
     sw.pos(28);
     sw.close();
     sw.pos(41);
-    sw.lpr("B"_str, taul::qualifier::none);
+    sw.lpr(taul::str::lit("B"), taul::qualifier::none);
     sw.pos(41);
-    sw.string("b"_str);
+    sw.string(taul::str::lit("b"));
     sw.pos(41);
     sw.close();
     sw.pos(54);
-    sw.lpr("C"_str, taul::qualifier::none);
+    sw.lpr(taul::str::lit("C"), taul::qualifier::none);
     sw.pos(54);
-    sw.string("c"_str);
+    sw.string(taul::str::lit("c"));
     sw.pos(54);
     sw.close();
     sw.pos(67);
-    sw.lpr("D"_str, taul::qualifier::none);
+    sw.lpr(taul::str::lit("D"), taul::qualifier::none);
     sw.pos(67);
-    sw.string("d"_str);
+    sw.string(taul::str::lit("d"));
     sw.pos(67);
     sw.close();
     sw.pos(81);
-    sw.lpr("JP"_str, taul::qualifier::none);
+    sw.lpr(taul::str::lit("JP"), taul::qualifier::none);
     sw.pos(81);
-    sw.string("\U00005143\U00006c17\U00003067\U00003059\U0000304b"_str);
+    sw.string(taul::str::lit("\U00005143\U00006c17\U00003067\U00003059\U0000304b"));
     sw.pos(81);
     sw.close();
     sw.pos(132);
-    sw.ppr("Start"_str, taul::qualifier::none);
+    sw.ppr(taul::str::lit("Start"), taul::qualifier::none);
     sw.pos(135);
     sw.kleene_plus();
     sw.pos(132);
-    sw.name("ABC"_str);
+    sw.name(taul::str::lit("ABC"));
     sw.pos(135);
     sw.close();
     sw.pos(132);
     sw.close();
     sw.pos(150);
-    sw.ppr("ABC"_str, taul::qualifier::none);
+    sw.ppr(taul::str::lit("ABC"), taul::qualifier::none);
     sw.pos(150);
-    sw.name("A"_str);
+    sw.name(taul::str::lit("A"));
     sw.pos(152);
     sw.sequence();
     sw.pos(154);
-    sw.name("B"_str);
+    sw.name(taul::str::lit("B"));
     sw.pos(156);
     sw.alternative();
     sw.pos(158);
-    sw.name("D"_str);
+    sw.name(taul::str::lit("D"));
     sw.pos(152);
     sw.close();
     sw.pos(162);
-    sw.name("C"_str);
+    sw.name(taul::str::lit("C"));
     sw.pos(150);
     sw.close();
     auto loaded = taul::load(sw.done(), lgr);
@@ -95,7 +95,7 @@ static taul::grammar _TAUL_SRCGEN_init_abc() {
 }
 static const taul::grammar _TAUL_SRCGEN_abc_object = _TAUL_SRCGEN_init_abc();
 
-const taul::grammar& taul::fetchers::abc() noexcept {
+taul::grammar taul::fetchers::abc() noexcept {
     return _TAUL_SRCGEN_abc_object;
 }
 #endif
