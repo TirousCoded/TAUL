@@ -11,6 +11,7 @@ std::string taul::fmt_symbol_id(symbol_id x) {
     if (is_cp_id(x)) {
         if (is_end_id(x)) return "cp:<end-of-input>";
         else if (is_ascii(unicode_t(x))) return std::format("cp:'{}'", fmt_taul_char(char(x)));
+        // we could use fmt_taul_char for ALL Unicode, but I think I prefer fmt_unicode for non-ASCII instead
         else return std::format("cp:{}", fmt_unicode(unicode_t(x)));
     }
     else if (is_lpr_id(x)) {

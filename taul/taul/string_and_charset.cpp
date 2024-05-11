@@ -5,113 +5,121 @@
 #include <vector>
 
 #include "asserts.h"
+#include "hex.h"
+#include "encoding.h"
 
 #include "internal/util.h"
 
 
-std::optional<char> taul::parse_taul_char(std::string_view x, std::size_t* chars) {
-    /*
-        \0              <- Null
-        \a				<- Bell (Alert)
-        \b				<- Backspace
-        \f				<- Form Feed
-        \n				<- New Line
-        \r				<- Carriage Return
-        \t				<- Horizontal Tab
-        \v				<- Vertical Tab
-        \'				<- Single Quotation
-        \]				<- Right Square Bracket
-        \-				<- Minus
-        \\				<- Backslash
-        \xhh			<- Hex Literal (8-bit)
-    */
-    if (x.empty()) {
+std::optional<taul::unicode_t> taul::parse_taul_char(std::string_view x, size_t* chars) {
+    taul::decoder<char> decoder(utf8, x);
+    auto first_chr = decoder.next();
+    if (!first_chr) {
         return std::nullopt;
     }
-    else if (x[0] == '\\') {
-        if (x.length() == 1) {
+    else if (first_chr.value().cp != U'\\') {
+        if (chars) {
+            *chars = first_chr.value().bytes;
+        }
+        return std::make_optional<unicode_t>(first_chr.value().cp);
+    }
+    else {
+        auto second_chr = decoder.next();
+        if (!second_chr) {
             if (chars) {
-                *chars = 1;
+                *chars = first_chr.value().bytes;
             }
-            return std::make_optional<char>(x.front());
+            return std::make_optional<unicode_t>(first_chr.value().cp);
         }
         else {
+            // *chars is default set to valid value for when we're processing
+            // a 'basic escape seq', or a case of 'literalization', w/ *chars
+            // value being updated later if not one of these cases (ie. a hex
+            // escape seq)
             if (chars) {
-                *chars = 2;
+                *chars = first_chr.value().bytes + second_chr.value().bytes;
             }
-            char result{};
-            switch (x[1]) {
-            case '0':   result = '\0';  break;
-            case 'a':   result = '\a';  break;
-            case 'b':   result = '\b';  break;
-            case 'f':   result = '\f';  break;
-            case 'n':   result = '\n';  break;
-            case 'r':   result = '\r';  break;
-            case 't':   result = '\t';  break;
-            case 'v':   result = '\v';  break;
-            case '\'':  result = '\'';  break;
-            case ']':   result = ']';   break;
-            case '-':   result = '-';   break;
-            case '\\':  result = '\\';  break;
-            case 'x':
+            unicode_t result{};
+            switch (second_chr.value().cp) {
+                // basic escape seqs
+            case U'0':  result = U'\0'; break;
+            case U'a':  result = U'\a'; break;
+            case U'b':  result = U'\b'; break;
+            case U'f':  result = U'\f'; break;
+            case U'n':  result = U'\n'; break;
+            case U'r':  result = U'\r'; break;
+            case U't':  result = U'\t'; break;
+            case U'v':  result = U'\v'; break;
+            case U'\'': result = U'\''; break;
+            case U']':  result = U']';  break;
+            case U'-':  result = U'-';  break;
+            case U'\\': result = U'\\'; break;
+                // non-basic escape seqs
+            case U'x':
             {
-                if (x.length() >= 4) {
-                    std::size_t chr0 = internal::hex_digit(x[2]);
-                    std::size_t chr1 = internal::hex_digit(x[3]);
-                    if (chr0 == 16 || chr1 == 16) {
-                        result = 'x';
+                auto temp = parse_hex_u8(x.substr(2));
+                if (temp) {
+                    if (chars) {
+                        *chars = 4; // update *chars here
                     }
-                    else {
-                        if (chars) {
-                            *chars = 4;
-                        }
-                        result = char(chr0 * 16 + chr1);
-                    }
+                    result = unicode_t(temp.value());
                 }
                 else {
-                    result = 'x';
+                    result = U'x';
                 }
             }
             break;
-            default:    result = x[1];  break;
+            case U'u':
+            {
+                auto temp = parse_hex_u16(x.substr(2));
+                if (temp) {
+                    if (chars) {
+                        *chars = 6; // update *chars here
+                    }
+                    result = unicode_t(temp.value());
+                }
+                else {
+                    result = U'u';
+                }
             }
-            return std::make_optional<char>(result);
+            break;
+            case U'U':
+            {
+                auto temp = parse_hex_u32(x.substr(2));
+                if (temp) {
+                    if (chars) {
+                        *chars = 10; // update *chars here
+                    }
+                    result = unicode_t(temp.value());
+                }
+                else {
+                    result = U'U';
+                }
+            }
+            break;
+            default:
+            {
+                // not a recognized escape seq -> literalize
+                result = second_chr.value().cp;
+            }
+            break;
+            }
+            return std::make_optional<unicode_t>(result);
         }
-    }
-    else {
-        if (chars) {
-            *chars = 1;
-        }
-        return std::make_optional<char>(x.front());
     }
 }
 
-std::string taul::fmt_taul_char(char x, bool string_not_charset) {
-    /*
-        \0              <- Null
-        \a				<- Bell (Alert)
-        \b				<- Backspace
-        \f				<- Form Feed
-        \n				<- New Line
-        \r				<- Carriage Return
-        \t				<- Horizontal Tab
-        \v				<- Vertical Tab
-        \'				<- Single Quotation
-        \]				<- Right Square Bracket
-        \-				<- Minus
-        \\				<- Backslash
-        \xhh			<- Hex Literal (8-bit)
-    */
+std::string taul::fmt_taul_char(unicode_t x, bool string_not_charset) {
     switch (x) {
-    case '\0': return "\\0"; break;
-    case '\a': return "\\a"; break;
-    case '\b': return "\\b"; break;
-    case '\f': return "\\f"; break;
-    case '\n': return "\\n"; break;
-    case '\r': return "\\r"; break;
-    case '\t': return "\\t"; break;
-    case '\v': return "\\v"; break;
-    case '\'':
+    case U'\0': return "\\0"; break;
+    case U'\a': return "\\a"; break;
+    case U'\b': return "\\b"; break;
+    case U'\f': return "\\f"; break;
+    case U'\n': return "\\n"; break;
+    case U'\r': return "\\r"; break;
+    case U'\t': return "\\t"; break;
+    case U'\v': return "\\v"; break;
+    case U'\'':
     {
         return
             string_not_charset
@@ -119,7 +127,7 @@ std::string taul::fmt_taul_char(char x, bool string_not_charset) {
             : "'";
     }
     break;
-    case ']':
+    case U']':
     {
         return
             string_not_charset
@@ -127,7 +135,7 @@ std::string taul::fmt_taul_char(char x, bool string_not_charset) {
             : "\\]";
     }
     break;
-    case '-':
+    case U'-':
     {
         return
             string_not_charset
@@ -135,18 +143,20 @@ std::string taul::fmt_taul_char(char x, bool string_not_charset) {
             : "\\-";
     }
     break;
-    case '\\': return "\\\\"; break;
+    case U'\\': return "\\\\"; break;
     default:
     {
-        // visible ASCII range
-        if (x >= ' ' && x <= '~') {
-            return std::string(1, x);
+        if (is_visible_ascii(x)) {
+            return std::string(1, char(x));
+        }
+        else if (x <= 0xff) {
+            return std::format("\\x{}", fmt_hex_u8(uint8_t(x)));
+        }
+        else if (x <= 0xffff) {
+            return std::format("\\u{}", fmt_hex_u16(uint16_t(x)));
         }
         else {
-            constexpr const char* hex_digit = "0123456789abcdef";
-            std::size_t low = std::size_t(x) % 16;
-            std::size_t high = (std::size_t(x) - low) / 16;
-            return std::format("\\x{}{}", hex_digit[high], hex_digit[low]);
+            return std::format("\\U{}", fmt_hex_u32(uint32_t(x)));
         }
     }
     break;
@@ -154,38 +164,44 @@ std::string taul::fmt_taul_char(char x, bool string_not_charset) {
 }
 
 std::string taul::parse_taul_string(std::string_view x) {
-    std::string result{};
-    result.reserve(x.length());
-    for (std::size_t i = 0; i < x.length();) {
-        std::size_t chars{};
+    encoder<char> encoder(utf8);
+    for (size_t i = 0; i < x.length();) {
+        size_t chars{};
         auto chr = parse_taul_char(x.substr(i), &chars);
         TAUL_ASSERT(chr);
-        result += *chr;
+        encoder.next(chr.value());
         i += chars;
     }
-    return result;
+    return encoder.result();
 }
 
 std::string taul::fmt_taul_string(std::string_view x) {
     std::string result{};
     result.reserve(x.length());
-    for (const auto& I : x) {
-        result += fmt_taul_char(I);
+    decoder<char> decoder(utf8, x);
+    while (!decoder.done()) {
+        result += fmt_taul_char(decoder.next().value().cp);
     }
     return result;
 }
 
 std::string taul::parse_taul_charset(std::string_view x) {
-    std::string result{};
-    result.reserve(x.length());
-    std::array<std::optional<char>, 3> matches{};
-    std::array<std::size_t, 3> match_chars{};
-    std::size_t position = 0;
-    std::size_t processed = 0;
+    // NOTE: basically, the below impls a kind of micro-parser w/ a cache
+    //       of up to 3 decoded codepoint which it *matches* against
+    //
+    //       _initial inits the system, populating it initially, and then
+    //       it proceeds until it's done, consuming input and matching
+    // TODO: write doc comments to better explain what's going on below
+    //       w/ regard to its particulars
+    encoder<char> encoder(utf8);
+    std::array<std::optional<unicode_t>, 3> matches{};
+    std::array<size_t, 3> match_chars{};
+    size_t position = 0;
+    size_t processed = 0;
     auto _initial =
         [&]() {
-        for (std::size_t i = 0; i < 3; i++) {
-            std::size_t chars{};
+        for (size_t i = 0; i < 3; i++) {
+            size_t chars{};
             auto rr = parse_taul_char(x.substr(position), &chars);
             if (rr) {
                 matches[i] = rr;
@@ -200,7 +216,7 @@ std::string taul::parse_taul_charset(std::string_view x) {
         };
     auto _advance_once =
         [&]() {
-        std::size_t chars{};
+        size_t chars{};
         auto rr = parse_taul_char(x.substr(position), &chars);
         if (rr) {
             position += chars;
@@ -216,9 +232,9 @@ std::string taul::parse_taul_charset(std::string_view x) {
         match_chars[2] = std::move(chars);
         };
     auto _advance =
-        [&](std::size_t n) {
+        [&](size_t n) {
         TAUL_ASSERT(n <= 3);
-        for (std::size_t i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) {
             _advance_once();
         }
         };
@@ -227,15 +243,15 @@ std::string taul::parse_taul_charset(std::string_view x) {
         if (!matches[0]) return false;
         if (!matches[1]) return false;
         if (!matches[2]) return false;
-        if (*matches[1] != '-') return false;
+        if (*matches[1] != U'-') return false;
         if (match_chars[1] != 1) return false; // can't be escaped
         if (*matches[0] <= *matches[2]) {
-            result += *matches[0];
-            result += *matches[2];
+            encoder.next(*matches[0]);
+            encoder.next(*matches[2]);
         }
         else {
-            result += *matches[2];
-            result += *matches[0];
+            encoder.next(*matches[2]);
+            encoder.next(*matches[0]);
         }
         _advance(3);
         return true;
@@ -243,8 +259,8 @@ std::string taul::parse_taul_charset(std::string_view x) {
     auto _match_char =
         [&]() {
         if (!matches[0]) return;
-        result += *matches[0];
-        result += *matches[0];
+        encoder.next(*matches[0]);
+        encoder.next(*matches[0]);
         _advance(1);
         };
     auto _match =
@@ -257,14 +273,13 @@ std::string taul::parse_taul_charset(std::string_view x) {
     while (processed < position) {
         _match();
     }
-    return result;
+    return encoder.result();
 }
 
 std::string taul::fmt_taul_charset(std::string_view x) {
-    TAUL_ASSERT(x.length() % 2 == 0);
     auto _fmt = 
-        [&](char x, bool at_start_or_end) -> std::string {
-        if (x != '-') {
+        [&](unicode_t x, bool at_start_or_end) -> std::string {
+        if (x != U'-') {
             return fmt_taul_char(x, false);
         }
         else if (!at_start_or_end) {
@@ -275,38 +290,49 @@ std::string taul::fmt_taul_charset(std::string_view x) {
         }
         };
     std::string result{};
-    for (std::size_t i = 0; i < x.length(); i += 2) {
-        const bool at_start = i == 0;
-        const bool at_end = i == x.length() - 2;
+    decoder<char> decoder(utf8, x);
+    bool is_at_start = true;
+    while (!decoder.done()) {
+        const auto low = decoder.next().value();
+        // charset string is malformed if not composed of perfect pairs
+        TAUL_ASSERT(!decoder.done());
+        const auto high = decoder.next().value();
+
+        const bool at_start = is_at_start;
+        const bool at_end = decoder.done();
         const bool at_start_or_end = at_start || at_end;
-        const auto& low = x[i];
-        const auto& high = x[i + 1];
-        TAUL_ASSERT(low <= high);
-        result += _fmt(low, at_start_or_end);
-        if (low != high) {
+
+        TAUL_ASSERT(low.cp <= high.cp);
+        result += _fmt(low.cp, at_start_or_end);
+        if (low.cp != high.cp) {
             result += '-';
-            result += _fmt(high, at_start_or_end);
+            result += _fmt(high.cp, at_start_or_end);
         }
+
+        is_at_start = false;
     }
     return result;
 }
 
-bool taul::in_charset_str(char x, std::string_view charset) noexcept {
+bool taul::in_charset_str(unicode_t x, std::string_view charset) noexcept {
     return internal::where_in_charset_str(x, charset) < charset.length();
 }
 
-bool taul::internal::in_char_range(char x, char low, char high) noexcept {
+bool taul::internal::in_char_range(unicode_t x, unicode_t low, unicode_t high) noexcept {
     TAUL_ASSERT(low <= high);
     return x >= low && x <= high;
 }
 
-std::size_t taul::internal::where_in_charset_str(char x, std::string_view charset) noexcept {
-    TAUL_ASSERT(charset.length() % 2 == 0);
-    for (std::size_t i = 0; i < charset.length(); i += 2) {
-        if (in_char_range(x, charset[i], charset[i + 1])) {
-            return i;
-        }
+size_t taul::internal::where_in_charset_str(unicode_t x, std::string_view charset) noexcept {
+    decoder<char> decoder(utf8, charset);
+    while (!decoder.done()) {
+        const auto pos = decoder.pos(); // position of start of low/high pair
+        const auto low = decoder.next().value();
+        // charset string is malformed if not composed of perfect pairs
+        TAUL_ASSERT(!decoder.done());
+        const auto high = decoder.next().value();
+        if (in_char_range(x, low.cp, high.cp)) return pos; // return pair pos on success
     }
-    return charset.length();
+    return charset.length(); // length of charset indicates fail
 }
 

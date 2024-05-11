@@ -63,35 +63,68 @@ namespace taul {
 
         static_assert(spec_opcodes == 21);
 
-        // TODO: the taul::str overloads have not been unit tested
+        // TODO: the StringLike overloads have not been unit tested
 
-        // the taul::str overloads below are to ensure that taul::str objects
-        // passed in live for the entire duration of the call, as converting
-        // a short-lived taul::str into std::string_view could result in a
-        // dangling pointer
+        // below 'StringLike' refers to a type which may be explicitly converted
+        // into an std::string_view of said string-like object's contents
+
+        // the 'StringLike' overloads below are to ensure that std::string and
+        // taul::str objects may be used as input, as converting a short-lived 
+        // taul::str into std::string_view could otherwise result in a the
+        // ladder becoming dangling
 
         spec_writer& pos(source_pos new_pos);
         spec_writer& close();
         spec_writer& alternative();
+
         spec_writer& lpr_decl(std::string_view name);
-        spec_writer& lpr_decl(const taul::str& name);
+        template<typename StringLike>
+        inline spec_writer& lpr_decl(const StringLike& name) {
+            return lpr_decl(std::string_view(name));
+        }
+        
         spec_writer& ppr_decl(std::string_view name);
-        spec_writer& ppr_decl(const taul::str& name);
+        template<typename StringLike>
+        inline spec_writer& ppr_decl(const StringLike& name) {
+            return ppr_decl(std::string_view(name));
+        }
+        
         spec_writer& lpr(std::string_view name, qualifier qualifier = qualifier::none);
-        spec_writer& lpr(const taul::str& name, qualifier qualifier = qualifier::none);
+        template<typename StringLike>
+        inline spec_writer& lpr(const StringLike& name, qualifier qualifier = qualifier::none) {
+            return lpr(std::string_view(name), qualifier);
+        }
+
         spec_writer& ppr(std::string_view name, qualifier qualifier = qualifier::none);
-        spec_writer& ppr(const taul::str& name, qualifier qualifier = qualifier::none);
+        template<typename StringLike>
+        inline spec_writer& ppr(const StringLike& name, qualifier qualifier = qualifier::none) {
+            return ppr(std::string_view(name), qualifier);
+        }
 
         spec_writer& end();
         spec_writer& any();
+        
         spec_writer& string(std::string_view s);
-        spec_writer& string(const taul::str& s);
+        template<typename StringLike>
+        inline spec_writer& string(const StringLike& s) {
+            return string(std::string_view(s));
+        }
+
         spec_writer& charset(std::string_view s);
-        spec_writer& charset(const taul::str& s);
+        template<typename StringLike>
+        inline spec_writer& charset(const StringLike& s) {
+            return charset(std::string_view(s));
+        }
+        
         spec_writer& token();
         spec_writer& failure();
+        
         spec_writer& name(std::string_view name);
-        spec_writer& name(const taul::str& name);
+        template<typename StringLike>
+        inline spec_writer& name(const StringLike& name) {
+            return this->name(std::string_view(name));
+        }
+
         spec_writer& sequence();
         spec_writer& lookahead();
         spec_writer& lookahead_not();

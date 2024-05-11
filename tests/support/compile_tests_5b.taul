@@ -1,0 +1,6 @@
+﻿
+
+lexer section:
+
+    LPR0 : 'abc123Δ魂💩' [a-fα-δ魂か-く] ;
+

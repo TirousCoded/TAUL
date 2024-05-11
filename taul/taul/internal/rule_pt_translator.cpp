@@ -285,8 +285,14 @@ void taul::internal::rule_pt_translator::next_terminal_set(std::string_view char
 #endif
     TAUL_ASSERT(is_in_lpr_not_ppr());
     glyph_set set{};
-    for (std::size_t i = 0; i < charset_str.length(); i += 2) {
-        set.add_range(charset_str[i], charset_str[i + 1]);
+    decoder<char> decoder(utf8, charset_str);
+    while (!decoder.done()) {
+        const auto low = decoder.next().value();
+        // charset string is malformed if not composed of perfect pairs
+        TAUL_ASSERT(!decoder.done());
+        const auto high = decoder.next().value();
+
+        set.add_range(low.cp, high.cp);
     }
     next_terminal_set(set, assertion);
 }
@@ -436,7 +442,10 @@ void taul::internal::rule_pt_translator::on_string(std::string_view s) {
     TAUL_LOG(make_stderr_logger(), "-> on_string");
 #endif
     TAUL_ASSERT(is_in_lpr_not_ppr());
-    for (const auto& I : s) next_terminal(cp_id(I));
+    decoder<char> decoder(utf8, s);
+    while (!decoder.done()) {
+        next_terminal(cp_id(decoder.next().value().cp));
+    }
 }
 
 void taul::internal::rule_pt_translator::on_charset(std::string_view s) {

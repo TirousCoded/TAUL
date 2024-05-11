@@ -1,4 +1,4 @@
-
+﻿
 
 #include <gtest/gtest.h>
 
@@ -391,6 +391,33 @@ TEST(LoadTests, success_string_allowEscapeSeqsInSingleTerminalScope) {
     else ADD_FAILURE();
 }
 
+TEST(LoadTests, success_string_allowNonASCIIUnicodeIncludingInEscapeSeqs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr("a"_str)
+        .string(taul::utf8_s(u8"abc123Δ魂💩"))
+        .string(taul::utf8_s(u8"\\Δ\\魂\\💩")) // legal to escape non-ASCII Unicode
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+    EXPECT_EQ(ec.total(), 0);
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+        if (gram->has_lpr("a"_str)) {
+            EXPECT_EQ(gram->lpr("a"_str)->name(), "a"_str);
+            EXPECT_EQ(gram->lpr("a"_str)->index(), 0);
+            EXPECT_EQ(gram->lpr("a"_str)->qualifier(), taul::qualifier::none);
+        }
+        else ADD_FAILURE();
+    }
+    else ADD_FAILURE();
+}
+
 // charset
 
 TEST(LoadTests, success_charset) {
@@ -402,6 +429,33 @@ TEST(LoadTests, success_charset) {
         .lpr_decl("a"_str)
         .lpr("a"_str)
         .charset("abc"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+    EXPECT_EQ(ec.total(), 0);
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+        if (gram->has_lpr("a"_str)) {
+            EXPECT_EQ(gram->lpr("a"_str)->name(), "a"_str);
+            EXPECT_EQ(gram->lpr("a"_str)->index(), 0);
+            EXPECT_EQ(gram->lpr("a"_str)->qualifier(), taul::qualifier::none);
+        }
+        else ADD_FAILURE();
+    }
+    else ADD_FAILURE();
+}
+
+TEST(LoadTests, success_charset_allowNonASCIIUnicodeIncludingInEscapeSeqs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr("a"_str)
+        .charset(taul::utf8_s(u8"a-fα-δ魂か-く"))
+        .charset(taul::utf8_s(u8"\\α-\\δ\\魂\\か-\\く"))
         .close()
         .done();
 
@@ -2577,6 +2631,46 @@ TEST(LoadTests, HasExpectedPrefixes_LPRs_String) {
     else ADD_FAILURE();
 }
 
+TEST(LoadTests, HasExpectedPrefixes_LPRs_String_MultiByteUTF8) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("f"_str)
+        .lpr("f"_str)
+        .string(taul::utf8_s(u8"💩"))
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+        ASSERT_TRUE(gram->has_lpr("f"_str));
+        taul::lpr_ref f = gram->lpr("f"_str).value();
+
+        taul::glyph_set expected_first_set =
+            taul::glyph_set()
+            .add(U'💩');
+
+        taul::glyph_set expected_follow_set =
+            taul::glyph_set()
+            .add_all()
+            .remove_epsilon()
+            .remove(U'💩');
+
+        taul::glyph_set expected_prefix_set =
+            expected_first_set;
+
+        EXPECT_EQ(f.first_set(), expected_first_set);
+        EXPECT_EQ(f.follow_set(), expected_follow_set);
+        EXPECT_EQ(f.prefix_set(), expected_prefix_set);
+    }
+    else ADD_FAILURE();
+}
+
 // charset
 
 TEST(LoadTests, HasExpectedPrefixes_LPRs_Charset) {
@@ -2608,6 +2702,52 @@ TEST(LoadTests, HasExpectedPrefixes_LPRs_Charset) {
             .add_all()
             .remove_epsilon()
             .remove_range(U'a', U'c');
+
+        taul::glyph_set expected_prefix_set =
+            expected_first_set;
+
+        EXPECT_EQ(f.first_set(), expected_first_set);
+        EXPECT_EQ(f.follow_set(), expected_follow_set);
+        EXPECT_EQ(f.prefix_set(), expected_prefix_set);
+    }
+    else ADD_FAILURE();
+}
+
+TEST(LoadTests, HasExpectedPrefixes_LPRs_Charset_MultiByteUTF8) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("f"_str)
+        .lpr("f"_str)
+        .charset(taul::utf8_s(u8"a-fα-δ魂か-く"))
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+        ASSERT_TRUE(gram->has_lpr("f"_str));
+        taul::lpr_ref f = gram->lpr("f"_str).value();
+
+        taul::glyph_set expected_first_set =
+            taul::glyph_set()
+            .add_range(U'a', U'f')
+            .add_range(U'α', U'δ')
+            .add(U'魂')
+            .add_range(U'か', U'く');
+
+        taul::glyph_set expected_follow_set =
+            taul::glyph_set()
+            .add_all()
+            .remove_epsilon()
+            .remove_range(U'a', U'f')
+            .remove_range(U'α', U'δ')
+            .remove(U'魂')
+            .remove_range(U'か', U'く');
 
         taul::glyph_set expected_prefix_set =
             expected_first_set;

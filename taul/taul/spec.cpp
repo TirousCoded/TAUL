@@ -27,18 +27,10 @@ taul::spec_writer& taul::spec_writer::lpr_decl(std::string_view name) {
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::lpr_decl(const taul::str& name) {
-    return lpr_decl(std::string_view(name));
-}
-
 taul::spec_writer& taul::spec_writer::ppr_decl(std::string_view name) {
     internal::spec_write_opcode(_temp, spec_opcode::ppr_decl);
     internal::spec_write_str(_temp, name);
     return *this;
-}
-
-taul::spec_writer& taul::spec_writer::ppr_decl(const taul::str& name) {
-    return ppr_decl(std::string_view(name));
 }
 
 taul::spec_writer& taul::spec_writer::lpr(std::string_view name, qualifier qualifier) {
@@ -48,19 +40,11 @@ taul::spec_writer& taul::spec_writer::lpr(std::string_view name, qualifier quali
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::lpr(const taul::str& name, qualifier qualifier) {
-    return lpr(std::string_view(name), qualifier);
-}
-
 taul::spec_writer& taul::spec_writer::ppr(std::string_view name, qualifier qualifier) {
     internal::spec_write_opcode(_temp, spec_opcode::ppr);
     internal::spec_write_str(_temp, name);
     internal::spec_write_qualifier(_temp, qualifier);
     return *this;
-}
-
-taul::spec_writer& taul::spec_writer::ppr(const taul::str& name, qualifier qualifier) {
-    return ppr(std::string_view(name), qualifier);
 }
 
 taul::spec_writer& taul::spec_writer::end() {
@@ -79,18 +63,10 @@ taul::spec_writer& taul::spec_writer::string(std::string_view s) {
     return *this;
 }
 
-taul::spec_writer& taul::spec_writer::string(const taul::str& s) {
-    return string(std::string_view(s));
-}
-
 taul::spec_writer& taul::spec_writer::charset(std::string_view s) {
     internal::spec_write_opcode(_temp, spec_opcode::charset);
     internal::spec_write_str(_temp, s);
     return *this;
-}
-
-taul::spec_writer& taul::spec_writer::charset(const taul::str& s) {
-    return charset(std::string_view(s));
 }
 
 taul::spec_writer& taul::spec_writer::token() {
@@ -107,10 +83,6 @@ taul::spec_writer& taul::spec_writer::name(std::string_view name) {
     internal::spec_write_opcode(_temp, spec_opcode::name);
     internal::spec_write_str(_temp, name);
     return *this;
-}
-
-taul::spec_writer& taul::spec_writer::name(const taul::str& name) {
-    return this->name(std::string_view(name));
 }
 
 taul::spec_writer& taul::spec_writer::sequence() {

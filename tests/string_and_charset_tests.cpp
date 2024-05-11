@@ -1,36 +1,53 @@
-
+﻿
 
 #include <gtest/gtest.h>
 
 #include <taul/logger.h>
+#include <taul/strings.h>
+#include <taul/hex.h>
+#include <taul/encoding.h>
 #include <taul/string_and_charset.h>
 
 
-TEST(StringAndCharsetTests, ParseTAULChar) {
+TEST(StringAndCharsetTests, ParseTAULChar_FailDueToEmptyInput) {
+    size_t chars = size_t(-1);
+    auto result0 = taul::parse_taul_char("", &chars);
+    auto result1 = taul::parse_taul_char("");
+    EXPECT_FALSE(result0);
+    EXPECT_FALSE(result1);
+    EXPECT_EQ(chars, size_t(-1));
+}
+
+TEST(StringAndCharsetTests, ParseTAULChar_UnescapedChars) {
     const auto lgr = taul::make_stderr_logger();
-    /*
-        \0              <- Null
-        \a				<- Bell (Alert)
-        \b				<- Backspace
-        \f				<- Form Feed
-        \n				<- New Line
-        \r				<- Carriage Return
-        \t				<- Horizontal Tab
-        \v				<- Vertical Tab
-        \'				<- Single Quotation
-        \]				<- Right Square Bracket
-        \-				<- Minus
-        \\				<- Backslash
-        \xhh			<- Hex Literal (8-bit)
-    */
+    for (const auto& I : "abfnrtv']-ABCDEF123456!@#$%^\\") {
+        std::string in = std::format("{}", I);
+        TAUL_LOG(lgr, "testing {}", in);
+        size_t chars = size_t(-1);
+        auto result0 = taul::parse_taul_char(in, &chars);
+        auto result1 = taul::parse_taul_char(in);
+        if (result0) {
+            EXPECT_EQ(*result0, I);
+            EXPECT_EQ(chars, 1);
+        }
+        else ADD_FAILURE();
+        if (result1) {
+            EXPECT_EQ(*result1, I);
+        }
+        else ADD_FAILURE();
+    }
+}
+
+TEST(StringAndCharsetTests, ParseTAULChar_BasicEscapeSeqs) {
+    const auto lgr = taul::make_stderr_logger();
     // test first 12 escape seqs
-    constexpr std::size_t esc_num = 12;
+    constexpr size_t esc_num = 12;
     constexpr const char* esc_ins = "0abfnrtv']-\\";
-    constexpr const char* esc_outs = "\0\a\b\f\n\r\t\v\']-\\";
-    for (std::size_t i = 0; i < esc_num; i++) {
+    constexpr const taul::unicode_t* esc_outs = U"\0\a\b\f\n\r\t\v\']-\\";
+    for (size_t i = 0; i < esc_num; i++) {
         std::string in = std::format("\\{}", esc_ins[i]);
         TAUL_LOG(lgr, "testing {}", in);
-        std::size_t chars = std::size_t(-1);
+        size_t chars = size_t(-1);
         auto result0 = taul::parse_taul_char(in, &chars);
         auto result1 = taul::parse_taul_char(in);
         if (result0) {
@@ -43,22 +60,24 @@ TEST(StringAndCharsetTests, ParseTAULChar) {
         }
         else ADD_FAILURE();
     }
-    // test last escape seq \xhh
-    constexpr std::size_t hex_digit_num = 16;
-    constexpr const char* upper_hex_digits = "0123456789ABCDEF";
-    constexpr const char* lower_hex_digits = "0123456789abcdef";
-    for (std::size_t i = 0; i < 8; i++) {
-        for (std::size_t j = 0; j < hex_digit_num; j++) {
+}
+
+TEST(StringAndCharsetTests, ParseTAULChar_8BitHexEscapeSeq) {
+    const auto lgr = taul::make_stderr_logger();
+    // test escape seq \xhh
+    constexpr size_t hex_digit_num = 16;
+    for (size_t i = 0; i < 8; i++) {
+        for (size_t j = 0; j < hex_digit_num; j++) {
             // these iPick and jPick vars help us test each pair of
             // hex digits being uppercase/lowercase
-            for (std::size_t iPick = 0; iPick < 2; iPick++) {
-                for (std::size_t jPick = 0; jPick < 2; jPick++) {
-                    char charA = (iPick == 0 ? upper_hex_digits : lower_hex_digits)[i];
-                    char charB = (jPick == 0 ? upper_hex_digits : lower_hex_digits)[j];
+            for (size_t iPick = 0; iPick < 2; iPick++) {
+                for (size_t jPick = 0; jPick < 2; jPick++) {
+                    char charA = (iPick == 0 ? taul::hex_uppercase : taul::hex_lowercase)[i];
+                    char charB = (jPick == 0 ? taul::hex_uppercase : taul::hex_lowercase)[j];
                     std::string in = std::format("\\x{}{}", charA, charB);
-                    std::size_t expected_out = i * hex_digit_num + j;
+                    size_t expected_out = i * hex_digit_num + j;
                     TAUL_LOG(lgr, "testing {}", in);
-                    std::size_t chars = std::size_t(-1);
+                    size_t chars = size_t(-1);
                     auto result0 = taul::parse_taul_char(in, &chars);
                     auto result1 = taul::parse_taul_char(in);
                     if (result0) {
@@ -74,9 +93,13 @@ TEST(StringAndCharsetTests, ParseTAULChar) {
             }
         }
     }
-    // test last escape seq \xhh w/ invalid form (which results in literalized x)
+}
+
+TEST(StringAndCharsetTests, ParseTAULChar_8BitHexEscapeSeq_InvalidFormResultsInLiteralizationInstead) {
+    const auto lgr = taul::make_stderr_logger();
     {
-        std::size_t chars = std::size_t(-1);
+        // too short
+        size_t chars = size_t(-1);
         auto result0 = taul::parse_taul_char("\\x", &chars);
         auto result1 = taul::parse_taul_char("\\x");
         if (result0) {
@@ -91,7 +114,7 @@ TEST(StringAndCharsetTests, ParseTAULChar) {
     }
     {
         // too short
-        std::size_t chars = std::size_t(-1);
+        size_t chars = size_t(-1);
         auto result0 = taul::parse_taul_char("\\xf", &chars);
         auto result1 = taul::parse_taul_char("\\xf");
         if (result0) {
@@ -106,7 +129,7 @@ TEST(StringAndCharsetTests, ParseTAULChar) {
     }
     {
         // invalid char encountered
-        std::size_t chars = std::size_t(-1);
+        size_t chars = size_t(-1);
         auto result0 = taul::parse_taul_char("\\xfj", &chars);
         auto result1 = taul::parse_taul_char("\\xfj");
         if (result0) {
@@ -119,11 +142,190 @@ TEST(StringAndCharsetTests, ParseTAULChar) {
         }
         else ADD_FAILURE();
     }
-    // test *literalized* char escape sequences
+}
+
+TEST(StringAndCharsetTests, ParseTAULChar_16BitHexEscapeSeq) {
+    const auto lgr = taul::make_stderr_logger();
+    // test escape seq \uhhhh
+    constexpr size_t hex_digit_num = 16;
+    for (size_t i = 0; i < 8; i++) {
+        for (size_t j = 0; j < hex_digit_num; j++) {
+            // these iPick and jPick vars help us test each pair of
+            // hex digits being uppercase/lowercase
+            for (size_t iPick = 0; iPick < 2; iPick++) {
+                for (size_t jPick = 0; jPick < 2; jPick++) {
+                    char charA = (iPick == 0 ? taul::hex_uppercase : taul::hex_lowercase)[i];
+                    char charB = (jPick == 0 ? taul::hex_uppercase : taul::hex_lowercase)[j];
+                    std::string in = std::format("\\u{0}{1}{0}{1}", charA, charB);
+                    size_t expected_out =
+                        i * hex_digit_num * hex_digit_num * hex_digit_num +
+                        j * hex_digit_num * hex_digit_num +
+                        i * hex_digit_num +
+                        j;
+                    TAUL_LOG(lgr, "testing {}", in);
+                    size_t chars = size_t(-1);
+                    auto result0 = taul::parse_taul_char(in, &chars);
+                    auto result1 = taul::parse_taul_char(in);
+                    if (result0) {
+                        EXPECT_EQ(*result0, expected_out);
+                        EXPECT_EQ(chars, 6);
+                    }
+                    else ADD_FAILURE();
+                    if (result1) {
+                        EXPECT_EQ(*result1, expected_out);
+                    }
+                    else ADD_FAILURE();
+                }
+            }
+        }
+    }
+}
+
+TEST(StringAndCharsetTests, ParseTAULChar_16BitHexEscapeSeq_InvalidFormResultsInLiteralizationInstead) {
+    const auto lgr = taul::make_stderr_logger();
+    {
+        // too short
+        size_t chars = size_t(-1);
+        auto result0 = taul::parse_taul_char("\\u", &chars);
+        auto result1 = taul::parse_taul_char("\\u");
+        if (result0) {
+            EXPECT_EQ(*result0, 'u');
+            EXPECT_EQ(chars, 2);
+        }
+        else ADD_FAILURE();
+        if (result1) {
+            EXPECT_EQ(*result1, 'u');
+        }
+        else ADD_FAILURE();
+    }
+    {
+        // too short
+        size_t chars = size_t(-1);
+        auto result0 = taul::parse_taul_char("\\ufff", &chars);
+        auto result1 = taul::parse_taul_char("\\ufff");
+        if (result0) {
+            EXPECT_EQ(*result0, 'u');
+            EXPECT_EQ(chars, 2);
+        }
+        else ADD_FAILURE();
+        if (result1) {
+            EXPECT_EQ(*result1, 'u');
+        }
+        else ADD_FAILURE();
+    }
+    {
+        // invalid char encountered
+        size_t chars = size_t(-1);
+        auto result0 = taul::parse_taul_char("\\ufffj", &chars);
+        auto result1 = taul::parse_taul_char("\\ufffj");
+        if (result0) {
+            EXPECT_EQ(*result0, 'u');
+            EXPECT_EQ(chars, 2);
+        }
+        else ADD_FAILURE();
+        if (result1) {
+            EXPECT_EQ(*result1, 'u');
+        }
+        else ADD_FAILURE();
+    }
+}
+
+TEST(StringAndCharsetTests, ParseTAULChar_32BitHexEscapeSeq) {
+    const auto lgr = taul::make_stderr_logger();
+    // test escape seq \Uhhhhhhhh
+    constexpr size_t hex_digit_num = 16;
+    for (size_t i = 0; i < 8; i++) {
+        for (size_t j = 0; j < hex_digit_num; j++) {
+            // these iPick and jPick vars help us test each pair of
+            // hex digits being uppercase/lowercase
+            for (size_t iPick = 0; iPick < 2; iPick++) {
+                for (size_t jPick = 0; jPick < 2; jPick++) {
+                    char charA = (iPick == 0 ? taul::hex_uppercase : taul::hex_lowercase)[i];
+                    char charB = (jPick == 0 ? taul::hex_uppercase : taul::hex_lowercase)[j];
+                    std::string in = std::format("\\U{0}{1}{0}{1}{0}{1}{0}{1}", charA, charB);
+                    size_t expected_out =
+                        i * hex_digit_num * hex_digit_num * hex_digit_num * hex_digit_num * hex_digit_num * hex_digit_num * hex_digit_num +
+                        j * hex_digit_num * hex_digit_num * hex_digit_num * hex_digit_num * hex_digit_num * hex_digit_num +
+                        i * hex_digit_num * hex_digit_num * hex_digit_num * hex_digit_num * hex_digit_num +
+                        j * hex_digit_num * hex_digit_num * hex_digit_num * hex_digit_num +
+                        i * hex_digit_num * hex_digit_num * hex_digit_num +
+                        j * hex_digit_num * hex_digit_num +
+                        i * hex_digit_num +
+                        j;
+                    TAUL_LOG(lgr, "testing {}", in);
+                    size_t chars = size_t(-1);
+                    auto result0 = taul::parse_taul_char(in, &chars);
+                    auto result1 = taul::parse_taul_char(in);
+                    if (result0) {
+                        EXPECT_EQ(*result0, expected_out);
+                        EXPECT_EQ(chars, 10);
+                    }
+                    else ADD_FAILURE();
+                    if (result1) {
+                        EXPECT_EQ(*result1, expected_out);
+                    }
+                    else ADD_FAILURE();
+                }
+            }
+        }
+    }
+}
+
+TEST(StringAndCharsetTests, ParseTAULChar_32BitHexEscapeSeq_InvalidFormResultsInLiteralizationInstead) {
+    const auto lgr = taul::make_stderr_logger();
+    {
+        // too short
+        size_t chars = size_t(-1);
+        auto result0 = taul::parse_taul_char("\\U", &chars);
+        auto result1 = taul::parse_taul_char("\\U");
+        if (result0) {
+            EXPECT_EQ(*result0, 'U');
+            EXPECT_EQ(chars, 2);
+        }
+        else ADD_FAILURE();
+        if (result1) {
+            EXPECT_EQ(*result1, 'U');
+        }
+        else ADD_FAILURE();
+    }
+    {
+        // too short
+        size_t chars = size_t(-1);
+        auto result0 = taul::parse_taul_char("\\Ufffffff", &chars);
+        auto result1 = taul::parse_taul_char("\\Ufffffff");
+        if (result0) {
+            EXPECT_EQ(*result0, 'U');
+            EXPECT_EQ(chars, 2);
+        }
+        else ADD_FAILURE();
+        if (result1) {
+            EXPECT_EQ(*result1, 'U');
+        }
+        else ADD_FAILURE();
+    }
+    {
+        // invalid char encountered
+        size_t chars = size_t(-1);
+        auto result0 = taul::parse_taul_char("\\Ufffffffj", &chars);
+        auto result1 = taul::parse_taul_char("\\Ufffffffj");
+        if (result0) {
+            EXPECT_EQ(*result0, 'U');
+            EXPECT_EQ(chars, 2);
+        }
+        else ADD_FAILURE();
+        if (result1) {
+            EXPECT_EQ(*result1, 'U');
+        }
+        else ADD_FAILURE();
+    }
+}
+
+TEST(StringAndCharsetTests, ParseTAULChar_LiteralizedCharEscapeSeqs) {
+    const auto lgr = taul::make_stderr_logger();
     for (const auto& I : "ABCDEF123456!@#$%^") {
         std::string in = std::format("\\{}", I);
         TAUL_LOG(lgr, "testing {}", in);
-        std::size_t chars = std::size_t(-1);
+        size_t chars = size_t(-1);
         auto result0 = taul::parse_taul_char(in, &chars);
         auto result1 = taul::parse_taul_char(in);
         if (result0) {
@@ -136,39 +338,58 @@ TEST(StringAndCharsetTests, ParseTAULChar) {
         }
         else ADD_FAILURE();
     }
-    // test regular unescaped chars
-    for (const auto& I : "abfnrtv']-ABCDEF123456!@#$%^\\") {
-        std::string in = std::format("{}", I);
-        TAUL_LOG(lgr, "testing {}", in);
-        std::size_t chars = std::size_t(-1);
-        auto result0 = taul::parse_taul_char(in, &chars);
-        auto result1 = taul::parse_taul_char(in);
-        if (result0) {
-            EXPECT_EQ(*result0, I);
-            EXPECT_EQ(chars, 1);
-        }
-        else ADD_FAILURE();
-        if (result1) {
-            EXPECT_EQ(*result1, I);
-        }
-        else ADD_FAILURE();
-    }
-    // test expected failures due to empty input
-    {
-        std::size_t chars = std::size_t(-1);
-        auto result0 = taul::parse_taul_char("", &chars);
-        auto result1 = taul::parse_taul_char("");
-        EXPECT_FALSE(result0);
-        EXPECT_FALSE(result1);
-        EXPECT_EQ(chars, std::size_t(-1));
-    }
+}
+
+TEST(StringAndCharsetTests, ParseTAULChar_MultiByteUTF8) {
+    const auto lgr = taul::make_stderr_logger();
+
+    std::string input0 = taul::utf8_s(u8"Δa");
+    std::string input1 = taul::utf8_s(u8"魂a");
+    std::string input2 = taul::utf8_s(u8"💩a");
+    std::string input3 = taul::utf8_s(u8"\\Δa");
+    std::string input4 = taul::utf8_s(u8"\\魂a");
+    std::string input5 = taul::utf8_s(u8"\\💩a");
+
+    size_t chars0 = size_t(-1);
+    size_t chars1 = size_t(-1);
+    size_t chars2 = size_t(-1);
+    size_t chars3 = size_t(-1);
+    size_t chars4 = size_t(-1);
+    size_t chars5 = size_t(-1);
+    auto output0 = taul::parse_taul_char(input0, &chars0);
+    auto output1 = taul::parse_taul_char(input1, &chars1);
+    auto output2 = taul::parse_taul_char(input2, &chars2);
+    auto output3 = taul::parse_taul_char(input3, &chars3);
+    auto output4 = taul::parse_taul_char(input4, &chars4);
+    auto output5 = taul::parse_taul_char(input5, &chars5);
+
+    EXPECT_EQ(chars0, 2);
+    EXPECT_EQ(chars1, 3);
+    EXPECT_EQ(chars2, 4);
+    EXPECT_EQ(chars3, 3);
+    EXPECT_EQ(chars4, 4);
+    EXPECT_EQ(chars5, 5);
+
+    EXPECT_TRUE(output0);
+    EXPECT_TRUE(output1);
+    EXPECT_TRUE(output2);
+    EXPECT_TRUE(output3);
+    EXPECT_TRUE(output4);
+    EXPECT_TRUE(output5);
+
+    if (output0) EXPECT_EQ(output0.value(), U'Δ');
+    if (output1) EXPECT_EQ(output1.value(), U'魂');
+    if (output2) EXPECT_EQ(output2.value(), U'💩');
+    if (output3) EXPECT_EQ(output3.value(), U'Δ');
+    if (output4) EXPECT_EQ(output4.value(), U'魂');
+    if (output5) EXPECT_EQ(output5.value(), U'💩');
 }
 
 TEST(StringAndCharsetTests, FmtTAULChar) {
     const auto lgr = taul::make_stderr_logger();
     // this broke when I did 'c <= (char)127', so ya...
-    for (char c = (char)0; c < (char)127; c++) {
-        TAUL_LOG(lgr, "testing (c == {})", (std::size_t)c);
+    for (taul::unicode_t c = (taul::unicode_t)0; c < (taul::unicode_t)127; c++) {
+        TAUL_LOG(lgr, "testing (c == {})", (size_t)c);
         TAUL_LOG(lgr, "taul::fmt_taul_char(c) == {}", taul::fmt_taul_char(c));
         TAUL_LOG(lgr, "taul::fmt_taul_char(c, false) == {}", taul::fmt_taul_char(c, false));
         if (c == '\0') {
@@ -219,21 +440,49 @@ TEST(StringAndCharsetTests, FmtTAULChar) {
             EXPECT_EQ(taul::fmt_taul_char(c), "\\\\");
             EXPECT_EQ(taul::fmt_taul_char(c, false), "\\\\");
         }
-        else if (c >= ' ' && c <= '~') {
-            EXPECT_EQ(taul::fmt_taul_char(c), std::string(1, c));
-            EXPECT_EQ(taul::fmt_taul_char(c, false), std::string(1, c));
+        else if (taul::is_visible_ascii(c)) {
+            EXPECT_EQ(taul::fmt_taul_char(c), std::string(1, char(c)));
+            EXPECT_EQ(taul::fmt_taul_char(c, false), std::string(1, char(c)));
         }
         else {
-            constexpr const char* hex_digits = "0123456789abcdef";
-            std::size_t low = std::size_t(c) % 16;
-            std::size_t high = (std::size_t(c) - low) / 16;
-            EXPECT_EQ(taul::fmt_taul_char(c), std::format("\\x{}{}", hex_digits[high], hex_digits[low]));
-            EXPECT_EQ(taul::fmt_taul_char(c, false), std::format("\\x{}{}", hex_digits[high], hex_digits[low]));
+            EXPECT_EQ(taul::fmt_taul_char(c), std::format("\\x{}", taul::fmt_hex_u8(uint8_t(c))));
+            EXPECT_EQ(taul::fmt_taul_char(c, false), std::format("\\x{}", taul::fmt_hex_u8(uint8_t(c))));
         }
     }
 }
 
-TEST(StringAndCharsetTests, ParseTAULString) {
+TEST(StringAndCharsetTests, FmtTAULChar_MultiByteUTF8) {
+    const auto lgr = taul::make_stderr_logger();
+    // w/ codepoints which fit in 16-bit range
+    for (size_t c = 1; c < 127; c++) { // <- take note that we *skip* c == 0, as that's not in desired range
+        taul::unicode_t cc = taul::unicode_t(c * 0x0100);
+        TAUL_LOG(lgr, "testing (cc == {})", (size_t)cc);
+        TAUL_LOG(lgr, "taul::fmt_taul_char(cc) == {}", taul::fmt_taul_char(cc));
+        TAUL_LOG(lgr, "taul::fmt_taul_char(cc, false) == {}", taul::fmt_taul_char(cc, false));
+        EXPECT_EQ(taul::fmt_taul_char(cc), std::format("\\u{}", taul::fmt_hex_u16(uint16_t(cc))));
+        EXPECT_EQ(taul::fmt_taul_char(cc, false), std::format("\\u{}", taul::fmt_hex_u16(uint16_t(cc))));
+    }
+    // w/ codepoints which fit in 32-bit range
+    for (size_t c = 1; c < 127; c++) { // <- take note that we *skip* c == 0, as that's not in desired range
+        taul::unicode_t cc = taul::unicode_t(c * 0x0101'0000);
+        TAUL_LOG(lgr, "testing (cc == {})", (size_t)cc);
+        TAUL_LOG(lgr, "taul::fmt_taul_char(cc) == {}", taul::fmt_taul_char(cc));
+        TAUL_LOG(lgr, "taul::fmt_taul_char(cc, false) == {}", taul::fmt_taul_char(cc, false));
+        EXPECT_EQ(taul::fmt_taul_char(cc), std::format("\\U{}", taul::fmt_hex_u32(uint32_t(cc))));
+        EXPECT_EQ(taul::fmt_taul_char(cc, false), std::format("\\U{}", taul::fmt_hex_u32(uint32_t(cc))));
+    }
+    // test 16-bit and 32-bit w/ specific codepoints
+    // 16-bit
+    EXPECT_EQ(taul::fmt_taul_char(U'Δ'), "\\u0394");
+    EXPECT_EQ(taul::fmt_taul_char(U'Δ', false), "\\u0394");
+    EXPECT_EQ(taul::fmt_taul_char(U'魂'), "\\u9b42");
+    EXPECT_EQ(taul::fmt_taul_char(U'魂', false), "\\u9b42");
+    // 32-bit
+    EXPECT_EQ(taul::fmt_taul_char(U'💩'), "\\U0001f4a9");
+    EXPECT_EQ(taul::fmt_taul_char(U'💩', false), "\\U0001f4a9");
+}
+
+TEST(StringAndCharsetTests, ParseTAULString_BasicEscapeSeqs) {
     EXPECT_EQ(taul::parse_taul_string(""), "");
     EXPECT_EQ(taul::parse_taul_string("abc123!@#"), "abc123!@#");
     EXPECT_EQ(taul::parse_taul_string("\\a\\b\\f\\n\\r\\t\\v\\']-\\\\"), "\a\b\f\n\r\t\v\']-\\");
@@ -241,9 +490,17 @@ TEST(StringAndCharsetTests, ParseTAULString) {
     EXPECT_EQ(taul::parse_taul_string("\\x1e\\x1f\\x7f"), "\x1e\x1f\x7f");
     EXPECT_EQ(taul::parse_taul_string("'''"), "'''"); // <- give '\'' no special treatment
     EXPECT_EQ(taul::parse_taul_string("abc\\"), "abc\\"); // <- give trailing unescaped '\\' no special treatment
-    // ensure works w/ stray nulls
+}
+
+TEST(StringAndCharsetTests, ParseTAULString_StrayNulls) {
     const char* txt = "abc\0def";
     EXPECT_EQ(taul::parse_taul_string("abc\\0def"), std::string(txt, 7));
+}
+
+TEST(StringAndCharsetTests, ParseTAULString_MultiByteUTF8) {
+    std::string input = taul::utf8_s(u8"abcΔ魂💩\\Δ\\魂\\💩");
+    std::string output = taul::utf8_s(u8"abcΔ魂💩Δ魂💩");
+    EXPECT_EQ(taul::parse_taul_string(input), output);
 }
 
 TEST(StringAndCharsetTests, FmtTAULString) {
@@ -252,7 +509,13 @@ TEST(StringAndCharsetTests, FmtTAULString) {
     EXPECT_EQ(taul::fmt_taul_string("\a\b\f\n\r\t\v\']-\\"), "\\a\\b\\f\\n\\r\\t\\v\\']-\\\\");
     EXPECT_EQ(taul::fmt_taul_string("ABC123!@# \t"), "ABC123!@# \\t");
     EXPECT_EQ(taul::fmt_taul_string("\x1e\x1f\x7f"), "\\x1e\\x1f\\x7f");
-    // ensure works w/ stray nulls
+}
+
+TEST(StringAndCharsetTests, FmtTAULString_StrayNulls) {
+    EXPECT_EQ(taul::fmt_taul_string(taul::utf8_s(u8"Δ魂💩")), "\\u0394\\u9b42\\U0001f4a9");
+}
+
+TEST(StringAndCharsetTests, FmtTAULString_MultiByteUTF8) {
     const char* txt = "abc\0def";
     EXPECT_EQ(taul::fmt_taul_string(std::string_view(txt, 7)), "abc\\0def");
 }
@@ -339,26 +602,39 @@ TEST(StringAndCharsetTests, ParseTAULCharset) {
     EXPECT_TRUE(charset_has_only_expected(charset15, "a-c"));
     EXPECT_TRUE(charset_has_only_expected(charset16, "a-c"));
     EXPECT_TRUE(charset_has_only_expected(charset17, "\x1e\x1f\x7f"));
-    // ensure works w/ stray nulls
-    const char* txt0 = "abc\0def";
-    const char* txt1 = "\0\x01\x02\x03\x04";
-    auto charset18 = taul::parse_taul_charset("abc\\0def");
-    auto charset19 = taul::parse_taul_charset("\\0-\\x04");
-    TAUL_LOG(lgr, "charset18 == {} (length == {}; since we can't see the \\0, lol)", charset18, charset18.length());
-    TAUL_LOG(lgr, "charset19 == {} (length == {}; since we can't see the \\0, lol)", charset19, charset19.length());
-    EXPECT_TRUE(charset_has_only_expected(charset18, std::string_view(txt0, 7)));
-    EXPECT_TRUE(charset_has_only_expected(charset19, std::string_view(txt1, 5)));
-    // others
-    auto charset20 = taul::parse_taul_charset("]]]"); // <- give '\'' no special treatment
-    auto charset21 = taul::parse_taul_charset("abc\\"); // <- give trailing unescaped '\\' no special treatment
-    TAUL_LOG(lgr, "charset20 == {}", charset20);
-    TAUL_LOG(lgr, "charset21 == {}", charset21);
-    EXPECT_TRUE(charset_has_only_expected(charset20, "]"));
-    EXPECT_TRUE(charset_has_only_expected(charset21, "abc\\"));
 }
 
-// these tests couple the impl a bit to a specific internal behaviour
-// regarding the exact appearence of the result, but this should be fine
+TEST(StringAndCharsetTests, ParseTAULCharset_StrayNulls) {
+    const auto lgr = taul::make_stderr_logger();
+    const char* txt0 = "abc\0def";
+    const char* txt1 = "\0\x01\x02\x03\x04";
+    auto charset0 = taul::parse_taul_charset("abc\\0def");
+    auto charset1 = taul::parse_taul_charset("\\0-\\x04");
+    TAUL_LOG(lgr, "charset0 == {} (length == {}; since we can't see the \\0, lol)", charset0, charset0.length());
+    TAUL_LOG(lgr, "charset1 == {} (length == {}; since we can't see the \\0, lol)", charset1, charset1.length());
+    EXPECT_TRUE(charset_has_only_expected(charset0, std::string_view(txt0, 7)));
+    EXPECT_TRUE(charset_has_only_expected(charset1, std::string_view(txt1, 5)));
+}
+
+TEST(StringAndCharsetTests, ParseTAULCharset_MultiByteUTF8) {
+    const auto lgr = taul::make_stderr_logger();
+    auto charset0 = taul::parse_taul_charset(taul::utf8_s(u8"\\α-\\δ\\魂\\か-\\く"));
+    auto charset1 = taul::parse_taul_charset(taul::utf8_s(u8"α-δ魂か-く"));
+    TAUL_LOG(lgr, "charset0 == {}", charset0);
+    TAUL_LOG(lgr, "charset1 == {}", charset1);
+    EXPECT_TRUE(charset_has_only_expected(charset0, taul::utf8_s(u8"αβγδ魂かがきぎく")));
+    EXPECT_TRUE(charset_has_only_expected(charset1, taul::utf8_s(u8"αβγδ魂かがきぎく")));
+}
+
+TEST(StringAndCharsetTests, ParseTAULCharset_Other) {
+    const auto lgr = taul::make_stderr_logger();
+    auto charset0 = taul::parse_taul_charset("]]]"); // <- give '\'' no special treatment
+    auto charset1 = taul::parse_taul_charset("abc\\"); // <- give trailing unescaped '\\' no special treatment
+    TAUL_LOG(lgr, "charset0 == {}", charset0);
+    TAUL_LOG(lgr, "charset1 == {}", charset1);
+    EXPECT_TRUE(charset_has_only_expected(charset0, "]"));
+    EXPECT_TRUE(charset_has_only_expected(charset1, "abc\\"));
+}
 
 TEST(StringAndCharsetTests, FmtTAULCharset) {
     EXPECT_EQ(taul::fmt_taul_charset(""), "");
@@ -371,8 +647,14 @@ TEST(StringAndCharsetTests, FmtTAULCharset) {
     EXPECT_EQ(taul::fmt_taul_charset("\x1e\x1e\x1f\x1f\x7f\x7f"), "\\x1e\\x1f\\x7f");
     EXPECT_EQ(taul::fmt_taul_charset("\x1e\x7f"), "\\x1e-\\x7f");
     EXPECT_EQ(taul::fmt_taul_charset("\n\r"), "\\n-\\r");
-    // test w/ all our main escape seqs + ensure works w/ stray nulls
+}
+
+TEST(StringAndCharsetTests, FmtTAULCharset_AllBasicEscapeSeqs_AndStrayNulls) {
     const char* txt = "\0\0\a\a\b\b\f\f\n\n\r\r\t\t\v\v'']]--\\\\";
     EXPECT_EQ(taul::fmt_taul_charset(std::string_view(txt, 24)), "\\0\\a\\b\\f\\n\\r\\t\\v'\\]\\-\\\\");
+}
+
+TEST(StringAndCharsetTests, FmtTAULCharset_MultiByteUTF8) {
+    EXPECT_EQ(taul::fmt_taul_charset(taul::utf8_s(u8"afαδ魂魂かく")), "a-f\\u03b1-\\u03b4\\u9b42\\u304b-\\u304f");
 }
 

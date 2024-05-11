@@ -1,4 +1,4 @@
-
+﻿
 
 #include <gtest/gtest.h>
 
@@ -189,7 +189,7 @@ TEST_F(CompileTests, TopLevel_ImplicitLexerSectionIfNoExplicitSectionIsDeclared)
 
 TEST_F(CompileTests, PrimaryExprs) {
     auto src = std::make_shared<taul::source_code>();
-    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_5.taul"));
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_5a.taul"));
 
     auto expected =
         taul::spec_writer()
@@ -215,6 +215,30 @@ TEST_F(CompileTests, PrimaryExprs) {
         .name("PPR1"_str)
         .close()
         .ppr("PPR1"_str)
+        .close()
+        .done();
+
+    auto actual = taul::compile(src, ec, lgr, false);
+
+    EXPECT_EQ(ec.total(), 0);
+    ASSERT_TRUE(actual);
+
+    TAUL_LOG(lgr, "expected:\n{}", taul::disassemble_spec(expected));
+    TAUL_LOG(lgr, "actual:\n{}", taul::disassemble_spec(actual.value()));
+
+    EXPECT_EQ(taul::disassemble_spec(expected), taul::disassemble_spec(actual.value()));
+}
+
+TEST_F(CompileTests, PrimaryExprs_WithNonASCIIUnicode) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_5b.taul"));
+
+    auto expected =
+        taul::spec_writer()
+        .lpr_decl("LPR0"_str)
+        .lpr("LPR0"_str)
+        .string(taul::convert_encoding<char>(taul::utf8, taul::utf8, u8"abc123Δ魂💩").value())
+        .charset(taul::convert_encoding<char>(taul::utf8, taul::utf8, u8"a-fα-δ魂か-く").value())
         .close()
         .done();
 

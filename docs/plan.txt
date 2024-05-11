@@ -3,6 +3,10 @@
 -- PROJECT PLAN --
 
 
+    IMPORTANT: this document is *completely out-of-date*, and no longer is all
+               that good a piece of reference material for the TAUL API
+
+
 this plan details a *rough-sketch* of what our library/CLI driver app should
 look like, and detailing the broad strokes of how we're gonna develop it
 

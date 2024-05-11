@@ -50,6 +50,16 @@ namespace taul {
     constexpr auto alphabet_u32         = U"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 
+    // TODO: utf8_s has not been unit tested
+
+    // utf8_s simply converts a char8_t string into an std::string
+    // utf8_s is handy when unit testing TAUL's support for non-ASCII Unicode usage
+
+    std::string utf8_s(const std::u8string& x);
+    std::string utf8_s(std::u8string_view x);
+    std::string utf8_s(const char8_t* x);
+
+
     // strlen is a generic version of std::strlen
 
     template<typename Char>

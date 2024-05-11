@@ -64,7 +64,9 @@ lexer section:
     # \]				<- Right Square Bracket		<- for charsets
     # \-				<- Minus					<- for ranges in charsets
     # \\				<- Backslash
-    # \xhh			    <- Hex Literal (8-bit)		<- TODO: add 16-bit and 32-bit versions
+    # \xhh			    <- Hex Literal (8-bit)
+    # \uhhhh            <- Hex Literal (16-bit)     <- TODO: what about illegal codepoints?
+    # \uhhhhhhhh        <- Hex Literal (32-bit)
     # 
     # escaped characters which do not form any of the above are *literalized*,
     # meaning the opening '\' is simply removed
