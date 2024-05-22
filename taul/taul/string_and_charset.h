@@ -34,7 +34,8 @@ namespace taul {
 
     // see taul.taul for a complete list of TAUL language escape sequences
 
-    // this little API only parses/formats a single char or escape sequence
+    // this little API only parses/formats a single (potentially multi-byte) 
+    // char or escape sequence
 
 
     // parse_taul_char parses a single regular character from the start of x, 
@@ -42,6 +43,9 @@ namespace taul {
     // if parsing failed due to x.empty() == true
 
     // parse_taul_char allows for x to contain UTF-8 encoded sequences
+
+    // parse_taul_char allows for TAUL escape sequences to specify otherwise
+    // illegal Unicode codepoints
 
     // the TAUL string x is expected to NOT have enclosing '\'' characters
 
@@ -63,7 +67,13 @@ namespace taul {
 
     // fmt_taul_char will, for characters that are not visible ASCII or which lack
     // a specific escape sequence dedicated to them, format such characters via the
-    // use of hexadecimal value escape sequences to aid readability
+    // use of hexadecimal TAUL escape sequences to aid readability
+
+    // fmt_taul_char will also uses hexadecimal TAUL escape sequences in order to
+    // be able to output a formatted string containing potentially illegal Unicode
+    // codepoints specified in it
+
+    // formatted hexadecimal escape seqs will have lowercase hex digits
 
     // if string_not_charset == true, '\'' will be escaped, but ']' and '-' will not
     
@@ -83,6 +93,9 @@ namespace taul {
     // parse_taul_string allows for non-ASCII chars to be included in the string
     // as UTF-8 encoded sequences
 
+    // parse_taul_string allows for TAUL escape sequences to specify otherwise
+    // illegal Unicode codepoints
+
     // unescaped '\'' chars are not given any special treatment herein; they're
     // only notable in TAUL syntax compilation
 
@@ -92,27 +105,27 @@ namespace taul {
     // (the above two are for ensuring we can't ever *fail* parsing, to ease
     // usage of this code in taul::load)
 
-    std::string parse_taul_string(std::string_view x);
+    std::u32string parse_taul_string(std::string_view x);
 
     // this overload ensures x doesn't become dangling during call
 
     template<typename StringLike>
-    inline std::string parse_taul_string(const StringLike& x) {
+    inline std::u32string parse_taul_string(const StringLike& x) {
         return parse_taul_string(std::string_view(x));
     }
 
     // fmt_taul_string takes a string x and returns a valid TAUL string, w/ 
     // characters being escaped as needed
 
-    // formatted \xhh escape seqs will have lowercase hex digits
+    // formatted hexadecimal escape seqs will have lowercase hex digits
 
-    std::string fmt_taul_string(std::string_view x);
+    std::string fmt_taul_string(std::u32string_view x);
 
     // this overload ensures x doesn't become dangling during call
 
-    template<typename StringLike>
-    inline std::string fmt_taul_string(const StringLike& x) {
-        return fmt_taul_string(std::string_view(x));
+    template<typename U32StringLike>
+    inline std::string fmt_taul_string(const U32StringLike& x) {
+        return fmt_taul_string(std::u32string_view(x));
     }
 
 
@@ -166,6 +179,12 @@ namespace taul {
 
     // the TAUL charset x is expected to NOT have enclosing '[' or ']' characters
 
+    // parse_taul_charset allows for non-ASCII chars to be included in the charset
+    // as UTF-8 encoded sequences
+
+    // parse_taul_charset allows for TAUL escape sequences to specify otherwise
+    // illegal Unicode codepoints
+
     // unescaped ']' chars are not given any special treatment herein; they're
     // only notable in TAUL syntax compilation
 
@@ -175,29 +194,29 @@ namespace taul {
     // (the above two are for ensuring we can't ever *fail* parsing, to ease
     // usage of this code in taul::load)
 
-    std::string parse_taul_charset(std::string_view x);
+    std::u32string parse_taul_charset(std::string_view x);
 
     // this overload ensures x doesn't become dangling during call
 
     template<typename StringLike>
-    inline std::string parse_taul_charset(const StringLike& x) {
+    inline std::u32string parse_taul_charset(const StringLike& x) {
         return parse_taul_charset(std::string_view(x));
     }
 
     // fmt_taul_charset takes a charset string x and returns a valid TAUL charset, 
     // w/ characters being escaped as needed
-
-    // formatted \xhh escape seqs will have lowercase hex digits
+    
+    // formatted hexadecimal escape seqs will have lowercase hex digits
 
     // behaviour is undefined if x is not a valid charset string
 
-    std::string fmt_taul_charset(std::string_view x);
+    std::string fmt_taul_charset(std::u32string_view x);
 
     // this overload ensures x doesn't become dangling during call
 
-    template<typename StringLike>
-    inline std::string fmt_taul_charset(const StringLike& x) {
-        return fmt_taul_charset(std::string_view(x));
+    template<typename U32StringLike>
+    inline std::string fmt_taul_charset(const U32StringLike& x) {
+        return fmt_taul_charset(std::u32string_view(x));
     }
 
 
@@ -210,7 +229,7 @@ namespace taul {
 
     // behaviour is undefined if charset is not a valid charset string
 
-    bool in_charset_str(unicode_t x, std::string_view charset) noexcept;
+    bool in_charset_str(unicode_t x, std::u32string_view charset) noexcept;
 
 
     namespace internal {
@@ -221,7 +240,7 @@ namespace taul {
         // this does in_charset_str, but returns the index of the char pair
         // in the charset which matched, or charset length upon failure
 
-        std::size_t where_in_charset_str(unicode_t x, std::string_view charset) noexcept;
+        std::size_t where_in_charset_str(unicode_t x, std::u32string_view charset) noexcept;
     }
 }
 

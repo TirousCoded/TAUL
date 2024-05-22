@@ -29,9 +29,6 @@ namespace taul {
 
     // lexers are expected to have a few notable semantics:
 
-    // TODO: should we have a semantic for if input is length 0 and no
-    //       length 0 token was able to be matched, and no token is produced
-
     //      1) when a match fails and forms a failure token, the impl is
     //         expected to try and form the next token after that, and if
     //         it's another failure, to concatenate the two, repeating
@@ -42,6 +39,9 @@ namespace taul {
     //         falling into an infinite loop due to lexer being deterministic
     //
     //         these failure tokens are subject to the concatentation of #1
+
+    // TODO: should we have a semantic for if input is length 0 and no
+    //       length 0 token was able to be matched, and no token is produced
 
 
     class base_lexer : public token_stream {

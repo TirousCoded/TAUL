@@ -6,7 +6,7 @@
 
 
 std::string taul::fmt_spec_error(spec_error x) {
-    static_assert(spec_errors == 22);
+    static_assert(spec_errors == 24);
     std::string result{};
     switch (x) {
     case spec_error::internal_error:                    result = "internal-error";                      break;
@@ -31,6 +31,8 @@ std::string taul::fmt_spec_error(spec_error x) {
     case spec_error::illegal_in_single_subexpr_scope:   result = "illegal-in-single-subexpr-scope";     break;
     case spec_error::illegal_in_no_end_subexpr_scope:   result = "illegal-in-no-end-subexpr-scope";     break;
     case spec_error::illegal_ambiguity:                 result = "illegal-ambiguity";                   break;
+    case spec_error::illegal_string_literal:            result = "illegal-string-literal";              break;
+    case spec_error::illegal_charset_literal:           result = "illegal-charset-literal";             break;
     default:                                            TAUL_DEADEND;                                   break;
     }
     return result;

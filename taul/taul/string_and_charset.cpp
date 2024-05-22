@@ -21,6 +21,7 @@ std::optional<taul::unicode_t> taul::parse_taul_char(std::string_view x, size_t*
         if (chars) {
             *chars = first_chr.value().bytes;
         }
+        TAUL_ASSERT(is_unicode(first_chr.value().cp));
         return std::make_optional<unicode_t>(first_chr.value().cp);
     }
     else {
@@ -29,16 +30,15 @@ std::optional<taul::unicode_t> taul::parse_taul_char(std::string_view x, size_t*
             if (chars) {
                 *chars = first_chr.value().bytes;
             }
+            TAUL_ASSERT(is_unicode(first_chr.value().cp));
             return std::make_optional<unicode_t>(first_chr.value().cp);
         }
         else {
-            // *chars is default set to valid value for when we're processing
-            // a 'basic escape seq', or a case of 'literalization', w/ *chars
+            // result_chars is default set to valid value for when we're processing
+            // a 'basic escape seq', or a case of 'literalization', w/ result_chars
             // value being updated later if not one of these cases (ie. a hex
             // escape seq)
-            if (chars) {
-                *chars = first_chr.value().bytes + second_chr.value().bytes;
-            }
+            size_t result_chars = first_chr.value().bytes + second_chr.value().bytes;
             unicode_t result{};
             switch (second_chr.value().cp) {
                 // basic escape seqs
@@ -59,9 +59,7 @@ std::optional<taul::unicode_t> taul::parse_taul_char(std::string_view x, size_t*
             {
                 auto temp = parse_hex_u8(x.substr(2));
                 if (temp) {
-                    if (chars) {
-                        *chars = 4; // update *chars here
-                    }
+                    result_chars = 4;
                     result = unicode_t(temp.value());
                 }
                 else {
@@ -73,9 +71,7 @@ std::optional<taul::unicode_t> taul::parse_taul_char(std::string_view x, size_t*
             {
                 auto temp = parse_hex_u16(x.substr(2));
                 if (temp) {
-                    if (chars) {
-                        *chars = 6; // update *chars here
-                    }
+                    result_chars = 6;
                     result = unicode_t(temp.value());
                 }
                 else {
@@ -87,9 +83,7 @@ std::optional<taul::unicode_t> taul::parse_taul_char(std::string_view x, size_t*
             {
                 auto temp = parse_hex_u32(x.substr(2));
                 if (temp) {
-                    if (chars) {
-                        *chars = 10; // update *chars here
-                    }
+                    result_chars = 10;
                     result = unicode_t(temp.value());
                 }
                 else {
@@ -103,6 +97,9 @@ std::optional<taul::unicode_t> taul::parse_taul_char(std::string_view x, size_t*
                 result = second_chr.value().cp;
             }
             break;
+            }
+            if (chars) {
+                *chars = result_chars;
             }
             return std::make_optional<unicode_t>(result);
         }
@@ -163,29 +160,27 @@ std::string taul::fmt_taul_char(unicode_t x, bool string_not_charset) {
     }
 }
 
-std::string taul::parse_taul_string(std::string_view x) {
-    encoder<char> encoder(utf8);
+std::u32string taul::parse_taul_string(std::string_view x) {
+    std::u32string result{};
     for (size_t i = 0; i < x.length();) {
         size_t chars{};
         auto chr = parse_taul_char(x.substr(i), &chars);
         TAUL_ASSERT(chr);
-        encoder.next(chr.value());
+        result += unicode_t(chr.value());
         i += chars;
-    }
-    return encoder.result();
-}
-
-std::string taul::fmt_taul_string(std::string_view x) {
-    std::string result{};
-    result.reserve(x.length());
-    decoder<char> decoder(utf8, x);
-    while (!decoder.done()) {
-        result += fmt_taul_char(decoder.next().value().cp);
     }
     return result;
 }
 
-std::string taul::parse_taul_charset(std::string_view x) {
+std::string taul::fmt_taul_string(std::u32string_view x) {
+    std::string result{};
+    for (const auto& I : x) {
+        result += fmt_taul_char(I);
+    }
+    return result;
+}
+
+std::u32string taul::parse_taul_charset(std::string_view x) {
     // NOTE: basically, the below impls a kind of micro-parser w/ a cache
     //       of up to 3 decoded codepoint which it *matches* against
     //
@@ -193,7 +188,7 @@ std::string taul::parse_taul_charset(std::string_view x) {
     //       it proceeds until it's done, consuming input and matching
     // TODO: write doc comments to better explain what's going on below
     //       w/ regard to its particulars
-    encoder<char> encoder(utf8);
+    std::u32string result{};
     std::array<std::optional<unicode_t>, 3> matches{};
     std::array<size_t, 3> match_chars{};
     size_t position = 0;
@@ -245,13 +240,13 @@ std::string taul::parse_taul_charset(std::string_view x) {
         if (!matches[2]) return false;
         if (*matches[1] != U'-') return false;
         if (match_chars[1] != 1) return false; // can't be escaped
-        if (*matches[0] <= *matches[2]) {
-            encoder.next(*matches[0]);
-            encoder.next(*matches[2]);
+        if (*matches[0] <= *matches[2]) { // if low > high, flip them around
+            result += *matches[0];
+            result += *matches[2];
         }
         else {
-            encoder.next(*matches[2]);
-            encoder.next(*matches[0]);
+            result += *matches[2];
+            result += *matches[0];
         }
         _advance(3);
         return true;
@@ -259,8 +254,8 @@ std::string taul::parse_taul_charset(std::string_view x) {
     auto _match_char =
         [&]() {
         if (!matches[0]) return;
-        encoder.next(*matches[0]);
-        encoder.next(*matches[0]);
+        result += *matches[0];
+        result += *matches[0];
         _advance(1);
         };
     auto _match =
@@ -273,10 +268,10 @@ std::string taul::parse_taul_charset(std::string_view x) {
     while (processed < position) {
         _match();
     }
-    return encoder.result();
+    return result;
 }
 
-std::string taul::fmt_taul_charset(std::string_view x) {
+std::string taul::fmt_taul_charset(std::u32string_view x) {
     auto _fmt = 
         [&](unicode_t x, bool at_start_or_end) -> std::string {
         if (x != U'-') {
@@ -289,32 +284,27 @@ std::string taul::fmt_taul_charset(std::string_view x) {
             return "-";
         }
         };
+    TAUL_ASSERT(x.length() % 2 == 0);
     std::string result{};
-    decoder<char> decoder(utf8, x);
-    bool is_at_start = true;
-    while (!decoder.done()) {
-        const auto low = decoder.next().value();
-        // charset string is malformed if not composed of perfect pairs
-        TAUL_ASSERT(!decoder.done());
-        const auto high = decoder.next().value();
+    for (size_t i = 0; i < x.length(); i += 2) {
+        unicode_t low = x[i];
+        unicode_t high = x[i + 1];
 
-        const bool at_start = is_at_start;
-        const bool at_end = decoder.done();
+        const bool at_start = i == 0;
+        const bool at_end = i == x.length() - 2;
         const bool at_start_or_end = at_start || at_end;
 
-        TAUL_ASSERT(low.cp <= high.cp);
-        result += _fmt(low.cp, at_start_or_end);
-        if (low.cp != high.cp) {
+        TAUL_ASSERT(low <= high);
+        result += _fmt(low, at_start_or_end);
+        if (low != high) {
             result += '-';
-            result += _fmt(high.cp, at_start_or_end);
+            result += _fmt(high, at_start_or_end);
         }
-
-        is_at_start = false;
     }
     return result;
 }
 
-bool taul::in_charset_str(unicode_t x, std::string_view charset) noexcept {
+bool taul::in_charset_str(unicode_t x, std::u32string_view charset) noexcept {
     return internal::where_in_charset_str(x, charset) < charset.length();
 }
 
@@ -323,15 +313,13 @@ bool taul::internal::in_char_range(unicode_t x, unicode_t low, unicode_t high) n
     return x >= low && x <= high;
 }
 
-size_t taul::internal::where_in_charset_str(unicode_t x, std::string_view charset) noexcept {
-    decoder<char> decoder(utf8, charset);
-    while (!decoder.done()) {
-        const auto pos = decoder.pos(); // position of start of low/high pair
-        const auto low = decoder.next().value();
-        // charset string is malformed if not composed of perfect pairs
-        TAUL_ASSERT(!decoder.done());
-        const auto high = decoder.next().value();
-        if (in_char_range(x, low.cp, high.cp)) return pos; // return pair pos on success
+size_t taul::internal::where_in_charset_str(unicode_t x, std::u32string_view charset) noexcept {
+    TAUL_ASSERT(charset.length() % 2 == 0);
+    for (size_t i = 0; i < charset.length(); i += 2) {
+        unicode_t low = charset[i];
+        unicode_t high = charset[i + 1];
+
+        if (in_char_range(x, low, high)) return i;
     }
     return charset.length(); // length of charset indicates fail
 }

@@ -18,6 +18,11 @@
 namespace taul {
 
 
+    // NOTE: take note that within this portion of the TAUL library, an 'encoded unit' 
+    //       refers to a byte sequence which encodes a single codepoint value using
+    //       some specific encoding
+
+
     enum class encoding : std::uint8_t;
 
 

@@ -164,16 +164,10 @@ void taul::internal::spec_load_interpreter::check_err_illegal_qualifier(std::str
 }
 
 void taul::internal::spec_load_interpreter::check_err_illegal_in_single_terminal_scope(spec_opcode opcode, std::string_view s) {
+    TAUL_ASSERT(opcode != spec_opcode::string); // <- use std::u32string version
     if (in_single_terminal_scope()) {
         TAUL_ASSERT(in_single_subexpr_scope());
-        if (opcode == spec_opcode::string && in_lpr() && s.length() == 1) return; // okay
-        else if (opcode == spec_opcode::name && in_ppr() && has_lpr_decl(s)) return; // okay
-        else if (opcode == spec_opcode::string && in_lpr() && s.length() > 1) {
-            raise(
-                spec_error::illegal_in_single_terminal_scope,
-                "length of {} in single-terminal scope in lexer expr must only 1 char!",
-                opcode);
-        }
+        if (opcode == spec_opcode::name && in_ppr() && has_lpr_decl(s)) return; // okay
         else if (opcode == spec_opcode::name && in_lpr()) {
             raise(
                 spec_error::illegal_in_single_terminal_scope,
@@ -184,6 +178,27 @@ void taul::internal::spec_load_interpreter::check_err_illegal_in_single_terminal
             raise(
                 spec_error::illegal_in_single_terminal_scope,
                 "{} in single-terminal scope in parser expr must reference lpr!",
+                opcode);
+        }
+        else {
+            TAUL_ASSERT(s.empty());
+            raise(
+                spec_error::illegal_in_single_terminal_scope,
+                "{} illegal in single-terminal scope!",
+                opcode);
+        }
+    }
+}
+
+void taul::internal::spec_load_interpreter::check_err_illegal_in_single_terminal_scope(spec_opcode opcode, std::u32string_view s) {
+    TAUL_ASSERT(opcode == spec_opcode::string); // <- use std::string version
+    if (in_single_terminal_scope()) {
+        TAUL_ASSERT(in_single_subexpr_scope());
+        if (opcode == spec_opcode::string && in_lpr() && s.length() == 1) return; // okay
+        else if (opcode == spec_opcode::string && in_lpr() && s.length() > 1) {
+            raise(
+                spec_error::illegal_in_single_terminal_scope,
+                "length of {} in single-terminal scope in lexer expr must only 1 char!",
                 opcode);
         }
         else {
@@ -272,6 +287,91 @@ void taul::internal::spec_load_interpreter::check_err_illegal_ambiguity_due_to_t
                 spec_error::illegal_ambiguity,
                 "{} is ambiguous due to left-recursion!",
                 nonterminal);
+        }
+    }
+}
+
+void taul::internal::spec_load_interpreter::check_err_illegal_string_literal_due_to_illegal_codepoints(std::u32string_view s) {
+    for (const auto& I : s) {
+        if (!is_unicode(I)) {
+            raise(
+                spec_error::illegal_string_literal,
+                "string literal '{}' contains illegal codepoint {}!",
+                fmt_taul_string(s), fmt_unicode(I));
+        }
+    }
+}
+
+void taul::internal::spec_load_interpreter::check_err_illegal_string_literal_due_to_nonvisible_ascii(std::string_view unparsed_literal) {
+    decoder<char> decoder(utf8, unparsed_literal);
+    while (!decoder.done()) {
+        const auto decoded = decoder.next();
+        TAUL_ASSERT(decoded);
+        const auto cp = decoded.value().cp;
+        if (is_ascii(cp) && !is_visible_ascii(cp)) {
+            raise(
+                spec_error::illegal_string_literal,
+                "string literal '{}' contains unescaped non-visible ASCII {}!",
+                fmt_taul_string(parse_taul_string(unparsed_literal)), // <- help end-user better visualize what's wrong
+                fmt_unicode(cp));
+        }
+    }
+}
+
+void taul::internal::spec_load_interpreter::check_err_illegal_charset_literal_due_to_illegal_codepoints(std::u32string_view s) {
+    auto legal_codepoints =
+        glyph_set()
+        .add_all()
+        .remove_epsilon()
+        .remove_range(0xd800, 0xdfff)
+        .remove_id_range(cp_id(0x0011'0000), TAUL_LAST_ID(cp));
+
+    TAUL_ASSERT(s.length() % 2 == 0);
+    glyph_set charset_codepoints;
+    for (size_t i = 0; i < s.length(); i += 2) {
+        charset_codepoints.add_range(s[i], s[i + 1]);
+    }
+    
+    auto illegal_charset_codepoints = charset_codepoints - legal_codepoints;
+
+    if (illegal_charset_codepoints.empty()) return;
+
+    for (const auto& I : illegal_charset_codepoints.ranges()) {
+        if (I.count() == 1) {
+            raise(
+                spec_error::illegal_charset_literal,
+                "charset literal [{}] contains illegal codepoint {}!",
+                fmt_taul_charset(s), 
+                fmt_unicode(symbol_traits<glyph>::preferred(I.low).value()));
+        }
+        else {
+            raise(
+                spec_error::illegal_charset_literal,
+                "charset literal [{}] contains illegal codepoints [{}, {}]!",
+                fmt_taul_charset(s),
+                fmt_unicode(symbol_traits<glyph>::preferred(I.low).value()),
+                fmt_unicode(symbol_traits<glyph>::preferred(I.high).value()));
+        }
+    }
+}
+
+void taul::internal::spec_load_interpreter::check_err_illegal_charset_literal_due_to_nonvisible_ascii(std::string_view unparsed_literal) {
+    // take note that we're iterating over unparsed_literal as just
+    // a regular string, rather than considering details of it being
+    // a charset w/ syntactic rules
+    decoder<char> decoder(utf8, unparsed_literal);
+    while (!decoder.done()) {
+        const auto decoded = decoder.next();
+        TAUL_ASSERT(decoded);
+        const auto cp = decoded.value().cp;
+        if (is_ascii(cp) && !is_visible_ascii(cp)) {
+            raise(
+                spec_error::illegal_charset_literal,
+                "charset literal '{}' contains unescaped non-visible ASCII {}!",
+                // take note how we use the string versions here, rather than charset versions,
+                // as we don't care about charset details much, just aesthetics of diagnostics
+                fmt_taul_string(parse_taul_string(unparsed_literal)), // <- help end-user better visualize what's wrong
+                fmt_unicode(cp));
         }
     }
 }
@@ -416,6 +516,8 @@ void taul::internal::spec_load_interpreter::on_string(std::string_view s) {
     check_err_illegal_in_no_scope(spec_opcode::string);
     check_err_illegal_in_ppr_scope(spec_opcode::string);
     check_err_illegal_in_single_terminal_scope(spec_opcode::string, ss);
+    check_err_illegal_string_literal_due_to_illegal_codepoints(ss);
+    check_err_illegal_string_literal_due_to_nonvisible_ascii(s);
     count_subexpr_for_top_ess();
     rule_pt_trans.on_string(ss);
 }
@@ -424,6 +526,8 @@ void taul::internal::spec_load_interpreter::on_charset(std::string_view s) {
     const auto ss = parse_taul_charset(s);
     check_err_illegal_in_no_scope(spec_opcode::charset);
     check_err_illegal_in_ppr_scope(spec_opcode::charset);
+    check_err_illegal_charset_literal_due_to_illegal_codepoints(ss);
+    check_err_illegal_charset_literal_due_to_nonvisible_ascii(s);
     count_subexpr_for_top_ess();
     rule_pt_trans.on_charset(ss);
 }

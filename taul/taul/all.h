@@ -3,12 +3,10 @@
 #pragma once
 
 
-#include "repo_info.h"
-
+#include "general.h"
 #include "asserts.h"
 
 #include "error_counter.h"
-
 #include "logger.h"
 
 #include "hashing.h"

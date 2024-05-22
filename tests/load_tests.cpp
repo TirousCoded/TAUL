@@ -4,6 +4,7 @@
 
 #include <taul/logger.h>
 #include <taul/str.h>
+#include <taul/string_and_charset.h>
 #include <taul/spec_error.h>
 #include <taul/spec_opcode.h>
 #include <taul/spec.h>
@@ -4138,7 +4139,7 @@ TEST(LoadTests, HasExpectedPrefixes_PPRs_KleenePlus) {
 // be unit tested, and being specified *in order*
 
 static_assert(taul::spec_opcodes == 21);
-static_assert(taul::spec_errors == 22);
+static_assert(taul::spec_errors == 24);
 
 // notice that a lot of errors actually arise on the close instruction, however, most
 // of these errors will be tested in association w/ the opening instruction instead
@@ -4909,6 +4910,8 @@ TEST(LoadTests, any_forErr_illegal_in_no_scope) {
 // string
 //      illegal-in-ppr-scope
 //      illegal-in-no-scope
+//      illegal-string-literal (due to illegal codepoints)
+//      illegal-string-literal (due to non-visible ASCII)
 
 TEST(LoadTests, string_forErr_illegal_in_ppr_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -4945,9 +4948,59 @@ TEST(LoadTests, string_seq_forErr_illegal_in_no_scope) {
     EXPECT_FALSE(gram);
 }
 
+TEST(LoadTests, string_seq_forErr_illegal_string_literal_dueToIllegalCodepoints) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("f"_str)
+        .lpr("f"_str)
+        .string(taul::utf8_s(u8"ab\\ud800cd"))
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_string_literal), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, string_seq_forErr_illegal_string_literal_dueToNonVisibleASCII) {
+    const auto lgr = taul::make_stderr_logger();
+    for (size_t i = size_t('\x00'); i <= size_t('\x7f'); i++) {
+        char chr = char(i);
+        if (taul::is_visible_ascii(chr)) continue; // skip visible ASCII
+
+        std::string ss = std::string("abc") + chr + std::string("def");
+        ASSERT_EQ(ss.length(), 7);
+
+        TAUL_LOG(lgr, "testing w/ '{}'", taul::fmt_taul_char(chr));
+
+        taul::spec_error_counter ec{};
+
+        const auto s =
+            taul::spec_writer()
+            .lpr_decl("f"_str)
+            .lpr("f"_str)
+            .string(ss)
+            .close()
+            .done();
+
+        const auto gram = taul::load(s, ec, lgr);
+
+        EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+        EXPECT_EQ(ec.count(taul::spec_error::illegal_string_literal), 1);
+        EXPECT_FALSE(gram);
+    }
+}
+
 // charset
 //      illegal-in-ppr-scope
 //      illegal-in-no-scope
+//      illegal-charset-literal (due to illegal codepoints)
+//      illegal-charset-literal (due to non-visible ASCII)
 
 TEST(LoadTests, charset_forErr_illegal_in_ppr_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -4982,6 +5035,57 @@ TEST(LoadTests, charset_forErr_illegal_in_no_scope) {
     EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
     EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
     EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, charset_seq_forErr_illegal_charset_literal_dueToIllegalCodepoints) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    // \ud799-\ue000 is non-trivial to detect as invalid, since both low/high values 
+    // are themselves valid, and the invalid values are those in between them
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("f"_str)
+        .lpr("f"_str)
+        .charset(taul::utf8_s(u8"a-z\\ud799-\\ue0001-9"))
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_charset_literal), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, charset_seq_forErr_illegal_charset_literal_dueToNonVisibleASCII) {
+    const auto lgr = taul::make_stderr_logger();
+    for (size_t i = size_t('\x00'); i <= size_t('\x7f'); i++) {
+        char chr = char(i);
+        if (taul::is_visible_ascii(chr)) continue; // skip visible ASCII
+
+        std::string ss = std::string("a-f") + chr + std::string("123");
+        ASSERT_EQ(ss.length(), 7);
+
+        TAUL_LOG(lgr, "testing w/ '{}'", taul::fmt_taul_char(chr, false));
+
+        taul::spec_error_counter ec{};
+
+        const auto s =
+            taul::spec_writer()
+            .lpr_decl("f"_str)
+            .lpr("f"_str)
+            .charset(ss)
+            .close()
+            .done();
+
+        const auto gram = taul::load(s, ec, lgr);
+
+        EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+        EXPECT_EQ(ec.count(taul::spec_error::illegal_charset_literal), 1);
+        EXPECT_FALSE(gram);
+    }
 }
 
 // token

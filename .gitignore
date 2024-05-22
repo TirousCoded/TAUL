@@ -3,6 +3,7 @@
 
 bin/
 bin-int/
+docs/todos.txt
 docs/progress.txt
 docs/journal.txt
 docs/LL(1) transition plan.txt

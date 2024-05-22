@@ -199,7 +199,7 @@ namespace taul::internal {
         inline bool in_no_end_subexpr_scope() const noexcept { return !ess.empty() && ess.back().no_end_subexpr_scope; }
 
 
-        static_assert(spec_errors == 22);
+        static_assert(spec_errors == 24);
 
         void check_err_scope_not_closed();
         void check_err_stray_close();
@@ -215,11 +215,16 @@ namespace taul::internal {
         void check_err_illegal_in_no_scope(spec_opcode opcode);
         void check_err_illegal_qualifier(std::string_view name, taul::qualifier qualifier);
         void check_err_illegal_in_single_terminal_scope(spec_opcode opcode, std::string_view s = {});
+        void check_err_illegal_in_single_terminal_scope(spec_opcode opcode, std::u32string_view s); // for string
         void check_err_illegal_in_no_alternation_scope(spec_opcode opcode);
         void check_err_illegal_in_single_subexpr_scope(spec_opcode opcode);
         void check_err_illegal_in_no_end_subexpr_scope(spec_opcode opcode);
         void check_err_illegal_ambiguity();
         void check_err_illegal_ambiguity_due_to_trivial_left_recursion();
+        void check_err_illegal_string_literal_due_to_illegal_codepoints(std::u32string_view s);
+        void check_err_illegal_string_literal_due_to_nonvisible_ascii(std::string_view unparsed_literal);
+        void check_err_illegal_charset_literal_due_to_illegal_codepoints(std::u32string_view s);
+        void check_err_illegal_charset_literal_due_to_nonvisible_ascii(std::string_view unparsed_literal);
 
         void check_for_internal_errors();
 

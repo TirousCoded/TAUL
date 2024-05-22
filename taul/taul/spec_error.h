@@ -21,7 +21,7 @@ namespace taul {
 
         internal_error,                     // indicates that compilation failed due to internal compiler error
 
-        // pre-loading errors
+        // syntax compilation errors
 
         source_code_not_found,              // indicates that compilation could not begin due to source code being unavailable
         syntax_error,                       // indicates a syntax error during compilation
@@ -47,6 +47,8 @@ namespace taul {
         illegal_in_single_subexpr_scope,    // illegal instruction use in single-subexpr scope
         illegal_in_no_end_subexpr_scope,    // illegal instruction use in no-end-subexpr scope
         illegal_ambiguity,                  // illegal grammar ambiguity
+        illegal_string_literal,             // illegal string literal
+        illegal_charset_literal,            // illegal charset literal
 
         num,                                // this is not a valid spec error
     };

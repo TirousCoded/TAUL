@@ -242,7 +242,7 @@ namespace taul::internal {
         // of the method call itself
 
         void next_terminal_set(const glyph_set& set, bool assertion = false);
-        void next_terminal_set(std::string_view charset_str, bool assertion = false); // for charset strings
+        void next_terminal_set(std::u32string_view charset_str, bool assertion = false); // for charset strings
 
         // this is used to add a new non-terminal ref, accounting for assertion/inversion
 
@@ -264,8 +264,8 @@ namespace taul::internal {
 
         void on_end();
         void on_any();
-        void on_string(std::string_view s);
-        void on_charset(std::string_view s);
+        void on_string(std::u32string_view s);
+        void on_charset(std::u32string_view s);
         void on_token();
         void on_failure();
         void on_name(std::string_view name);

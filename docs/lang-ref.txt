@@ -1,0 +1,784 @@
+
+
+ -- TAUL Reference --
+
+
+ -- Table Of Contents --
+
+
+    (1) Introduction
+    (2) The Parsing Model
+        (2.1) LL(1) Semantics
+            (2.1.1) FOLLOW Set Changes
+            (2.1.2) Parse Stack Changes
+            (2.1.3) Symbol Nuances
+            (2.1.4) Left-Recursion
+        (2.2) Grammars
+            (2.2.1) Basics
+            (2.2.2) Qualifiers
+        (2.3) Symbols
+            (2.3.1) Basics
+            (2.3.2) Sentinels
+            (2.3.3) Glyphs, Tokens & Nodes
+        (2.4) Pipelines
+            (2.4.1) Basics
+            (2.4.2) Parse Trees & Listeners
+            (2.4.3) Error Handlers
+        (2.5) Lexical Analysis
+            (2.5.1) Basics
+            (2.5.2) Skip Tokens
+            (2.5.3) End-Of-Input Tokens
+            (2.5.4) Failure Tokens
+            (2.5.5) Zero-Length Tokens
+        (2.6) Syntactic Analysis
+            (2.6.1) Basics
+    (3) The Language
+        (3.1) Specifications TODO: mention character set, encodings, newlines, and *.taul extension
+        (3.2) Lexical Conventions
+        (3.3) Escape Sequences
+        (3.4) Scopes
+        (3.5) Sections
+        (3.6) Rule Definitions
+        (3.7) Newlines TODO: end-user must manually impl CR, LF, and CRLF into their grammars
+        (3.8) Expressions
+            (3.8.1) Alternation
+            (3.8.2) Precedence
+            (3.8.3) Top-Level Expressions
+            (3.8.4) End Expressions
+            (3.8.5) Any Expressions
+            (3.8.6) Token Expressions
+            (3.8.7) Failure Expressions
+            (3.8.8) String Expressions
+            (3.8.9) Charset Expressions
+            (3.8.10) Name Expressions
+            (3.8.11) Sequence Expressions
+            (3.8.12) LookAhead Expressions
+            (3.8.13) LookAhead-Not Expressions
+            (3.8.14) Not Expressions
+            (3.8.15) Optional Expressions
+            (3.8.16) Kleene-Star Expressions
+            (3.8.17) Kleene-Plus Expressions
+    (4) The Library TODO: just explain *major* ideas, tell reader to refer to source code for docs
+        () // TODO: add this later on, as I'm just gonna skip it for now
+    (5) The CLI Driver App
+        (5.1) Help
+        (5.2) Version
+        (5.3) Check
+        (5.4) Compile
+
+
+ -- The Manual --
+
+
+    (1) Introduction
+
+        The Text Analysis Utility Language (TAUL) is a grammar description
+        language used to generate parsers.
+        
+        TAUL operates under the idea of operating like a scripting language 
+        for fast turn-around time when testing a grammar, but then also 
+        supporting C++ transcompilation to let the end-user later on 
+        embed their grammar within their C++ code when they're ready.
+
+    (2) The Parsing Model
+
+        This section details the 'parsing model' used by TAUL, which describes
+        in the abstract how TAUL conceptualizes parsing, w/ these details
+        being generally applicable to all parts of TAUL (lang, API, etc.)
+
+    (2.1) LL(1) Semantics
+
+        TAUL uses an LL(1) parsing system.
+
+        See this wikipedia article for details on how LL(1) parsing works:
+
+            https://en.wikipedia.org/wiki/LL_parser
+            
+        This document will effectively describe TAUL's LL(1) semantics by 
+        describing how they differ from what is detailed in the above.
+
+    (2.1.1) FOLLOW Set Changes
+
+        TAUL defines the FOLLOW sets of a non-terminal as being equal to its set of
+        all possible symbols, minus the FIRST set of the non-terminal.
+
+        This means that LPRs/PPRs can be followed by anything, and it also means
+        that any rule may be used as the 'start rule'.
+
+        See 'formal-lang-notes.txt' for more details.
+
+    (2.1.2) Parse Stack Changes
+
+        TAUL parse stacks (be it for the lexer or parser) are initialized w/ just
+        the start rule, but not w/ an end-of-input symbol.
+
+        This means that TAUL lexing/parsing ends when the parse stack is emptied,
+        w/ no implicit end-of-input symbol requirement, meaning that lexing/parsing
+        can end w/out reaching the end-of-input.
+
+        See 'formal-lang-notes.txt' for more details.
+
+    (2.1.3) Symbol Nuances
+
+        TAUL does not use End Of File (EOF) as its end-of-input character,
+        instead using special symbol sentinels for this role, using different 
+        sentinels for the lexer/parser (see $2.3.2).
+
+        TAUL uses special 'failure' symbol sentinels to report lexical errors 
+        (see $2.3.2 and $2.5.4).
+
+    (2.1.4) Left-Recursion
+
+        At present, TAUL does not support left-recursive grammars.
+
+    (2.2) Grammars
+
+        This section details 'grammars' in TAUL.
+
+    (2.2.1) Basics
+
+        Grammars are defined as collections of named 'Lexer Production Rules' (LPRs) 
+        and 'Parser Production Rules' (PPRs).
+
+    (2.2.2) Qualifiers
+
+        LPRs optionally may carry one of two 'qualifiers', which modify
+        their semantic role in the grammar.
+
+        The two qualifiers allowed are 'skip' and 'support'.
+
+        LPRs qualified w/ skip mark tokens resulting from them as 'skip tokens' (see $2.5.2).
+
+        LPRs qualified w/ support are excluded from tokenization, but can still be 
+        invoked indirectly by other LPRs (see $2.5.1).
+
+        See $2.5 for more details on qualifier semantics.
+
+    (2.3) Symbols
+    
+        This section details 'symbols' in TAUL.
+
+    (2.3.1) Basics
+    
+        Symbols are used to identify Unicode codepoints, LPRs, and PPRs, w/ these
+        being the three 'symbol types' in TAUL.
+
+        Symbols are used throughout TAUL to identify the above three, including
+        in grammars, parse trees, parse stack semantics, etc.
+
+    (2.3.2) Sentinels
+
+        A Unicode symbol sentinel is defined for an end-of-inputs (aka. 'end-of-input glyphs').
+
+        A LPR symbol sentinel is defined for an end-of-inputs (aka. 'end-of-input tokens').
+        A LPR symbol sentinel is defined for lexical failures (aka. 'failure tokens').
+        
+        There are no PPR symbol sentinels.
+
+    (2.3.3) Glyphs, Tokens & Nodes
+
+        TAUL 'glyphs' and 'tokens' are symbols w/ associated information about
+        a portion of input text which they correspond to.
+
+        Glyphs encapsulate Unicode codepoint symbols.
+
+        Tokens encapsulate LPR symbols.
+
+        Glyphs and tokens are used to transmit information between different
+        pipeline stages and w/ other parts of the system.
+
+        TAUL 'nodes' refer to the lexical and syntactic nodes of parse trees,
+        which within the TAUL language are forms of symbols like glyphs/tokens,
+        w/ lexical nodes encapsulating LPR symbols, and syntactic nodes 
+        encapsulating PPR symbols.
+
+        However, within the TAUL API, parse tree nodes do not behave like
+        symbols, so outside of the TAUL language, the nodes in the TAUL API
+        are only symbols *de jure*. This also means that within the TAUL API,
+        there is no glyph/token equivalent for PPR symbols.
+
+    (2.4) Pipelines
+
+        This section details 'pipelines' in TAUL.
+
+    (2.4.1) Basics
+
+        TAUL lexing/parsing operates using pull-based 'pipelines' of
+        components which feed into one another.
+
+        The following are the main three components: 'readers', 'lexers', and 'parsers'.
+
+        Readers are at the vary start of the pipeline, producing glyphs from
+        the 'input' text (ie. from the outside environment.)
+
+        Lexers perform lexical analysis, consuming glyphs, and producing tokens.
+
+        Parsers are at the vary end of the pipeline, consuming tokens, and
+        producing node symbols output to a parse tree and/or listener.
+
+        Between the reader and lexer, one or more 'glyph filter' components may be
+        inserted, consuming glyphs, and producing new glyphs.
+
+        Between the lexer and parser, one or more 'token filter' components may be
+        inserted, consuming tokens, and producing new tokens.
+
+        Readers and glyph filters are collectively 'glyph streams', because they
+        all produce downstream glyphs.
+
+        Lexers and token filters are collectively 'token streams', because they
+        all produce downstream tokens.
+
+        TAUL allows for 'observers' to be attached to glyph/token streams to
+        observe the outputs thereof. These are likewise called 'glyph observers'
+        and 'token observers', respectively.
+
+    (2.4.2) Parse Trees & Listeners
+
+        TAUL 'parse trees' and 'listeners' encapsulate the output of a round
+        of syntactic analysis.
+
+        Parse trees encapsulate the output of syntactic analysis as a tree 
+        structure of lexical and syntactic node symbol data.
+
+        Listeners operate using the same inputs as parse trees, but instead
+        respond w/ a sequence of events arising.
+
+        The state of a parse tree can be used to 'playback' the sequence of 
+        events used to construct it for a listener to respond to.
+
+        A parser can output to a parse tree and a listener, or just one of the two.
+
+    (2.4.3) Error Handlers
+
+        //
+
+    (2.5) Lexical Analysis
+    
+        This section details lexical analysis in TAUL.
+
+    (2.5.1) Basics
+
+        Lexical analysis in TAUL operates according to the usual LL(1) (see $2.1)
+        pipeline (see $2.4) semantics.
+
+        Lexing is performed by attempting each LPR in the grammar, stopping if
+        one of them matches successfully, and using said result as the result
+        of that round of lexical analysis. The order in which LPRs are performed 
+        is the order in which they appear in the spec. LPRs qualified w/ support 
+        are excluded from this traversal of the LPRs of the grammar.
+
+        The process of the above traversal stopping upon finding a successful
+        match causes the earlier LPRs to 'shadow' the later ones, thus implementing
+        'shadowing' in TAUL.
+
+    (2.5.2) Skip Tokens
+
+        //
+
+    (2.5.3) End-Of-Input Tokens
+
+        //
+
+    (2.5.4) Failure Tokens
+
+        //
+
+    (2.5.5) Zero-Length Tokens
+
+        //
+
+    (2.6) Syntactic Analysis
+
+        This section details syntactic analysis in TAUL.
+
+    (2.6.1) Basics
+
+        Syntactic analysis in TAUL operates according to the usual LL(1) (see $2.1)
+        pipeline (see $2.4) semantics.
+
+        Parsing is performed as a function of a start rule PPR.
+
+    (3) The Language
+
+        This section details the TAUL language.
+
+        For a formal description of TAUL's syntax, see 'taul.taul'.
+
+    (3.1) Specifications
+
+        //
+
+    (3.2) Lexical Conventions
+
+        //
+
+    (3.3) Escape Sequences
+
+        //
+
+    (3.4) Scopes
+
+        //
+
+    (3.5) Sections
+
+        //
+
+    (3.6) Rule Definitions
+
+        //
+
+    (3.7) Newlines
+
+        //
+
+    (3.8) Expressions
+
+        //
+
+    (3.8.1) Alternation
+
+        //
+
+    (3.8.2) Precedence
+
+        //
+
+    (3.8.3) Top-Level Expressions
+
+        //
+
+    (3.8.4) End Expressions
+
+        //
+
+    (3.8.5) Any Expressions
+
+        //
+
+    (3.8.6) Token Expressions
+
+        //
+
+    (3.8.7) Failure Expressions
+
+        //
+
+    (3.8.8) String Expressions
+
+        //
+
+    (3.8.9) Charset Expressions
+
+        //
+
+    (3.8.10) Name Expressions
+
+        //
+
+    (3.8.11) Sequence Expressions
+
+        //
+
+    (3.8.12) LookAhead Expressions
+
+        //
+
+    (3.8.13) LookAhead-Not Expressions
+
+        //
+
+    (3.8.14) Not Expressions
+
+        //
+
+    (3.8.15) Optional Expressions
+
+        //
+
+    (3.8.16) Kleene-Star Expressions
+
+        //
+
+    (3.8.17) Kleene-Plus Expressions
+
+        //
+
+    (4) The Library
+
+        This section details the TAUL API.
+
+        TODO: this section is a stub, to be filled out later!
+
+    (5) The CLI Driver App
+
+        This section details the 'taulc' CLI driver app used by TAUL in 
+        order to perform services like grammar error checking and grammar 
+        transcompilation into C++.
+
+    (5.1) Help
+        
+        Synopsis:
+
+            taulc help <command>
+
+        Explains form and function of CLI driver app command <command>.
+
+    (5.2) Version
+        
+        Synopsis:
+
+            taulc version
+
+        Explains the TAUL library version the CLI driver app was compiled under.
+
+    (5.3) Check
+        
+        Synopsis:
+
+            taulc check <source-path>
+
+        Checks if TAUL spec file at <source-path>, if any, compiles correctly.
+        
+        Any compilation errors which arise are reported.
+        All stages of TAUL spec compilation and loaded are tested for errors.
+
+    (5.4) Compile
+
+        Synopsis:
+
+            taulc compile <fetcher> <source-path> <output-path>
+
+        Compiles the TAUL spec file at <source-path>, if any, and if successful,
+        outputs a C++ header file at <output-path>, with this generated header file
+        encapsulating a TAUL fetcher function named <fetcher>.
+        
+        Any existing file at <output-path> is overwritten.
+        
+        No checks are made to ensure that <fetcher> is a valid C++ identifier.
+        
+        Any compilation errors which arise are reported.
+        All stages of TAUL spec compilation and loaded are tested for errors.
+
+
+
+
+
+        TODO: delete everything below!
+
+-- 1) Introduction --
+
+
+    This is a reference document for the TAUL language.
+
+    This may be replaced in the future w/ a more *polished* 
+    version, as this one is mainly written just to have some 
+    *basic* reference material for the TAUL language, and can 
+    *definitely* be improved upon.
+
+    (Actually, w/ all due respect, I kinda really don't like this
+    reference we've written, as it's messy, overly informal,
+    badly organized, and incomplete, but I've decided that I'm
+    not super interested in written a more complete one until later.)
+
+    TAUL stands for 'Text Analysis Utility Language', and is a 
+    deliberate misspelling of the word 'towel'. The name 'the TAUL 
+    language' is an example of 'redundant acronym syndrome', not 
+    unlike the name 'ATM machine'.
+
+
+-- 2) Scope --
+
+
+    The scope of this reference is for the TAUL language in the 
+    abstract, but the basics of the lexing/parsing processes it
+    describes grammars for will also be detailed for the sake of
+    aiding understanding.
+
+    This reference will detail the syntax of the TAUL language, 
+    however, a more complete understanding can be discerned from
+    reading the official taul.taul grammar specification, and this
+    reference presumes that this gives it the ability to describe 
+    TAUL's syntax more informally.
+
+    This dependence on taul.taul can be improved upon in future
+    revisions of this reference, integrating the syntax described
+    in taul.taul to make this reference a more formal specification
+    of the TAUL language.
+
+    This reference presumes a basic understanding of LL(1) parsing
+    procedure and terminology, w/ the following wikipedia article
+    being a good reference for these details:
+
+        https://en.wikipedia.org/wiki/LL_parser#Parser
+
+    This reference presumes that the notes in formal-lang-notes.txt
+    are enough documentation on TAUL's relationship to LL(1) formal
+    language particulars that the details therein can be presumed here.
+
+    This dependence on prior understanding of LL(1) parsing semantics
+    is something that can be improved upon in future revisions of
+    this reference.
+
+
+-- 3) Concepts --
+
+
+    This section details overarching concepts about the TAUL language.
+
+
+-- 3.1) Lexical Conventions --
+
+
+    TAUL supports single-line comments by starting a comment w/ a '#', 
+    followed by the comment's contents, continuing until the end of the line.
+
+
+-- 3.2) Specifications --
+
+
+    Units of the TAUL language are called 'specifications', or 'specs', and 
+    are used to generate TAUL 'grammars', which get used for lexing/parsing.
+
+    TAUL specs take two forms:
+
+        1) a human readable syntax (or 'syntax specs';) and 
+
+        2) a binary intermediate representation (or 'binary IR specs'.)
+
+    TAUL specs are described such that these forms are often conflated.
+
+    Syntax specs may take the form of source code strings used w/ the 
+    TAUL API, or they may take the form of source files.
+
+    TAUL source files by convention use the '.taul' extension.
+
+    Binary IR specs are non-portable, existing transiently by, and solely
+    for use within, the TAUL API. While binary IR specs are part of the 
+    TAUL API frontend, they're an implementation detail to the TAUL language.
+
+
+-- 3.3) Syntax Compilation & Loading --
+
+
+    Binary IR specs are used to decouple the process of compilation into 
+    two distinct stages:
+
+        1) 'syntax compilation', which compiles syntax specs into binary IR 
+           specs; and
+
+        2) 'loading', which takes binary IR specs and generates (or 'loads')
+           TAUL grammars from them.
+
+    While distinct, these two stages are sometimes referred to conflatedly 
+    as simply the 'compilation' or 'loading' of a TAUL spec.
+
+    Both syntax compilation and loading perform static verification of the
+    TAUL spec. However, the lion-share of the static verification work is
+    performed during loading, as this helps decouple syntax from semantics.
+
+
+-- 3.4) Grammars & Production Rules --
+
+
+    TAUL grammars encapsulate both a lexer and parser parse table, and
+    are defined by collections of production rules.
+
+    Grammars do not have a concept of interdependence w/ other grammars,
+    and are each semantically an island.
+
+    Production rules in grammars come in two forms:
+    
+        1) 'Lexer Production Rules' or 'LPRs'; and
+        
+        2) 'Parser Production Rules' or 'PPRs'.
+
+    The patterns of LPRs/PPRs are defined by 'expressions'. TAUL defines
+    one collection of expression types which are shared between LPRs
+    and PPRs.
+    
+    Expression semantics are allowed to be augmented based on if they're 
+    in an LPR or PPR, including limiting usage to either LPRs or PPRs.
+
+    LPRs may each optionally carry one 'qualifier', which augments the
+    LPR's role in the grammar.
+
+    There are two LPR qualifiers available:
+
+        1) 'Skip', which indicates that tokens produced by the LPR are
+           to be by-default excluded from the token stream; and
+
+        2) 'Support', which indicates that the LPR is there to act as a
+           helper pattern to other LPRs, but is to otherwise be excluded
+           from tokenization.
+
+    PPRs are not allowed to have qualifiers.
+
+    LPRs and PPRs each have FIRST, FOLLOW, and 'prefix' sets, which define 
+    them w/ regards to LL(1) parsing semantics. The prefix set of an 
+    LPR/PPR is a function of its FIRST and FOLLOW sets, and is the set
+    used to actually populate the parse table.
+
+
+-- 3.5) Symbols --
+
+
+    TAUL defines an abstract notion of 'symbols', which describe Unicode
+    codepoints, and LPRs/PPRs within the context of a specific grammar.
+
+    The TAUL API defines a space of symbol ID values for symbols, mapping
+    them each to integer values. This system is beyond the scope of the
+    TAUL language itself.
+
+    TAUL also defines sentinel symbols:
+
+        1) a symbol for the end-of-input to the lexer;
+
+        2) a symbol for failure tokens; and
+        
+        3) a symbol for the end-of-input to the parser.
+
+    Take note that TAUL does not use end-of-file (EOF) as the end-of-input,
+    instead employing special sentinel values for this task.
+
+    Take note also that TAUL has two end-of-input sentinels for the
+    lexer and parser, respectively. The lexer's end-of-input sentinel
+    functions as a pseudo-codepoint, while the parser's end-of-input
+    sentinel functions as a pseudo-LPR. This distinction is made as it's
+    significant in the context of how the TAUL API defines symbol IDs.
+
+
+-- 3.6) Lexical Analysis --
+
+
+    This section details particulars regarding lexical analysis.
+
+
+-- 3.6.1) Tokenization & Shadowing --
+
+
+    When a round of TAUL lexical analysis occurs to perform tokenization,
+    the lexer attempts to match each LPR of the grammar in question against
+    the input, selecting the first one to match successfully as the one
+    that will define the output of the evaluation.
+
+    This evaluation process does not include 'support'-qualified LPRs.
+    These LPRs may however be indirectly part of the evaluation by being 
+    called by other LPRs.
+
+    These semantics mean that LPRs defined in a TAUL spec are able to
+    effectively 'shadow' ones defined after them in said spec, which can be
+    a useful feature.
+
+    An example of this shadowing being useful is that it lets a grammar define
+    'keyword' LPRs which take precedence over a more general 'identifier' LPR,
+    even if said keywords are otherwise valid identifiers.
+
+    These semantics mean that the TAUL lexer technically violates the notion 
+    of LL(1) parsing not involving backtracking.
+
+
+-- 3.6.2) End-Of-Input Tokens --
+
+
+    If the lexer fails to match against the input, and it is at the end-of-input,
+    the lexer will output an end-of-input token, w/ the input not advancing,
+    meaning all lexical analysis rounds thereafter will output the same
+    end-of-input token.
+
+
+-- 3.6.3) Failure Tokens --
+
+
+    If the lexer fails to match against the input, but it has not reached
+    the end-of-input, it will output a unit-length 'failure token', specifying
+    that portion of input as lexically invalid. Prior to outputting, the
+    lexer will first check if the next token after the current one would be
+    a failure token, and if so, it will instead extend its failure token to 
+    encompassing the portion of input of this future one, repeating this process 
+    until the next token will be a non-failure token.
+
+    The above semantic means that after the lexer matches a failure token, it
+    is functionally required to match, and potentially cache, future tokens in 
+    order to implement the above semantics.
+
+
+-- 3.6.4) Skip-Qualified LPRs & Skip Tokens --
+
+
+    If the lexer successfully matches a 'skip'-qualified LPR against the input, 
+    the resulting token is a 'skip token'.
+
+    If the lexer is configured to discard skip tokens, which it is by default,
+    then the lexer will do so. In this event, the round of lexical analysis will
+    not stop tokenizing until it gets a non-discarded result, as it needs
+    something to output, w/ this including getting failure tokens.
+
+
+-- 3.6.5) Zero-Length Tokens --
+
+
+    If a round of lexing successfully matches an LPR against the input, but
+    the resulting token would be zero-length, w/out additional semantics this
+    would result in the lexer being stuck deterministically matching this
+    same output token in future lexical analysis rounds, forever.
+
+    To address the above, if the previous round of lexical analysis outputted
+    such a zero-length token as described above, the lexer will skip regular
+    lexical procedure, and instead skip to outputting either a unit-length
+    failure token, or an end-of-input token, as though it had failed to match,
+    w/ this mechanism ensuring that the above issue is resolved cleanly.
+
+    If the above outputs a failure token, said failure token is subject to
+    the normal rules of extension applied regarding if following tokens would 
+    also be failure tokens.
+
+
+-- 3.7) Syntactic Analysis --
+
+
+    This section details particulars regarding syntactic analysis.
+
+
+-- 3.7.1) Start Rules --
+
+
+    When a round of syntactic analysis occurs to parse some input token stream,
+    one PPR is selected to be the 'start rule' from which parsing will occur.
+
+    Any PPR can be specified as the start rule for syntactic analysis.
+
+
+-- 3.7.2) Error Handling --
+
+
+    If during a round of syntactic analysis the parser encounters a syntax
+    error, it will invoke the 'error handler', if any, to try and resolve
+    the issue.
+    
+    When invoked, the error handler is given the ability to advance the input 
+    token stream of the parser, and to check whether or not it doing so has 
+    resolved the error.
+    
+    Once the error handler reports back, the parser will attempt to continue 
+    parsing, and if the error which caused the error handler to be invoked is 
+    resolved, parsing continues, however, if it wasn't addressed, the parser 
+    will abort, performing any needed actions before prematurely shutting down.
+    
+    Any tokens skipped by the error handler to resolve the error are not 
+    acknowledged by the parser's output.
+
+
+-- Escape Sequences --
+
+
+    //
+
+    TODO: where will we put syntax stuff more generally?
+
+
+-- Expressions --
+
+
+    //
+

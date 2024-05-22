@@ -39,30 +39,34 @@ int32_t main(int32_t argc, const char** argv) {
     args_reader args(argc, argv);
     if (args.expect("help")) {
         if (args.expect("help")) {
-            message("----------------------------------------------------------------------------");
+            message("Synopsis:");
+            message("");
             message("    taulc help <command>");
-            message("----------------------------------------------------------------------------");
+            message("");
             message("Explains form and function of CLI driver app command <command>.");
         }
         else if (args.expect("version")) {
-            message("----------------------------------------------------------------------------");
+            message("Synopsis:");
+            message("");
             message("    taulc version");
-            message("----------------------------------------------------------------------------");
+            message("");
             message("Explains the TAUL library version the CLI driver app was compiled under.");
         }
         else if (args.expect("check")) {
-            message("----------------------------------------------------------------------------");
+            message("Synopsis:");
+            message("");
             message("    taulc check <source-path>");
-            message("----------------------------------------------------------------------------");
+            message("");
             message("Checks if TAUL spec file at <source-path>, if any, compiles correctly.");
             message("");
             message("Any compilation errors which arise are reported.");
             message("All stages of TAUL spec compilation and loaded are tested for errors.");
         }
         else if (args.expect("compile")) {
-            message("----------------------------------------------------------------------------");
+            message("Synopsis:");
+            message("");
             message("    taulc compile <fetcher> <source-path> <output-path>");
-            message("----------------------------------------------------------------------------");
+            message("");
             message("Compiles the TAUL spec file at <source-path>, if any, and if successful,");
             message("outputs a C++ header file at <output-path>, with this generated header file");
             message("encapsulating a TAUL fetcher function named <fetcher>.");

@@ -1,0 +1,71 @@
+
+
+-- FORMAL LANGUAGE NOTES --
+
+
+the following wikipedia article's description of LL(1) parsing is
+in many ways the basis for the design of TAUL's
+
+	https://en.wikipedia.org/wiki/LL_parser#Concrete_example
+
+note that TAUL has two LL(1) parsing systems, one for the frontend,
+and one in the backend which is used to impl the frontend one
+
+see internal/parse_table.h for details on this part of the TAUL backend
+
+this document details ways in which TAUL's formal language semantics
+diverge from the above mentioned wikipedia article
+
+	- the wiki details that when computing the FOLLOW sets for a parser,
+	  that you're only to put the end-of-input into the FOLLOW set for
+	  the start rule initially
+
+	  I realized that there's no reason why you couldn't have *all*
+	  non-terminals' FOLLOW sets start off w/ the end-of-input, and that 
+	  doing so is actually pretty nice, as it lets ANY non-terminal be the 
+	  start rule
+
+	  the reason this is okay is that ambiguity can only ever arise
+	  between rules of the same non-terminal, and the FOLLOW set can
+	  only result in ambiguity if two rules' FIRST sets both have epsilon,
+	  which means they're ambiguous anyway, so it's fine if this new
+	  approach replaces the old one in causing said ambiguity to arise
+
+	  this detail is not relevant to TAUL anymore given what's written
+	  below, but I thought to mention this nevertheless
+
+	- I changed how lexer parse tables are generated such that for them 
+	  the FOLLOW set, instead of being populated by default by *just* 
+	  the end-of-input, is instead default populated by ALL codepoint 
+	  symbols, minus Fi(A), where A is the non-terminal
+
+      the reason for this is that in the lexer, tokens can be followed 
+	  up by the end-of-input, or ANY ARBITRARY codepoint, meaning for our 
+	  system to work we actually want their FOLLOW sets to be fully 
+	  saturated (minus Fi(A))
+
+      the reason for subtracting Fi(A) is that we would otherwise run 
+	  into the problem of ambiguity being created w/ other rules, as 
+	  the contents of Fi(A) is *definitionally* the FIRST set(s) of the 
+	  other rules of the non-terminal
+
+	  I then generalized this to also be how parsers work, as I realized
+	  that there's no reason why it couldn't, and that doing so made
+	  our parsers more flexible, at no real additional cost
+
+	- when the TAUL parse stack is being initialized (be it in the context
+	  of lexing or parsing) the end-of-input is NOT pushed to the parse
+	  stack ahead of the start rule, in fact, it's not pushed AT ALL
+
+	  the reason for this is a few things
+
+	  firstly, pushing the end-of-input in the *standard* manner doesn't
+	  work w/ the lexer, just like w/ the above about FOLLOW sets
+
+	  secondly, having the matching of the end-of-input occur *after*
+	  the start rule is completely matched doesn't work w/ how TAUL 
+	  operates regarding how taul::listener reports events, as doing so
+	  would require it to report the end-of-input terminal outside
+	  of the 'open/close' scope of the start rule, which doesn't play
+	  nicely w/ how it or taul::parse_tree are designed
+

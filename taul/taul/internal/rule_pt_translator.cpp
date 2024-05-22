@@ -278,21 +278,19 @@ void taul::internal::rule_pt_translator::next_terminal_set(const glyph_set& set,
     }
 }
 
-void taul::internal::rule_pt_translator::next_terminal_set(std::string_view charset_str, bool assertion) {
+void taul::internal::rule_pt_translator::next_terminal_set(std::u32string_view charset_str, bool assertion) {
     assert_in_subrule();
 #if _DUMP_LOG
-    TAUL_LOG(make_stderr_logger(), "-> next_terminal_set({}, {})", (std::string)charset_str, assertion);
+    TAUL_LOG(make_stderr_logger(), "-> next_terminal_set({}, {})", taul::fmt_taul_charset(charset_str), assertion);
 #endif
     TAUL_ASSERT(is_in_lpr_not_ppr());
     glyph_set set{};
-    decoder<char> decoder(utf8, charset_str);
-    while (!decoder.done()) {
-        const auto low = decoder.next().value();
-        // charset string is malformed if not composed of perfect pairs
-        TAUL_ASSERT(!decoder.done());
-        const auto high = decoder.next().value();
+    TAUL_ASSERT(charset_str.length() % 2 == 0);
+    for (size_t i = 0; i < charset_str.length(); i += 2) {
+        unicode_t low = charset_str[i];
+        unicode_t high = charset_str[i + 1];
 
-        set.add_range(low.cp, high.cp);
+        set.add_range(low, high);
     }
     next_terminal_set(set, assertion);
 }
@@ -435,20 +433,17 @@ void taul::internal::rule_pt_translator::on_any() {
     }
 }
 
-void taul::internal::rule_pt_translator::on_string(std::string_view s) {
+void taul::internal::rule_pt_translator::on_string(std::u32string_view s) {
     if (cancelled) return;
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_string");
 #endif
     TAUL_ASSERT(is_in_lpr_not_ppr());
-    decoder<char> decoder(utf8, s);
-    while (!decoder.done()) {
-        next_terminal(cp_id(decoder.next().value().cp));
-    }
+    for (const auto& I : s) next_terminal(cp_id(I));
 }
 
-void taul::internal::rule_pt_translator::on_charset(std::string_view s) {
+void taul::internal::rule_pt_translator::on_charset(std::u32string_view s) {
     if (cancelled) return;
     assert_in_subrule();
 #if _DUMP_LOG

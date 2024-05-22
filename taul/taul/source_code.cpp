@@ -7,6 +7,9 @@
 #include "asserts.h"
 
 
+using namespace taul::string_literals;
+
+
 std::string taul::fmt_pos(source_pos pos) {
     return std::format("[pos {}]", pos);
 }
@@ -22,16 +25,14 @@ std::string taul::source_location::fmt() const {
 taul::source_code::source_code(source_code&& x) noexcept {
     std::swap(_concat, x._concat);
     std::swap(_pages, x._pages);
-    std::swap(_pageLineStartOffsets, x._pageLineStartOffsets);
-    std::swap(_lineStarts, x._lineStarts);
+    std::swap(_pos_map, x._pos_map);
 }
 
 taul::source_code& taul::source_code::operator=(source_code&& rhs) noexcept {
     if (this != &(rhs)) {
         std::swap(_concat, rhs._concat);
         std::swap(_pages, rhs._pages);
-        std::swap(_pageLineStartOffsets, rhs._pageLineStartOffsets);
-        std::swap(_lineStarts, rhs._lineStarts);
+        std::swap(_pos_map, rhs._pos_map);
     }
     return *this;
 }
@@ -49,39 +50,28 @@ std::span<const taul::source_page> taul::source_code::pages() const noexcept {
 }
 
 std::optional<size_t> taul::source_code::page_at(source_pos pos) const noexcept {
-    if (!pos_in_bounds(pos)) {
-        return std::nullopt;
-    }
-    size_t ind = 0;
-    for (const auto& I : pages()) {
-        if (pos >= I.pos && pos < I.pos + I.length) {
-            break;
-        }
-        ind++;
-    }
-    TAUL_ASSERT(ind < pages().size());
-    return std::make_optional(ind);
+    const auto it = _pos_map.find(pos);
+    return
+        it != _pos_map.end()
+        ? std::make_optional(it->second.page_index)
+        : std::nullopt;
 }
 
 std::optional<taul::source_location> taul::source_code::location_at(source_pos pos) const noexcept {
-    const auto pageIndOpt = page_at(pos);
-    if (!pageIndOpt) {
-        return std::nullopt;
-    }
-    const auto pageInd = *pageIndOpt;
-    const auto chrAndLine = resolveChrAndLine(pageInd, pos);
-    taul::source_location loc{
+    const auto it = _pos_map.find(pos);
+    if (it == _pos_map.end()) return std::nullopt;
+    source_location result{
         pos,
-        pages()[pageInd].origin,
-        chrAndLine.first,
-        chrAndLine.second,
+        pages()[it->second.page_index].origin,
+        it->second.chr,
+        it->second.ln,
     };
-    return std::make_optional(std::move(loc));
+    return std::make_optional(std::move(result));
 }
 
 bool taul::source_code::to_file(const std::filesystem::path& out_path) const {
     if (!out_path.has_filename()) return false;
-    std::ofstream stream(out_path);
+    std::ofstream stream(out_path, std::ios::binary);
     stream.seekp(0);
     stream.write(str().data(), str().length());
     stream.close();
@@ -92,13 +82,12 @@ void taul::source_code::add_str(
     taul::str origin,
     taul::str x,
     encoding in_e) {
-    if (in_e != utf8) {
-        // TODO: this way of doing things should be refactored
+    if (in_e != utf8) { // convert x to UTF-8 if input isn't UTF-8 already
         auto temp = convert_encoding<char>(in_e, utf8, std::string_view(x));
         TAUL_ASSERT(temp);
         x = taul::str(temp.value());
     }
-    _addLineStarts(x);
+    _populate_pos_map_for_new_page(x);
     source_page _new_page{
         (source_pos)str().size(),
         (source_len)x.length(),
@@ -128,7 +117,7 @@ bool taul::source_code::add_file(
         
         // gotta do this to *filter out* BOM if src_path file is actually UTF-8 BOM
         if (check_bom(utf8, std::string_view(buff)) != bom_status::no_bom) {
-            buff = convert_encoding<char>(utf8, utf8, buff).value();
+            buff = convert_encoding<char>(utf8_bom, utf8, buff).value();
         }
 
         add_str(taul::str(short_path.string()), taul::str(buff));
@@ -142,31 +131,42 @@ void taul::source_code::reset() noexcept {
     *this = std::move(source_code{});
 }
 
-void taul::source_code::_addLineStarts(taul::str s) {
-    _pageLineStartOffsets.push_back(_lineStarts.size());
-    source_pos offset = source_pos(str().length());
-    for (const auto& I : s) {
-        if (I == '\n') {
-            _lineStarts.push_back(offset + 1);
+void taul::source_code::_populate_pos_map_for_new_page(taul::str new_page_txt) {
+    source_pos offset = source_pos(str().length()); // starting offset of new page
+    decoder<char> decoder(utf8, new_page_txt);
+    uint32_t chr = 1;
+    uint32_t ln = 1;
+    while (!decoder.done()) {
+        const auto decoded = decoder.next();
+        TAUL_ASSERT(decoded);
+        {
+            // populate w/ new entries
+            const _pos_map_entry entry{
+                chr,
+                ln,
+                uint32_t(pages().size()),
+            };
+            for (size_t i = 0; i < decoded->bytes; i++) {
+                _pos_map[offset + source_pos(i)] = entry;
+            }
         }
-        offset++;
-    }
-}
-
-std::pair<size_t, size_t> taul::source_code::resolveChrAndLine(size_t pageInd, source_pos pos) const noexcept {
-    TAUL_ASSERT(pos_in_bounds(pos));
-    TAUL_ASSERT(pageInd < pages().size());
-    size_t line = 1;
-    size_t offset = pages()[pageInd].pos;
-    for (size_t i = _pageLineStartOffsets[pageInd]; i < _lineStarts.size(); i++) {
-        const auto& lineStart = _lineStarts[i];
-        if (pos < lineStart) {
-            break;
+        {
+            // update chr and ln based on newlines encountered
+            if (decoded->cp == U'\r') {
+                const auto lookahead = decoder.peek();
+                const bool forms_crlf = lookahead && lookahead->cp == U'\n';
+                if (!forms_crlf) {
+                    chr = 0; // will incr to 1 below
+                    ln++;
+                }
+            }
+            else if (decoded->cp == U'\n') {
+                chr = 0; // will incr to 1 below
+                ln++;
+            }
+            chr++; // always incr, no matter what
         }
-        line++;
-        offset = lineStart;
+        offset += source_pos(decoded->bytes); // advance offset
     }
-    const size_t chr = (pos - offset) + 1;
-    return std::make_pair(chr, line);
 }
 

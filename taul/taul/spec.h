@@ -18,6 +18,10 @@
 namespace taul {
 
 
+    // IMPORTANT: at present, spec binaries are NOT PORTABLE, and exist simply to decouple
+    //            TAUL's notions of 'loading' and 'syntax compilation' from one another
+
+
     // usage of invalid spec will result in undefined behaviour
 
     struct spec final {

@@ -135,7 +135,7 @@ namespace taul {
 
 
         // TODO: if we figure out how to do it properly, maybe add option for 
-        //       exporting non-UTF-8 text files, whatever that means...
+        //       exporting non-UTF-8 text files
 
         // to_file writes the source code object to a file at out_path, encoded as UTF-8
 
@@ -156,7 +156,7 @@ namespace taul {
             encoding in_e = utf8);
 
         // TODO: if we figure out how to do it properly, maybe add option for 
-        //       importing non-UTF-8 text files, whatever that means...
+        //       importing non-UTF-8 text files
 
         // add_file imports a text file from src_path, encoded as UTF-8, adding 
         // it as a source code page
@@ -179,29 +179,21 @@ namespace taul {
         taul::str _concat;
         std::vector<source_page> _pages;
 
-        // each _pages entry gets an entry in this, detailing where in _lineStarts
-        // begins its lines
+        // this maps each source_pos in the source code to the line/chr/page-index
+        // its associated w/, so that we can look them up
 
-        std::vector<size_t> _pageLineStartOffsets;
+        // this feels a tad *expensive* w/ regards to space, but it gives us O(1)
+        // lookup time complexity, and we *need* to do it like this in order for
+        // us to properly handle having 
 
-        // TODO: I'm sure there's a way to do this better, but we'll just
-        //       record the positions of all the line starts, then linearly
-        //       iterate across when resolving a position's line number
+        struct _pos_map_entry final {
+            uint32_t chr, ln, page_index; // using uint32_t herein to try and reduce memory usage
+        };
 
-        // TODO: we could seperate out and generalize our 'ID grouper' code,
-        //       and then we could impl below as a grouper + hash map
-
-        // here 'line start' refers to the position AFTER the newline, which
-        // we're considering to be the final character of the *previous* line
-
-        std::vector<source_pos> _lineStarts;
+        std::unordered_map<source_pos, _pos_map_entry> _pos_map;
 
 
-        // this is to be called BEFORE doing anything else when adding a new page
-
-        void _addLineStarts(taul::str s);
-
-        std::pair<size_t, size_t> resolveChrAndLine(size_t pageInd, source_pos pos) const noexcept;
+        void _populate_pos_map_for_new_page(taul::str new_page_txt);
     };
 }
 

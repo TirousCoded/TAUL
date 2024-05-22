@@ -26,6 +26,11 @@ namespace taul {
     //       could also result in unhelpful increase in up-front costs
     //       regarding performance, which may not make them worth it
 
+    // TODO: it may be a good idea to invest some time at some point into
+    //       developing some kind of SSO-like ('SSO' being 'Small String
+    //       Optimization') optimization feature for symbol_set, as that
+    //       could provide a nice performance boost to them
+
 
     // while not an ID, for things like FIRST/FOLLOW sets, we need our
     // sets to be able to contain the formal language 'epsilon', which
