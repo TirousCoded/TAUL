@@ -58,7 +58,7 @@ TEST_F(CompileTests, SyntaxError) {
     EXPECT_FALSE(actual);
 }
 
-TEST_F(CompileTests, IllegalMultipleQualifiers_forLPRs) {
+TEST_F(CompileTests, IllegalMultipleQualifiers_ForLPRs) {
     auto src = std::make_shared<taul::source_code>();
     ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_2.taul"));
 
@@ -68,13 +68,53 @@ TEST_F(CompileTests, IllegalMultipleQualifiers_forLPRs) {
     EXPECT_FALSE(actual);
 }
 
-TEST_F(CompileTests, IllegalMultipleQualifiers_forPPRs) {
+TEST_F(CompileTests, IllegalMultipleQualifiers_ForPPRs) {
     auto src = std::make_shared<taul::source_code>();
     ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_3.taul"));
 
     auto actual = taul::compile(src, ec, lgr, false);
 
     EXPECT_GE(ec.count(taul::spec_error::illegal_multiple_qualifiers), 1);
+    EXPECT_FALSE(actual);
+}
+
+TEST_F(CompileTests, IllegalStringLiteral_DueToNoClosingSingleQuote_ForLPRs) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_4a.taul"));
+
+    auto actual = taul::compile(src, ec, lgr, false);
+
+    EXPECT_GE(ec.count(taul::spec_error::illegal_string_literal), 1);
+    EXPECT_FALSE(actual);
+}
+
+TEST_F(CompileTests, IllegalStringLiteral_DueToNoClosingSingleQuote_ForPPRs) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_4b.taul"));
+
+    auto actual = taul::compile(src, ec, lgr, false);
+
+    EXPECT_GE(ec.count(taul::spec_error::illegal_string_literal), 1);
+    EXPECT_FALSE(actual);
+}
+
+TEST_F(CompileTests, IllegalCharsetLiteral_DueToNoClosingSquareBracket_ForLPRs) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_5a.taul"));
+
+    auto actual = taul::compile(src, ec, lgr, false);
+
+    EXPECT_GE(ec.count(taul::spec_error::illegal_charset_literal), 1);
+    EXPECT_FALSE(actual);
+}
+
+TEST_F(CompileTests, IllegalCharsetLiteral_DueToNoClosingSquareBracket_ForPPRs) {
+    auto src = std::make_shared<taul::source_code>();
+    ASSERT_TRUE(src->add_file(std::filesystem::current_path() / "support\\compile_tests_err_5b.taul"));
+
+    auto actual = taul::compile(src, ec, lgr, false);
+
+    EXPECT_GE(ec.count(taul::spec_error::illegal_charset_literal), 1);
     EXPECT_FALSE(actual);
 }
 

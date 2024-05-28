@@ -10,6 +10,8 @@ std::string taul::fmt_spec_error(spec_error x) {
     std::string result{};
     switch (x) {
     case spec_error::internal_error:                    result = "internal-error";                      break;
+    case spec_error::illegal_string_literal:            result = "illegal-string-literal";              break;
+    case spec_error::illegal_charset_literal:           result = "illegal-charset-literal";             break;
     case spec_error::source_code_not_found:             result = "source-code-not-found";               break;
     case spec_error::syntax_error:                      result = "syntax-error";                        break;
     case spec_error::illegal_multiple_qualifiers:       result = "illegal-multiple-qualifiers";         break;
@@ -31,8 +33,6 @@ std::string taul::fmt_spec_error(spec_error x) {
     case spec_error::illegal_in_single_subexpr_scope:   result = "illegal-in-single-subexpr-scope";     break;
     case spec_error::illegal_in_no_end_subexpr_scope:   result = "illegal-in-no-end-subexpr-scope";     break;
     case spec_error::illegal_ambiguity:                 result = "illegal-ambiguity";                   break;
-    case spec_error::illegal_string_literal:            result = "illegal-string-literal";              break;
-    case spec_error::illegal_charset_literal:           result = "illegal-charset-literal";             break;
     default:                                            TAUL_DEADEND;                                   break;
     }
     return result;

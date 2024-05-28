@@ -41,32 +41,37 @@ taul::str taul::source_code::str() const noexcept {
     return _concat;
 }
 
-bool taul::source_code::pos_in_bounds(source_pos pos) const noexcept {
-    return size_t(pos) < str().length();
-}
-
 std::span<const taul::source_page> taul::source_code::pages() const noexcept {
     return std::span<const taul::source_page>(_pages.begin(), _pages.size());
 }
 
-std::optional<size_t> taul::source_code::page_at(source_pos pos) const noexcept {
-    const auto it = _pos_map.find(pos);
-    return
-        it != _pos_map.end()
-        ? std::make_optional(it->second.page_index)
-        : std::nullopt;
+size_t taul::source_code::page_at(source_pos pos) const noexcept {
+    if (pages().empty()) {
+        return 0;
+    }
+    if (size_t(pos) > str().length()) pos = source_pos(str().length());
+    TAUL_ASSERT(_pos_map.contains(pos));
+    return _pos_map.at(pos).page_index;
 }
 
-std::optional<taul::source_location> taul::source_code::location_at(source_pos pos) const noexcept {
-    const auto it = _pos_map.find(pos);
-    if (it == _pos_map.end()) return std::nullopt;
-    source_location result{
+taul::source_location taul::source_code::location_at(source_pos pos) const noexcept {
+    if (pages().empty()) {
+        return source_location{
+            0,
+            ""_str,
+            1,
+            1,
+        };
+    }
+    if (size_t(pos) > str().length()) pos = source_pos(str().length());
+    TAUL_ASSERT(_pos_map.contains(pos));
+    const auto& entry = _pos_map.at(pos);
+    return source_location{
         pos,
-        pages()[it->second.page_index].origin,
-        it->second.chr,
-        it->second.ln,
+        pages()[entry.page_index].origin,
+        entry.chr,
+        entry.ln,
     };
-    return std::make_optional(std::move(result));
 }
 
 bool taul::source_code::to_file(const std::filesystem::path& out_path) const {
@@ -95,6 +100,7 @@ void taul::source_code::add_str(
     };
     _pages.push_back(std::move(_new_page));
     _concat = _concat + x;
+    TAUL_ASSERT(_pos_map.contains(source_pos(_concat.length())));
 }
 
 bool taul::source_code::add_file(
@@ -132,6 +138,7 @@ void taul::source_code::reset() noexcept {
 }
 
 void taul::source_code::_populate_pos_map_for_new_page(taul::str new_page_txt) {
+    size_t page_index = pages().size();
     source_pos offset = source_pos(str().length()); // starting offset of new page
     decoder<char> decoder(utf8, new_page_txt);
     uint32_t chr = 1;
@@ -144,7 +151,7 @@ void taul::source_code::_populate_pos_map_for_new_page(taul::str new_page_txt) {
             const _pos_map_entry entry{
                 chr,
                 ln,
-                uint32_t(pages().size()),
+                uint32_t(page_index),
             };
             for (size_t i = 0; i < decoded->bytes; i++) {
                 _pos_map[offset + source_pos(i)] = entry;
@@ -167,6 +174,15 @@ void taul::source_code::_populate_pos_map_for_new_page(taul::str new_page_txt) {
             chr++; // always incr, no matter what
         }
         offset += source_pos(decoded->bytes); // advance offset
+    }
+    {
+        // add final entry for past-the-end index
+        // this'll be overwritten the next time a page is added
+        _pos_map[offset] = _pos_map_entry{
+            chr,
+            ln,
+            uint32_t(page_index),
+        };
     }
 }
 

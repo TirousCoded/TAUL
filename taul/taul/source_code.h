@@ -64,7 +64,10 @@ namespace taul {
     };
 
 
-    // I'm using std::string so that source_location can outlive its source_code object
+    // this is queried from a source_code, giving detailed info about what a 
+    // particular source_pos maps to within it
+
+    // this is intended to outlive the source_code it was derived from
 
     struct source_location final {
         source_pos      pos     = 0;
@@ -111,7 +114,7 @@ namespace taul {
         source_code& operator=(source_code&& rhs) noexcept;
 
 
-        // this returns the concatenated source code string
+        // str returns the concatenated source code string
 
         str str() const noexcept;
 
@@ -120,18 +123,28 @@ namespace taul {
         inline operator taul::str() const noexcept { return str(); }
 
 
-        bool pos_in_bounds(source_pos pos) const noexcept;
-
+        // pages returns a view of the source pages of the source code object
 
         std::span<const source_page> pages() const noexcept;
 
 
-        // this, if successful, returns the page index of the page pos is within
+        // page_at returns the index of the page pos is located within
 
-        std::optional<size_t> page_at(source_pos pos) const noexcept;
+        // page_at will return a 0 sentinel value prior to the addition of the first page
+
+        // page_at will, if pos > str().length(), reduce it to be pos == str().length()
+
+        size_t page_at(source_pos pos) const noexcept;
 
 
-        std::optional<source_location> location_at(source_pos pos) const noexcept;
+        // location_at returns detailed info about what pos corresponds to in the source code
+
+        // location_at will return a source_location reporting a location in a non-existing
+        // nameless page located at pos == 0 prior to the addition of the first actual page
+
+        // location_at will, if pos > str().length(), reduce it to be pos == str().length()
+
+        source_location location_at(source_pos pos) const noexcept;
 
 
         // TODO: if we figure out how to do it properly, maybe add option for 
@@ -148,8 +161,6 @@ namespace taul {
 
         // TODO: maybe add support for other char types later on, not just encodings
 
-        // these allocate a new taul::str, replacing the old one, if any
-        
         void add_str(
             taul::str origin, 
             taul::str x,
@@ -170,6 +181,8 @@ namespace taul {
             const std::filesystem::path& src_path,
             const std::shared_ptr<logger>& lgr = nullptr);
 
+
+        // reset resets the state of the source code object
 
         void reset() noexcept;
 

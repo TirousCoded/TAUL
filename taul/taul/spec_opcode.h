@@ -31,7 +31,6 @@ namespace taul {
         // no more, no less
 
         // single-terminal scope allows only the following exprs:
-        //      - end
         //      - any
         //      - string            <- only 1 char long, only within lprs
         //      - charset

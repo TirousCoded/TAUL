@@ -20,6 +20,8 @@ namespace taul {
         // general errors
 
         internal_error,                     // indicates that compilation failed due to internal compiler error
+        illegal_string_literal,             // illegal string literal
+        illegal_charset_literal,            // illegal charset literal
 
         // syntax compilation errors
 
@@ -47,8 +49,6 @@ namespace taul {
         illegal_in_single_subexpr_scope,    // illegal instruction use in single-subexpr scope
         illegal_in_no_end_subexpr_scope,    // illegal instruction use in no-end-subexpr scope
         illegal_ambiguity,                  // illegal grammar ambiguity
-        illegal_string_literal,             // illegal string literal
-        illegal_charset_literal,            // illegal charset literal
 
         num,                                // this is not a valid spec error
     };

@@ -13,49 +13,30 @@ using namespace taul::string_literals;
 
 
 TEST(SourceCodeTests, DefaultCtor) {
-    
     taul::source_code sc{};
 
-
     EXPECT_TRUE(sc.str().empty());
-
-    EXPECT_FALSE(sc.pos_in_bounds(0));
-    EXPECT_FALSE(sc.pos_in_bounds(1));
-    EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
-
     EXPECT_TRUE(sc.pages().empty());
 
-    EXPECT_FALSE(sc.page_at(0));
-    EXPECT_FALSE(sc.page_at(1));
-    EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
+    EXPECT_EQ(sc.page_at(0), 0);
+    EXPECT_EQ(sc.page_at(1), 0);
+    EXPECT_EQ(sc.page_at(taul::source_pos(-1)), 0);
 
-    EXPECT_FALSE(sc.location_at(0));
-    EXPECT_FALSE(sc.location_at(1));
-    EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
+    const auto loc0 = taul::source_location{ 0, ""_str, 1, 1 };
+
+    EXPECT_EQ(sc.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(1).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(taul::source_pos(-1)).fmt(), loc0.fmt());
 }
 
 TEST(SourceCodeTests, MoveCtor) {
-
     taul::source_code old_sc{};
-
-
     old_sc.add_str("aa"_str, "abc"_str);
     old_sc.add_str("bb"_str, "def"_str);
-
 
     taul::source_code sc(std::move(old_sc));
 
-
     EXPECT_EQ(sc.str(), "abcdef"_str);
-
-    EXPECT_TRUE(sc.pos_in_bounds(0));
-    EXPECT_TRUE(sc.pos_in_bounds(1));
-    EXPECT_TRUE(sc.pos_in_bounds(2));
-    EXPECT_TRUE(sc.pos_in_bounds(3));
-    EXPECT_TRUE(sc.pos_in_bounds(4));
-    EXPECT_TRUE(sc.pos_in_bounds(5));
-    EXPECT_FALSE(sc.pos_in_bounds(6));
-    EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
     if (sc.pages().size() == 2) {
         EXPECT_EQ(sc.pages()[0].pos, 0);
@@ -67,97 +48,42 @@ TEST(SourceCodeTests, MoveCtor) {
     }
     else ADD_FAILURE();
 
-    if (sc.page_at(0)) { EXPECT_EQ(*sc.page_at(0), 0); }
-    else ADD_FAILURE();
-    if (sc.page_at(1)) { EXPECT_EQ(*sc.page_at(1), 0); }
-    else ADD_FAILURE();
-    if (sc.page_at(2)) { EXPECT_EQ(*sc.page_at(2), 0); }
-    else ADD_FAILURE();
-    if (sc.page_at(3)) { EXPECT_EQ(*sc.page_at(3), 1); }
-    else ADD_FAILURE();
-    if (sc.page_at(4)) { EXPECT_EQ(*sc.page_at(4), 1); }
-    else ADD_FAILURE();
-    if (sc.page_at(5)) { EXPECT_EQ(*sc.page_at(5), 1); }
-    else ADD_FAILURE();
-    EXPECT_FALSE(sc.page_at(6));
-    EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
+    EXPECT_EQ(sc.page_at(0), 0);
+    EXPECT_EQ(sc.page_at(1), 0);
+    EXPECT_EQ(sc.page_at(2), 0);
+    EXPECT_EQ(sc.page_at(3), 1);
+    EXPECT_EQ(sc.page_at(4), 1);
+    EXPECT_EQ(sc.page_at(5), 1);
+    EXPECT_EQ(sc.page_at(6), 1);
+    EXPECT_EQ(sc.page_at(taul::source_pos(-1)), 1);
 
-    if (sc.location_at(0)) {
-        const taul::source_location loc = *sc.location_at(0);
-        EXPECT_EQ(loc.pos, 0);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 1);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(1)) {
-        const taul::source_location loc = *sc.location_at(1);
-        EXPECT_EQ(loc.pos, 1);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 2);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(2)) {
-        const taul::source_location loc = *sc.location_at(2);
-        EXPECT_EQ(loc.pos, 2);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 3);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(3)) {
-        const taul::source_location loc = *sc.location_at(3);
-        EXPECT_EQ(loc.pos, 3);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 1);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(4)) {
-        const taul::source_location loc = *sc.location_at(4);
-        EXPECT_EQ(loc.pos, 4);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 2);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(5)) {
-        const taul::source_location loc = *sc.location_at(5);
-        EXPECT_EQ(loc.pos, 5);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 3);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    EXPECT_FALSE(sc.location_at(6));
-    EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
+    const auto loc0 = taul::source_location{ 0, "aa"_str, 1, 1 };
+    const auto loc1 = taul::source_location{ 1, "aa"_str, 2, 1 };
+    const auto loc2 = taul::source_location{ 2, "aa"_str, 3, 1 };
+    const auto loc3 = taul::source_location{ 3, "bb"_str, 1, 1 };
+    const auto loc4 = taul::source_location{ 4, "bb"_str, 2, 1 };
+    const auto loc5 = taul::source_location{ 5, "bb"_str, 3, 1 };
+    const auto loc6 = taul::source_location{ 6, "bb"_str, 4, 1 };
+
+    EXPECT_EQ(sc.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(1).fmt(), loc1.fmt());
+    EXPECT_EQ(sc.location_at(2).fmt(), loc2.fmt());
+    EXPECT_EQ(sc.location_at(3).fmt(), loc3.fmt());
+    EXPECT_EQ(sc.location_at(4).fmt(), loc4.fmt());
+    EXPECT_EQ(sc.location_at(5).fmt(), loc5.fmt());
+    EXPECT_EQ(sc.location_at(6).fmt(), loc6.fmt());
+    EXPECT_EQ(sc.location_at(taul::source_pos(-1)).fmt(), loc6.fmt());
 }
 
 TEST(SourceCodeTests, MoveAssign) {
-
     taul::source_code old_sc{};
-
-
     old_sc.add_str("aa"_str, "abc"_str);
     old_sc.add_str("bb"_str, "def"_str);
 
-
     taul::source_code sc{};
-
     sc = std::move(old_sc);
 
-
     EXPECT_EQ(sc.str(), "abcdef"_str);
-
-    EXPECT_TRUE(sc.pos_in_bounds(0));
-    EXPECT_TRUE(sc.pos_in_bounds(1));
-    EXPECT_TRUE(sc.pos_in_bounds(2));
-    EXPECT_TRUE(sc.pos_in_bounds(3));
-    EXPECT_TRUE(sc.pos_in_bounds(4));
-    EXPECT_TRUE(sc.pos_in_bounds(5));
-    EXPECT_FALSE(sc.pos_in_bounds(6));
-    EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
     if (sc.pages().size() == 2) {
         EXPECT_EQ(sc.pages()[0].pos, 0);
@@ -169,95 +95,41 @@ TEST(SourceCodeTests, MoveAssign) {
     }
     else ADD_FAILURE();
 
-    if (sc.page_at(0)) { EXPECT_EQ(*sc.page_at(0), 0); }
-    else ADD_FAILURE();
-    if (sc.page_at(1)) { EXPECT_EQ(*sc.page_at(1), 0); }
-    else ADD_FAILURE();
-    if (sc.page_at(2)) { EXPECT_EQ(*sc.page_at(2), 0); }
-    else ADD_FAILURE();
-    if (sc.page_at(3)) { EXPECT_EQ(*sc.page_at(3), 1); }
-    else ADD_FAILURE();
-    if (sc.page_at(4)) { EXPECT_EQ(*sc.page_at(4), 1); }
-    else ADD_FAILURE();
-    if (sc.page_at(5)) { EXPECT_EQ(*sc.page_at(5), 1); }
-    else ADD_FAILURE();
-    EXPECT_FALSE(sc.page_at(6));
-    EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
+    EXPECT_EQ(sc.page_at(0), 0);
+    EXPECT_EQ(sc.page_at(1), 0);
+    EXPECT_EQ(sc.page_at(2), 0);
+    EXPECT_EQ(sc.page_at(3), 1);
+    EXPECT_EQ(sc.page_at(4), 1);
+    EXPECT_EQ(sc.page_at(5), 1);
+    EXPECT_EQ(sc.page_at(6), 1);
+    EXPECT_EQ(sc.page_at(taul::source_pos(-1)), 1);
 
-    if (sc.location_at(0)) {
-        const taul::source_location loc = *sc.location_at(0);
-        EXPECT_EQ(loc.pos, 0);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 1);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(1)) {
-        const taul::source_location loc = *sc.location_at(1);
-        EXPECT_EQ(loc.pos, 1);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 2);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(2)) {
-        const taul::source_location loc = *sc.location_at(2);
-        EXPECT_EQ(loc.pos, 2);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 3);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(3)) {
-        const taul::source_location loc = *sc.location_at(3);
-        EXPECT_EQ(loc.pos, 3);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 1);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(4)) {
-        const taul::source_location loc = *sc.location_at(4);
-        EXPECT_EQ(loc.pos, 4);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 2);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(5)) {
-        const taul::source_location loc = *sc.location_at(5);
-        EXPECT_EQ(loc.pos, 5);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 3);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    EXPECT_FALSE(sc.location_at(6));
-    EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
+    const auto loc0 = taul::source_location{ 0, "aa"_str, 1, 1 };
+    const auto loc1 = taul::source_location{ 1, "aa"_str, 2, 1 };
+    const auto loc2 = taul::source_location{ 2, "aa"_str, 3, 1 };
+    const auto loc3 = taul::source_location{ 3, "bb"_str, 1, 1 };
+    const auto loc4 = taul::source_location{ 4, "bb"_str, 2, 1 };
+    const auto loc5 = taul::source_location{ 5, "bb"_str, 3, 1 };
+    const auto loc6 = taul::source_location{ 6, "bb"_str, 4, 1 };
+
+    EXPECT_EQ(sc.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(1).fmt(), loc1.fmt());
+    EXPECT_EQ(sc.location_at(2).fmt(), loc2.fmt());
+    EXPECT_EQ(sc.location_at(3).fmt(), loc3.fmt());
+    EXPECT_EQ(sc.location_at(4).fmt(), loc4.fmt());
+    EXPECT_EQ(sc.location_at(5).fmt(), loc5.fmt());
+    EXPECT_EQ(sc.location_at(6).fmt(), loc6.fmt());
+    EXPECT_EQ(sc.location_at(taul::source_pos(-1)).fmt(), loc6.fmt());
 }
 
 TEST(SourceCodeTests, MoveAssignOntoSelf) {
-
     taul::source_code sc{};
-
-
     sc.add_str("aa"_str, "abc"_str);
     sc.add_str("bb"_str, "def"_str);
 
-
     sc = std::move(sc); // <- self-assignment
 
-
     EXPECT_EQ(sc.str(), "abcdef"_str);
-
-    EXPECT_TRUE(sc.pos_in_bounds(0));
-    EXPECT_TRUE(sc.pos_in_bounds(1));
-    EXPECT_TRUE(sc.pos_in_bounds(2));
-    EXPECT_TRUE(sc.pos_in_bounds(3));
-    EXPECT_TRUE(sc.pos_in_bounds(4));
-    EXPECT_TRUE(sc.pos_in_bounds(5));
-    EXPECT_FALSE(sc.pos_in_bounds(6));
-    EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
     if (sc.pages().size() == 2) {
         EXPECT_EQ(sc.pages()[0].pos, 0);
@@ -269,71 +141,31 @@ TEST(SourceCodeTests, MoveAssignOntoSelf) {
     }
     else ADD_FAILURE();
 
-    if (sc.page_at(0)) { EXPECT_EQ(*sc.page_at(0), 0); }
-    else ADD_FAILURE();
-    if (sc.page_at(1)) { EXPECT_EQ(*sc.page_at(1), 0); }
-    else ADD_FAILURE();
-    if (sc.page_at(2)) { EXPECT_EQ(*sc.page_at(2), 0); }
-    else ADD_FAILURE();
-    if (sc.page_at(3)) { EXPECT_EQ(*sc.page_at(3), 1); }
-    else ADD_FAILURE();
-    if (sc.page_at(4)) { EXPECT_EQ(*sc.page_at(4), 1); }
-    else ADD_FAILURE();
-    if (sc.page_at(5)) { EXPECT_EQ(*sc.page_at(5), 1); }
-    else ADD_FAILURE();
-    EXPECT_FALSE(sc.page_at(6));
-    EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
+    EXPECT_EQ(sc.page_at(0), 0);
+    EXPECT_EQ(sc.page_at(1), 0);
+    EXPECT_EQ(sc.page_at(2), 0);
+    EXPECT_EQ(sc.page_at(3), 1);
+    EXPECT_EQ(sc.page_at(4), 1);
+    EXPECT_EQ(sc.page_at(5), 1);
+    EXPECT_EQ(sc.page_at(6), 1);
+    EXPECT_EQ(sc.page_at(taul::source_pos(-1)), 1);
 
-    if (sc.location_at(0)) {
-        const taul::source_location loc = *sc.location_at(0);
-        EXPECT_EQ(loc.pos, 0);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 1);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(1)) {
-        const taul::source_location loc = *sc.location_at(1);
-        EXPECT_EQ(loc.pos, 1);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 2);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(2)) {
-        const taul::source_location loc = *sc.location_at(2);
-        EXPECT_EQ(loc.pos, 2);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 3);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(3)) {
-        const taul::source_location loc = *sc.location_at(3);
-        EXPECT_EQ(loc.pos, 3);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 1);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(4)) {
-        const taul::source_location loc = *sc.location_at(4);
-        EXPECT_EQ(loc.pos, 4);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 2);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(5)) {
-        const taul::source_location loc = *sc.location_at(5);
-        EXPECT_EQ(loc.pos, 5);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 3);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    EXPECT_FALSE(sc.location_at(6));
-    EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
+    const auto loc0 = taul::source_location{ 0, "aa"_str, 1, 1 };
+    const auto loc1 = taul::source_location{ 1, "aa"_str, 2, 1 };
+    const auto loc2 = taul::source_location{ 2, "aa"_str, 3, 1 };
+    const auto loc3 = taul::source_location{ 3, "bb"_str, 1, 1 };
+    const auto loc4 = taul::source_location{ 4, "bb"_str, 2, 1 };
+    const auto loc5 = taul::source_location{ 5, "bb"_str, 3, 1 };
+    const auto loc6 = taul::source_location{ 6, "bb"_str, 4, 1 };
+
+    EXPECT_EQ(sc.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(1).fmt(), loc1.fmt());
+    EXPECT_EQ(sc.location_at(2).fmt(), loc2.fmt());
+    EXPECT_EQ(sc.location_at(3).fmt(), loc3.fmt());
+    EXPECT_EQ(sc.location_at(4).fmt(), loc4.fmt());
+    EXPECT_EQ(sc.location_at(5).fmt(), loc5.fmt());
+    EXPECT_EQ(sc.location_at(6).fmt(), loc6.fmt());
+    EXPECT_EQ(sc.location_at(taul::source_pos(-1)).fmt(), loc6.fmt());
 }
 
 TEST(SourceCodeTests, ToFile) {
@@ -402,24 +234,11 @@ TEST(SourceCodeTests, ToFile_DoNotTransformLFsIntoNativeNewlines) {
 
 TEST(SourceCodeTests, AddStr) {
     taul::source_code sc{};
-    // test all overloads
     sc.add_str("aa"_str, "abc"_str);
     sc.add_str("bb"_str, "def"_str);
     sc.add_str("cc"_str, "ghi"_str);
 
     EXPECT_EQ(sc.str(), "abcdefghi"_str);
-
-    EXPECT_TRUE(sc.pos_in_bounds(0));
-    EXPECT_TRUE(sc.pos_in_bounds(1));
-    EXPECT_TRUE(sc.pos_in_bounds(2));
-    EXPECT_TRUE(sc.pos_in_bounds(3));
-    EXPECT_TRUE(sc.pos_in_bounds(4));
-    EXPECT_TRUE(sc.pos_in_bounds(5));
-    EXPECT_TRUE(sc.pos_in_bounds(6));
-    EXPECT_TRUE(sc.pos_in_bounds(7));
-    EXPECT_TRUE(sc.pos_in_bounds(8));
-    EXPECT_FALSE(sc.pos_in_bounds(9));
-    EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
 
     if (sc.pages().size() == 3) {
         EXPECT_EQ(sc.pages()[0].pos, 0);
@@ -434,92 +253,40 @@ TEST(SourceCodeTests, AddStr) {
     }
     else ADD_FAILURE();
 
-    if (sc.page_at(0)) { EXPECT_EQ(*sc.page_at(0), 0); } else ADD_FAILURE();
-    if (sc.page_at(1)) { EXPECT_EQ(*sc.page_at(1), 0); } else ADD_FAILURE();
-    if (sc.page_at(2)) { EXPECT_EQ(*sc.page_at(2), 0); } else ADD_FAILURE();
-    if (sc.page_at(3)) { EXPECT_EQ(*sc.page_at(3), 1); } else ADD_FAILURE();
-    if (sc.page_at(4)) { EXPECT_EQ(*sc.page_at(4), 1); } else ADD_FAILURE();
-    if (sc.page_at(5)) { EXPECT_EQ(*sc.page_at(5), 1); } else ADD_FAILURE();
-    if (sc.page_at(6)) { EXPECT_EQ(*sc.page_at(6), 2); } else ADD_FAILURE();
-    if (sc.page_at(7)) { EXPECT_EQ(*sc.page_at(7), 2); } else ADD_FAILURE();
-    if (sc.page_at(8)) { EXPECT_EQ(*sc.page_at(8), 2); } else ADD_FAILURE();
-    EXPECT_FALSE(sc.page_at(9));
-    EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
+    EXPECT_EQ(sc.page_at(0), 0);
+    EXPECT_EQ(sc.page_at(1), 0);
+    EXPECT_EQ(sc.page_at(2), 0);
+    EXPECT_EQ(sc.page_at(3), 1);
+    EXPECT_EQ(sc.page_at(4), 1);
+    EXPECT_EQ(sc.page_at(5), 1);
+    EXPECT_EQ(sc.page_at(6), 2);
+    EXPECT_EQ(sc.page_at(7), 2);
+    EXPECT_EQ(sc.page_at(8), 2);
+    EXPECT_EQ(sc.page_at(9), 2);
+    EXPECT_EQ(sc.page_at(taul::source_pos(-1)), 2);
 
-    if (sc.location_at(0)) {
-        const taul::source_location loc = *sc.location_at(0);
-        EXPECT_EQ(loc.pos, 0);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 1);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(1)) {
-        const taul::source_location loc = *sc.location_at(1);
-        EXPECT_EQ(loc.pos, 1);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 2);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(2)) {
-        const taul::source_location loc = *sc.location_at(2);
-        EXPECT_EQ(loc.pos, 2);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 3);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(3)) {
-        const taul::source_location loc = *sc.location_at(3);
-        EXPECT_EQ(loc.pos, 3);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 1);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(4)) {
-        const taul::source_location loc = *sc.location_at(4);
-        EXPECT_EQ(loc.pos, 4);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 2);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(5)) {
-        const taul::source_location loc = *sc.location_at(5);
-        EXPECT_EQ(loc.pos, 5);
-        EXPECT_EQ(loc.origin, "bb"_str);
-        EXPECT_EQ(loc.chr, 3);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(6)) {
-        const taul::source_location loc = *sc.location_at(6);
-        EXPECT_EQ(loc.pos, 6);
-        EXPECT_EQ(loc.origin, "cc"_str);
-        EXPECT_EQ(loc.chr, 1);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(7)) {
-        const taul::source_location loc = *sc.location_at(7);
-        EXPECT_EQ(loc.pos, 7);
-        EXPECT_EQ(loc.origin, "cc"_str);
-        EXPECT_EQ(loc.chr, 2);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(8)) {
-        const taul::source_location loc = *sc.location_at(8);
-        EXPECT_EQ(loc.pos, 8);
-        EXPECT_EQ(loc.origin, "cc"_str);
-        EXPECT_EQ(loc.chr, 3);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    EXPECT_FALSE(sc.location_at(9));
-    EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
+    const auto loc0 = taul::source_location{ 0, "aa"_str, 1, 1 };
+    const auto loc1 = taul::source_location{ 1, "aa"_str, 2, 1 };
+    const auto loc2 = taul::source_location{ 2, "aa"_str, 3, 1 };
+    const auto loc3 = taul::source_location{ 3, "bb"_str, 1, 1 };
+    const auto loc4 = taul::source_location{ 4, "bb"_str, 2, 1 };
+    const auto loc5 = taul::source_location{ 5, "bb"_str, 3, 1 };
+    const auto loc6 = taul::source_location{ 6, "cc"_str, 1, 1 };
+    const auto loc7 = taul::source_location{ 7, "cc"_str, 2, 1 };
+    const auto loc8 = taul::source_location{ 8, "cc"_str, 3, 1 };
+    const auto loc9 = taul::source_location{ 9, "cc"_str, 4, 1 };
+
+    EXPECT_EQ(sc.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(1).fmt(), loc1.fmt());
+    EXPECT_EQ(sc.location_at(2).fmt(), loc2.fmt());
+    EXPECT_EQ(sc.location_at(3).fmt(), loc3.fmt());
+    EXPECT_EQ(sc.location_at(4).fmt(), loc4.fmt());
+    EXPECT_EQ(sc.location_at(5).fmt(), loc5.fmt());
+    EXPECT_EQ(sc.location_at(6).fmt(), loc6.fmt());
+    EXPECT_EQ(sc.location_at(7).fmt(), loc7.fmt());
+    EXPECT_EQ(sc.location_at(8).fmt(), loc8.fmt());
+    EXPECT_EQ(sc.location_at(9).fmt(), loc9.fmt());
+    EXPECT_EQ(sc.location_at(taul::source_pos(-1)).fmt(), loc9.fmt());
 }
 
 TEST(SourceCodeTests, AddStr_WithNewlines) {
@@ -532,269 +299,69 @@ TEST(SourceCodeTests, AddStr_WithNewlines) {
     ASSERT_EQ(sc.str(), "ab\ncd\nefg\nhij\rkl\r\nmn\n\ro"_str);
     ASSERT_EQ(sc.pages().size(), 3);
 
+    // page #1
     // ab\n
-    {
-        taul::source_pos pos = 0;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 1;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 2;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc0 = taul::source_location{ 0, "aa"_str, 1, 1 };
+    const auto loc1 = taul::source_location{ 1, "aa"_str, 2, 1 };
+    const auto loc2 = taul::source_location{ 2, "aa"_str, 3, 1 };
     // cd\n
-    {
-        taul::source_pos pos = 3;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 4;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 5;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc3 = taul::source_location{ 3, "aa"_str, 1, 2 };
+    const auto loc4 = taul::source_location{ 4, "aa"_str, 2, 2 };
+    const auto loc5 = taul::source_location{ 5, "aa"_str, 3, 2 };
     // ef
-    {
-        taul::source_pos pos = 6;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 3);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 7;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 3);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc6 = taul::source_location{ 6, "aa"_str, 1, 3 };
+    const auto loc7 = taul::source_location{ 7, "aa"_str, 2, 3 };
+    // page #2
     // g\n
-    {
-        taul::source_pos pos = 8;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "bb"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 9;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "bb"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc8 = taul::source_location{ 8, "bb"_str, 1, 1 };
+    const auto loc9 = taul::source_location{ 9, "bb"_str, 2, 1 };
     // hi
-    {
-        taul::source_pos pos = 10;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "bb"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 11;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "bb"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc10 = taul::source_location{ 10, "bb"_str, 1, 2 };
+    const auto loc11 = taul::source_location{ 11, "bb"_str, 2, 2 };
+    // page #3
     // j\r
-    {
-        taul::source_pos pos = 12;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "cc"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 13;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "cc"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc12 = taul::source_location{ 12, "cc"_str, 1, 1 };
+    const auto loc13 = taul::source_location{ 13, "cc"_str, 2, 1 };
     // kl\r\n
-    {
-        taul::source_pos pos = 14;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "cc"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 15;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "cc"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 16;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "cc"_str);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 17;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "cc"_str);
-            EXPECT_EQ(loc.chr, 4);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc14 = taul::source_location{ 14, "cc"_str, 1, 2 };
+    const auto loc15 = taul::source_location{ 15, "cc"_str, 2, 2 };
+    const auto loc16 = taul::source_location{ 16, "cc"_str, 3, 2 };
+    const auto loc17 = taul::source_location{ 17, "cc"_str, 4, 2 };
     // mn\n
-    {
-        taul::source_pos pos = 18;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "cc"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 3);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 19;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "cc"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 3);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 20;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "cc"_str);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 3);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc18 = taul::source_location{ 18, "cc"_str, 1, 3 };
+    const auto loc19 = taul::source_location{ 19, "cc"_str, 2, 3 };
+    const auto loc20 = taul::source_location{ 20, "cc"_str, 3, 3 };
     // \r
-    {
-        taul::source_pos pos = 21;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "cc"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 4);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc21 = taul::source_location{ 21, "cc"_str, 1, 4 };
     // o
-    {
-        taul::source_pos pos = 22;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "cc"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 5);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc22 = taul::source_location{ 22, "cc"_str, 1, 5 };
+    const auto loc23 = taul::source_location{ 23, "cc"_str, 2, 5 };
+
+    EXPECT_EQ(sc.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(1).fmt(), loc1.fmt());
+    EXPECT_EQ(sc.location_at(2).fmt(), loc2.fmt());
+    EXPECT_EQ(sc.location_at(3).fmt(), loc3.fmt());
+    EXPECT_EQ(sc.location_at(4).fmt(), loc4.fmt());
+    EXPECT_EQ(sc.location_at(5).fmt(), loc5.fmt());
+    EXPECT_EQ(sc.location_at(6).fmt(), loc6.fmt());
+    EXPECT_EQ(sc.location_at(7).fmt(), loc7.fmt());
+    EXPECT_EQ(sc.location_at(8).fmt(), loc8.fmt());
+    EXPECT_EQ(sc.location_at(9).fmt(), loc9.fmt());
+    EXPECT_EQ(sc.location_at(10).fmt(), loc10.fmt());
+    EXPECT_EQ(sc.location_at(11).fmt(), loc11.fmt());
+    EXPECT_EQ(sc.location_at(12).fmt(), loc12.fmt());
+    EXPECT_EQ(sc.location_at(13).fmt(), loc13.fmt());
+    EXPECT_EQ(sc.location_at(14).fmt(), loc14.fmt());
+    EXPECT_EQ(sc.location_at(15).fmt(), loc15.fmt());
+    EXPECT_EQ(sc.location_at(16).fmt(), loc16.fmt());
+    EXPECT_EQ(sc.location_at(17).fmt(), loc17.fmt());
+    EXPECT_EQ(sc.location_at(18).fmt(), loc18.fmt());
+    EXPECT_EQ(sc.location_at(19).fmt(), loc19.fmt());
+    EXPECT_EQ(sc.location_at(20).fmt(), loc20.fmt());
+    EXPECT_EQ(sc.location_at(21).fmt(), loc21.fmt());
+    EXPECT_EQ(sc.location_at(22).fmt(), loc22.fmt());
+    EXPECT_EQ(sc.location_at(23).fmt(), loc23.fmt());
+    EXPECT_EQ(sc.location_at(taul::source_pos(-1)).fmt(), loc23.fmt());
 }
 
 TEST(SourceCodeTests, AddStr_WithMultiByteUTF8) {
@@ -809,194 +376,45 @@ TEST(SourceCodeTests, AddStr_WithMultiByteUTF8) {
     ASSERT_EQ(sc.pages().size(), 1);
 
     // 元気\r\n
-    {
-        taul::source_pos pos = 0;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 1;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 2;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 3;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 4;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 5;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 6;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 7;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 4);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc0 = taul::source_location{ 0, "aa"_str, 1, 1 };
+    const auto loc1 = taul::source_location{ 1, "aa"_str, 1, 1 };
+    const auto loc2 = taul::source_location{ 2, "aa"_str, 1, 1 };
+    const auto loc3 = taul::source_location{ 3, "aa"_str, 2, 1 };
+    const auto loc4 = taul::source_location{ 4, "aa"_str, 2, 1 };
+    const auto loc5 = taul::source_location{ 5, "aa"_str, 2, 1 };
+    const auto loc6 = taul::source_location{ 6, "aa"_str, 3, 1 };
+    const auto loc7 = taul::source_location{ 7, "aa"_str, 4, 1 };
     // ですか
-    {
-        taul::source_pos pos = 8;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 9;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 10;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 11;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 12;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 13;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 14;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 15;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 16;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, "aa"_str);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc8 = taul::source_location{ 8, "aa"_str, 1, 2 };
+    const auto loc9 = taul::source_location{ 9, "aa"_str, 1, 2 };
+    const auto loc10 = taul::source_location{ 10, "aa"_str, 1, 2 };
+    const auto loc11 = taul::source_location{ 11, "aa"_str, 2, 2 };
+    const auto loc12 = taul::source_location{ 12, "aa"_str, 2, 2 };
+    const auto loc13 = taul::source_location{ 13, "aa"_str, 2, 2 };
+    const auto loc14 = taul::source_location{ 14, "aa"_str, 3, 2 };
+    const auto loc15 = taul::source_location{ 15, "aa"_str, 3, 2 };
+    const auto loc16 = taul::source_location{ 16, "aa"_str, 3, 2 };
+    const auto loc17 = taul::source_location{ 17, "aa"_str, 4, 2 };
+
+    EXPECT_EQ(sc.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(1).fmt(), loc1.fmt());
+    EXPECT_EQ(sc.location_at(2).fmt(), loc2.fmt());
+    EXPECT_EQ(sc.location_at(3).fmt(), loc3.fmt());
+    EXPECT_EQ(sc.location_at(4).fmt(), loc4.fmt());
+    EXPECT_EQ(sc.location_at(5).fmt(), loc5.fmt());
+    EXPECT_EQ(sc.location_at(6).fmt(), loc6.fmt());
+    EXPECT_EQ(sc.location_at(7).fmt(), loc7.fmt());
+    EXPECT_EQ(sc.location_at(8).fmt(), loc8.fmt());
+    EXPECT_EQ(sc.location_at(9).fmt(), loc9.fmt());
+    EXPECT_EQ(sc.location_at(10).fmt(), loc10.fmt());
+    EXPECT_EQ(sc.location_at(11).fmt(), loc11.fmt());
+    EXPECT_EQ(sc.location_at(12).fmt(), loc12.fmt());
+    EXPECT_EQ(sc.location_at(13).fmt(), loc13.fmt());
+    EXPECT_EQ(sc.location_at(14).fmt(), loc14.fmt());
+    EXPECT_EQ(sc.location_at(15).fmt(), loc15.fmt());
+    EXPECT_EQ(sc.location_at(16).fmt(), loc16.fmt());
+    EXPECT_EQ(sc.location_at(17).fmt(), loc17.fmt());
+    EXPECT_EQ(sc.location_at(taul::source_pos(-1)).fmt(), loc17.fmt());
 }
 
 TEST(SourceCodeTests, AddStr_InputEncodingNotUTF8) {
@@ -1032,11 +450,6 @@ TEST(SourceCodeTests, AddFile_Success) {
 
     EXPECT_EQ(sc.str(), "this is a test text file!0");
 
-    EXPECT_TRUE(sc.pos_in_bounds(0));
-    EXPECT_TRUE(sc.pos_in_bounds(25));
-    EXPECT_FALSE(sc.pos_in_bounds(26));
-    EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
-
     if (sc.pages().size() == 2) {
         EXPECT_EQ(sc.pages()[0].pos, 0);
         EXPECT_EQ(sc.pages()[0].length, 25);
@@ -1047,68 +460,43 @@ TEST(SourceCodeTests, AddFile_Success) {
     }
     else ADD_FAILURE();
 
-    if (sc.page_at(0)) { EXPECT_EQ(*sc.page_at(0), 0); } else ADD_FAILURE();
-    if (sc.page_at(24)) { EXPECT_EQ(*sc.page_at(24), 0); } else ADD_FAILURE();
-    if (sc.page_at(25)) { EXPECT_EQ(*sc.page_at(25), 1); } else ADD_FAILURE();
-    EXPECT_FALSE(sc.page_at(26));
-    EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
-    
-    if (sc.location_at(0)) {
-        const taul::source_location loc = *sc.location_at(0);
-        EXPECT_EQ(loc.pos, 0);
-        EXPECT_EQ(loc.origin, taul::str(std::filesystem::proximate(fp, std::filesystem::current_path()).string()));
-        EXPECT_EQ(loc.chr, 1);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(24)) {
-        const taul::source_location loc = *sc.location_at(24);
-        EXPECT_EQ(loc.pos, 24);
-        EXPECT_EQ(loc.origin, taul::str(std::filesystem::proximate(fp, std::filesystem::current_path()).string()));
-        EXPECT_EQ(loc.chr, 25);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    if (sc.location_at(25)) {
-        const taul::source_location loc = *sc.location_at(25);
-        EXPECT_EQ(loc.pos, 25);
-        EXPECT_EQ(loc.origin, "aa"_str);
-        EXPECT_EQ(loc.chr, 1);
-        EXPECT_EQ(loc.line, 1);
-    }
-    else ADD_FAILURE();
-    EXPECT_FALSE(sc.location_at(26));
-    EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
+    EXPECT_EQ(sc.page_at(0), 0);
+    EXPECT_EQ(sc.page_at(24), 0);
+    EXPECT_EQ(sc.page_at(25), 1);
+    EXPECT_EQ(sc.page_at(26), 1);
+    EXPECT_EQ(sc.page_at(taul::source_pos(-1)), 1);
+
+    const auto origin = taul::str(std::filesystem::proximate(fp, std::filesystem::current_path()).string());
+
+    const auto loc0 = taul::source_location{ 0, origin, 1, 1 };
+    const auto loc24 = taul::source_location{ 24, origin, 25, 1 };
+    const auto loc25 = taul::source_location{ 25, "aa"_str, 1, 1 };
+    const auto loc26 = taul::source_location{ 26, "aa"_str, 2, 1 };
+
+    EXPECT_EQ(sc.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(24).fmt(), loc24.fmt());
+    EXPECT_EQ(sc.location_at(25).fmt(), loc25.fmt());
+    EXPECT_EQ(sc.location_at(26).fmt(), loc26.fmt());
+    EXPECT_EQ(sc.location_at(taul::source_pos(-1)).fmt(), loc26.fmt());
 }
 
 TEST(SourceCodeTests, AddFile_Failure) {
-
-    taul::source_code sc{};
-
-
     const std::filesystem::path fp = "some_nonexistent_file.txt";
-
-    const auto result = sc.add_file(fp, taul::make_stderr_logger());
-
-
-    EXPECT_FALSE(result);
-
+    taul::source_code sc{};
+    EXPECT_FALSE(sc.add_file(fp, taul::make_stderr_logger()));
 
     EXPECT_TRUE(sc.str().empty());
-
-    EXPECT_FALSE(sc.pos_in_bounds(0));
-    EXPECT_FALSE(sc.pos_in_bounds(1));
-    EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
-
     EXPECT_TRUE(sc.pages().empty());
 
-    EXPECT_FALSE(sc.page_at(0));
-    EXPECT_FALSE(sc.page_at(1));
-    EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
+    EXPECT_EQ(sc.page_at(0), 0);
+    EXPECT_EQ(sc.page_at(1), 0);
+    EXPECT_EQ(sc.page_at(taul::source_pos(-1)), 0);
 
-    EXPECT_FALSE(sc.location_at(0));
-    EXPECT_FALSE(sc.location_at(1));
-    EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
+    const auto loc0 = taul::source_location{ 0, ""_str, 1, 1 };
+
+    EXPECT_EQ(sc.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(1).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(taul::source_pos(-1)).fmt(), loc0.fmt());
 }
 
 TEST(SourceCodeTests, AddFile_WithNewlines) {
@@ -1118,150 +506,46 @@ TEST(SourceCodeTests, AddFile_WithNewlines) {
     taul::source_code out_src{};
     // test that impl can properly handle mix of LF, CR, and CRLF newlines
     out_src.add_str("a"_str, "ab\rcd\r\nef\ngh"_str);
-    ASSERT_TRUE(out_src.to_file(fp));
+    ASSERT_TRUE(out_src.to_file(fp)); // <- output file we'll then load in via add_file
     ASSERT_TRUE(std::filesystem::exists(fp));
 
     taul::source_code src{};
-    ASSERT_TRUE(src.add_file(fp));
+    ASSERT_TRUE(src.add_file(fp)); // <- load in the file we exported above
 
     auto expected_origin = taul::str(std::filesystem::proximate(fp, std::filesystem::current_path()).string());
 
     // ab\r
-    {
-        taul::source_pos pos = 0;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 1;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 2;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc0 = taul::source_location{ 0, expected_origin, 1, 1 };
+    const auto loc1 = taul::source_location{ 1, expected_origin, 2, 1 };
+    const auto loc2 = taul::source_location{ 2, expected_origin, 3, 1 };
     // cd\r\n
-    {
-        taul::source_pos pos = 3;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 4;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 5;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 6;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 4);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc3 = taul::source_location{ 3, expected_origin, 1, 2 };
+    const auto loc4 = taul::source_location{ 4, expected_origin, 2, 2 };
+    const auto loc5 = taul::source_location{ 5, expected_origin, 3, 2 };
+    const auto loc6 = taul::source_location{ 6, expected_origin, 4, 2 };
     // ef\n
-    {
-        taul::source_pos pos = 7;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 3);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 8;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 3);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 9;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 3);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc7 = taul::source_location{ 7, expected_origin, 1, 3 };
+    const auto loc8 = taul::source_location{ 8, expected_origin, 2, 3 };
+    const auto loc9 = taul::source_location{ 9, expected_origin, 3, 3 };
     // gh
-    {
-        taul::source_pos pos = 10;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 4);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 11;
-        if (src.location_at(pos)) {
-            const taul::source_location loc = *src.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 4);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc10 = taul::source_location{ 10, expected_origin, 1, 4 };
+    const auto loc11 = taul::source_location{ 11, expected_origin, 2, 4 };
+    const auto loc12 = taul::source_location{ 12, expected_origin, 3, 4 };
+
+    EXPECT_EQ(src.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(src.location_at(1).fmt(), loc1.fmt());
+    EXPECT_EQ(src.location_at(2).fmt(), loc2.fmt());
+    EXPECT_EQ(src.location_at(3).fmt(), loc3.fmt());
+    EXPECT_EQ(src.location_at(4).fmt(), loc4.fmt());
+    EXPECT_EQ(src.location_at(5).fmt(), loc5.fmt());
+    EXPECT_EQ(src.location_at(6).fmt(), loc6.fmt());
+    EXPECT_EQ(src.location_at(7).fmt(), loc7.fmt());
+    EXPECT_EQ(src.location_at(8).fmt(), loc8.fmt());
+    EXPECT_EQ(src.location_at(9).fmt(), loc9.fmt());
+    EXPECT_EQ(src.location_at(10).fmt(), loc10.fmt());
+    EXPECT_EQ(src.location_at(11).fmt(), loc11.fmt());
+    EXPECT_EQ(src.location_at(12).fmt(), loc12.fmt());
+    EXPECT_EQ(src.location_at(taul::source_pos(-1)).fmt(), loc12.fmt());
 }
 
 TEST(SourceCodeTests, AddFile_WithMultiByteUTF8) {
@@ -1288,195 +572,50 @@ TEST(SourceCodeTests, AddFile_WithMultiByteUTF8) {
 
     auto expected_origin = taul::str(std::filesystem::proximate(fp, std::filesystem::current_path()).string());
 
+    /*for (size_t i = 0; i <= 20; i++) {
+        TAUL_LOG(taul::make_stderr_logger(), "-> (i=={}) {}", i, sc.location_at(taul::source_pos(i)));
+    }*/
+
     // 元気\r\n
-    {
-        taul::source_pos pos = 0;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 1;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 2;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 3;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 4;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 5;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 6;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 7;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 4);
-            EXPECT_EQ(loc.line, 1);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc0 = taul::source_location{ 0, expected_origin, 1, 1 };
+    const auto loc1 = taul::source_location{ 1, expected_origin, 1, 1 };
+    const auto loc2 = taul::source_location{ 2, expected_origin, 1, 1 };
+    const auto loc3 = taul::source_location{ 3, expected_origin, 2, 1 };
+    const auto loc4 = taul::source_location{ 4, expected_origin, 2, 1 };
+    const auto loc5 = taul::source_location{ 5, expected_origin, 2, 1 };
+    const auto loc6 = taul::source_location{ 6, expected_origin, 3, 1 };
+    const auto loc7 = taul::source_location{ 7, expected_origin, 4, 1 };
     // ですか
-    {
-        taul::source_pos pos = 8;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 9;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 10;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 1);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 11;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 12;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 13;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 2);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 14;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 15;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
-    {
-        taul::source_pos pos = 16;
-        if (sc.location_at(pos)) {
-            const taul::source_location loc = *sc.location_at(pos);
-            EXPECT_EQ(loc.pos, pos);
-            EXPECT_EQ(loc.origin, expected_origin);
-            EXPECT_EQ(loc.chr, 3);
-            EXPECT_EQ(loc.line, 2);
-        }
-        else ADD_FAILURE();
-    }
+    const auto loc8 = taul::source_location{ 8, expected_origin, 1, 2 };
+    const auto loc9 = taul::source_location{ 9, expected_origin, 1, 2 };
+    const auto loc10 = taul::source_location{ 10, expected_origin, 1, 2 };
+    const auto loc11 = taul::source_location{ 11, expected_origin, 2, 2 };
+    const auto loc12 = taul::source_location{ 12, expected_origin, 2, 2 };
+    const auto loc13 = taul::source_location{ 13, expected_origin, 2, 2 };
+    const auto loc14 = taul::source_location{ 14, expected_origin, 3, 2 };
+    const auto loc15 = taul::source_location{ 15, expected_origin, 3, 2 };
+    const auto loc16 = taul::source_location{ 16, expected_origin, 3, 2 };
+    const auto loc17 = taul::source_location{ 17, expected_origin, 4, 2 };
+
+    EXPECT_EQ(sc.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(1).fmt(), loc1.fmt());
+    EXPECT_EQ(sc.location_at(2).fmt(), loc2.fmt());
+    EXPECT_EQ(sc.location_at(3).fmt(), loc3.fmt());
+    EXPECT_EQ(sc.location_at(4).fmt(), loc4.fmt());
+    EXPECT_EQ(sc.location_at(5).fmt(), loc5.fmt());
+    EXPECT_EQ(sc.location_at(6).fmt(), loc6.fmt());
+    EXPECT_EQ(sc.location_at(7).fmt(), loc7.fmt());
+    EXPECT_EQ(sc.location_at(8).fmt(), loc8.fmt());
+    EXPECT_EQ(sc.location_at(9).fmt(), loc9.fmt());
+    EXPECT_EQ(sc.location_at(10).fmt(), loc10.fmt());
+    EXPECT_EQ(sc.location_at(11).fmt(), loc11.fmt());
+    EXPECT_EQ(sc.location_at(12).fmt(), loc12.fmt());
+    EXPECT_EQ(sc.location_at(13).fmt(), loc13.fmt());
+    EXPECT_EQ(sc.location_at(14).fmt(), loc14.fmt());
+    EXPECT_EQ(sc.location_at(15).fmt(), loc15.fmt());
+    EXPECT_EQ(sc.location_at(16).fmt(), loc16.fmt());
+    EXPECT_EQ(sc.location_at(17).fmt(), loc17.fmt());
+    EXPECT_EQ(sc.location_at(taul::source_pos(-1)).fmt(), loc17.fmt());
 }
 
 TEST(SourceCodeTests, AddFile_FileIsEncodedAsUTF8BOM) {
@@ -1505,30 +644,23 @@ TEST(SourceCodeTests, AddFile_FileIsEncodedAsUTF8BOM) {
 }
 
 TEST(SourceCodeTests, Reset) {
-
     taul::source_code sc{};
-
-
     sc.add_str("aa"_str, "abc"_str);
     sc.add_str("bb"_str, "def"_str);
 
     sc.reset();
 
-
     EXPECT_TRUE(sc.str().empty());
-
-    EXPECT_FALSE(sc.pos_in_bounds(0));
-    EXPECT_FALSE(sc.pos_in_bounds(1));
-    EXPECT_FALSE(sc.pos_in_bounds(taul::source_pos(-1)));
-
     EXPECT_TRUE(sc.pages().empty());
 
-    EXPECT_FALSE(sc.page_at(0));
-    EXPECT_FALSE(sc.page_at(1));
-    EXPECT_FALSE(sc.page_at(taul::source_pos(-1)));
+    EXPECT_EQ(sc.page_at(0), 0);
+    EXPECT_EQ(sc.page_at(1), 0);
+    EXPECT_EQ(sc.page_at(taul::source_pos(-1)), 0);
 
-    EXPECT_FALSE(sc.location_at(0));
-    EXPECT_FALSE(sc.location_at(1));
-    EXPECT_FALSE(sc.location_at(taul::source_pos(-1)));
+    const auto loc0 = taul::source_location{ 0, ""_str, 1, 1 };
+
+    EXPECT_EQ(sc.location_at(0).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(1).fmt(), loc0.fmt());
+    EXPECT_EQ(sc.location_at(taul::source_pos(-1)).fmt(), loc0.fmt());
 }
 

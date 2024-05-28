@@ -10,6 +10,6 @@ namespace taul {
     // and other such information about the TAUL repo
 
 
-    constexpr auto api_version = "version 0.1 (unstable)";
+    constexpr auto api_version = "version 0.1 (beta)";
 }
 

@@ -1,0 +1,6 @@
+
+
+lexer section:
+
+	A : 'this is an unclosed string literal!
+

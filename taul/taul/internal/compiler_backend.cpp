@@ -73,8 +73,6 @@ void taul::internal::compiler_backend::on_abort() {
 
 void taul::internal::compiler_backend::on_terminal_error(token_range ids, token input) {
     TAUL_DEREF_SAFE(src) {
-        TAUL_ASSERT(src->location_at(input.pos));
-
         str input_name{};
         if (input.is_normal()) input_name = input.lpr.value().name();
         else if (input.is_failure()) input_name = "** lexical error **"_str;
@@ -91,7 +89,6 @@ void taul::internal::compiler_backend::on_terminal_error(token_range ids, token 
 
 void taul::internal::compiler_backend::on_nonterminal_error(symbol_id id, token input) {
     TAUL_DEREF_SAFE(src) {
-        TAUL_ASSERT(src->location_at(input.pos));
         TAUL_ASSERT(is_ppr_id(id));
 
         str nonterminal_name = gram.ppr_at(size_t(id) - size_t(TAUL_FIRST_ID(ppr))).name();
@@ -184,16 +181,32 @@ void taul::internal::compiler_backend::_handle_lexical(token tkn) {
             }
             else if (name == "STRING"_str) {
                 if (nonterminal == "String"_str) {
-                    TAUL_ASSERT(in_expr());
-                    if (dbgsyms) expr_stk.back().sw_main.pos(tkn.pos);
-                    expr_stk.back().sw_main.string(text.substr(1, text.length() - 2));
+                    if (text.back() != '\'') {
+                        raise(
+                            tkn.pos,
+                            spec_error::illegal_string_literal,
+                            "malformed string literal!");
+                    }
+                    else {
+                        TAUL_ASSERT(in_expr());
+                        if (dbgsyms) expr_stk.back().sw_main.pos(tkn.pos);
+                        expr_stk.back().sw_main.string(text.substr(1, text.length() - 2));
+                    }
                 }
             }
             else if (name == "CHARSET"_str) {
                 if (nonterminal == "Charset"_str) {
-                    TAUL_ASSERT(in_expr());
-                    if (dbgsyms) expr_stk.back().sw_main.pos(tkn.pos);
-                    expr_stk.back().sw_main.charset(text.substr(1, text.length() - 2));
+                    if (text.back() != ']') {
+                        raise(
+                            tkn.pos,
+                            spec_error::illegal_charset_literal,
+                            "malformed charset literal!");
+                    }
+                    else {
+                        TAUL_ASSERT(in_expr());
+                        if (dbgsyms) expr_stk.back().sw_main.pos(tkn.pos);
+                        expr_stk.back().sw_main.charset(text.substr(1, text.length() - 2));
+                    }
                 }
             }
         }
@@ -304,7 +317,6 @@ void taul::internal::compiler_backend::_handle_syntactic_end() {
         if (name == "Rule_Qualifiers"_str) {
             if (qualifier_count >= 2) {
                 TAUL_DEREF_SAFE(src) {
-                    TAUL_ASSERT(src->location_at(nonterminal_stk.back().pos));
                     raise(
                         nonterminal_stk.back().pos,
                         spec_error::illegal_multiple_qualifiers, 

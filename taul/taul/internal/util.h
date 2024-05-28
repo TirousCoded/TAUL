@@ -28,10 +28,9 @@ namespace taul::internal {
         Args&&... args) {
         if (ec) ec->raise(err);
         if (src) {
-            TAUL_ASSERT(src->location_at(pos));
             TAUL_LOG(lgr,
                 "TAUL error: {} {} ({})",
-                src->location_at(pos).value(),
+                src->location_at(pos),
                 std::format(fmt, std::forward<Args&&>(args)...),
                 err);
         }

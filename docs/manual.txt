@@ -1,0 +1,1095 @@
+
+
+ -- TAUL Manual --
+
+
+ -- Table Of Contents --
+
+
+    (1) Introduction
+    (2) The Parsing Model
+        (2.1) LL(1) Semantics
+            (2.1.1) FOLLOW Set Changes
+            (2.1.2) Parse Stack Changes
+            (2.1.3) Symbol Nuances
+            (2.1.4) Left-Recursion
+        (2.2) Grammars
+            (2.2.1) Basics
+            (2.2.2) Qualifiers
+        (2.3) Symbols
+            (2.3.1) Basics
+            (2.3.2) Sentinels
+            (2.3.3) Glyphs, Tokens & Nodes
+        (2.4) Pipelines
+            (2.4.1) Basics
+            (2.4.2) Parse Trees & Listeners
+            (2.4.3) Error Handlers
+        (2.5) Lexical Analysis
+            (2.5.1) Basics
+            (2.5.2) Skip Tokens
+            (2.5.3) End-Of-Input Tokens
+            (2.5.4) Failure Tokens
+            (2.5.5) Zero-Length Tokens
+        (2.6) Syntactic Analysis
+            (2.6.1) Basics
+    (3) The Language
+        (3.1) Language Grammar
+        (3.2) Specifications
+            (3.2.1) Basics
+            (3.2.2) Source Code Encodings
+            (3.2.3) Source Code Newlines
+            (3.2.4) Source Files
+        (3.3) Lexical Conventions
+            (3.3.1) Character Set
+            (3.3.2) Whitespace
+            (3.3.2) Newlines
+            (3.3.2) Comments
+            (3.3.2) Keywords
+            (3.3.3) Operators
+            (3.3.4) Identifiers
+            (3.3.5) Strings
+            (3.3.6) Charsets
+            (3.3.7) Escape Sequences
+        (3.4) Sections
+        (3.5) Rule Definitions
+        (3.6) Defining Newlines In Grammars
+        (3.7) Expressions
+            (3.7.1) Simple & Composite Expressions
+            (3.7.2) Set-Like Expressions
+            (3.7.3) Precedence
+            (3.7.4) Top-Level Expressions
+            (3.7.5) End Expressions
+            (3.7.6) Any Expressions
+            (3.7.7) Token Expressions
+            (3.7.8) Failure Expressions
+            (3.7.9) String Expressions
+            (3.7.10) Charset Expressions
+            (3.7.11) Name Expressions
+            (3.7.12) Sequence Expressions
+            (3.7.13) LookAhead Expressions
+            (3.7.14) LookAhead-Not Expressions
+            (3.7.15) Not Expressions
+            (3.7.16) Optional Expressions
+            (3.7.17) Kleene-Star Expressions
+            (3.7.18) Kleene-Plus Expressions
+    (4) The Library TODO: just explain *major* ideas, tell reader to refer to source code for docs
+        () // TODO: add this later on, as I'm just gonna skip it for now
+    (5) The CLI Driver App
+        (5.1) Help
+        (5.2) Version
+        (5.3) Check
+        (5.4) Compile
+
+
+ -- The Manual --
+
+
+    (1) Introduction
+
+        The Text Analysis Utility Language (TAUL) is a grammar description
+        language used to generate parsers.
+        
+        TAUL operates under the idea of operating like a scripting language 
+        for fast turn-around time when testing a grammar, but then also 
+        supporting C++ transcompilation to let the end-user later on 
+        embed their grammar within their C++ code when they're ready.
+
+    (2) The Parsing Model
+
+        This section details the 'parsing model' used by TAUL, which describes
+        in the abstract how TAUL conceptualizes parsing, w/ these details
+        being generally applicable to all parts of TAUL (lang, API, etc.)
+
+    (2.1) LL(1) Semantics
+
+        TAUL uses an LL(1) parsing system.
+
+        See this wikipedia article for details on how LL(1) parsing works:
+
+            https://en.wikipedia.org/wiki/LL_parser
+            
+        This document will effectively describe TAUL's LL(1) semantics by 
+        describing how they differ from what is detailed in the above.
+
+    (2.1.1) FOLLOW Set Changes
+
+        TAUL defines the FOLLOW sets of a non-terminal as being equal to its set of
+        all possible symbols, minus the FIRST set of the non-terminal.
+
+        This means that LPRs/PPRs can be followed by anything, and it also means
+        that any rule may be used as the 'start rule'.
+
+        See 'formal-lang-notes.txt' for more details.
+
+    (2.1.2) Parse Stack Changes
+
+        TAUL parse stacks (be it for the lexer or parser) are initialized w/ just
+        the start rule, but not w/ an end-of-input symbol.
+
+        This means that TAUL lexing/parsing ends when the parse stack is emptied,
+        w/ no implicit end-of-input symbol requirement, meaning that lexing/parsing
+        can end w/out reaching the end-of-input.
+
+        See 'formal-lang-notes.txt' for more details.
+
+    (2.1.3) Symbol Nuances
+
+        TAUL does not use End Of File (EOF) as its end-of-input character,
+        instead using special symbol sentinels for this role, using different 
+        sentinels for the lexer/parser (see $2.3.2).
+
+        TAUL uses special 'failure' symbol sentinels to report lexical errors 
+        (see $2.3.2 and $2.5.4).
+
+    (2.1.4) Left-Recursion
+
+        At present, TAUL does not support left-recursive grammars.
+
+    (2.2) Grammars
+
+        This section details 'grammars' in TAUL.
+
+    (2.2.1) Basics
+
+        Grammars are defined as collections of named 'Lexer Production Rules' (LPRs) 
+        and 'Parser Production Rules' (PPRs).
+
+    (2.2.2) Qualifiers
+
+        LPRs optionally may carry one of two 'qualifiers', which modify
+        their semantic role in the grammar.
+
+        The two qualifiers allowed are 'skip' and 'support'.
+
+        LPRs qualified w/ skip mark tokens resulting from them as 'skip tokens' (see $2.5.2).
+
+        LPRs qualified w/ support are excluded from tokenization, but can still be 
+        invoked indirectly by other LPRs (see $2.5.1).
+
+        See $2.5 for more details on qualifier semantics.
+
+    (2.3) Symbols
+    
+        This section details 'symbols' in TAUL.
+
+    (2.3.1) Basics
+    
+        Symbols are used to identify Unicode codepoints, LPRs, and PPRs, w/ these
+        being the three 'symbol types' in TAUL.
+
+        Symbols are used throughout TAUL to identify the above three, including
+        in grammars, parse trees, parse stack semantics, etc.
+
+    (2.3.2) Sentinels
+
+        A Unicode symbol sentinel is defined for an end-of-inputs (aka. 'end-of-input glyphs').
+
+        A LPR symbol sentinel is defined for an end-of-inputs (aka. 'end-of-input tokens').
+        A LPR symbol sentinel is defined for lexical failures (aka. 'failure tokens').
+        
+        There are no PPR symbol sentinels.
+
+    (2.3.3) Glyphs, Tokens & Nodes
+
+        TAUL 'glyphs' and 'tokens' are symbols w/ associated information about
+        a portion of input text which they correspond to.
+
+        Glyphs encapsulate Unicode codepoint symbols.
+
+        Tokens encapsulate LPR symbols.
+
+        Glyphs and tokens are used to transmit information between different
+        pipeline stages and w/ other parts of the system.
+
+        TAUL 'nodes' refer to the lexical and syntactic nodes of parse trees,
+        which within the TAUL language are forms of symbols like glyphs/tokens,
+        w/ lexical nodes encapsulating LPR symbols, and syntactic nodes 
+        encapsulating PPR symbols.
+
+        However, within the TAUL API, parse tree nodes do not behave like
+        symbols, so outside of the TAUL language, the nodes in the TAUL API
+        are only symbols *de jure*. This also means that within the TAUL API,
+        there is no glyph/token equivalent for PPR symbols.
+
+    (2.4) Pipelines
+
+        This section details 'pipelines' in TAUL.
+
+    (2.4.1) Basics
+
+        TAUL lexing/parsing operates using pull-based 'pipelines' of
+        components which feed into one another.
+
+        The following are the main three components: 'readers', 'lexers', and 'parsers'.
+
+        Readers are at the vary start of the pipeline, producing glyphs from
+        the 'input' text (ie. from the outside environment.)
+
+        Lexers perform lexical analysis, consuming glyphs, and producing tokens.
+
+        Parsers are at the vary end of the pipeline, consuming tokens, and
+        producing node symbols output to a parse tree and/or listener.
+
+        Between the reader and lexer, one or more 'glyph filter' components may be
+        inserted, consuming glyphs, and producing new glyphs.
+
+        Between the lexer and parser, one or more 'token filter' components may be
+        inserted, consuming tokens, and producing new tokens.
+
+        Readers and glyph filters are collectively 'glyph streams', because they
+        all produce downstream glyphs.
+
+        Lexers and token filters are collectively 'token streams', because they
+        all produce downstream tokens.
+
+        TAUL allows for 'observers' to be attached to glyph/token streams to
+        observe the outputs thereof. These are likewise called 'glyph observers'
+        and 'token observers', respectively.
+
+    (2.4.2) Parse Trees & Listeners
+
+        TAUL 'parse trees' and 'listeners' encapsulate the output of a round
+        of syntactic analysis.
+
+        Parse trees encapsulate the output of syntactic analysis as a tree 
+        structure of lexical and syntactic node symbol data.
+
+        Listeners operate using the same inputs as parse trees, but instead
+        respond w/ a sequence of events arising.
+
+        The state of a parse tree can be used to 'playback' the sequence of 
+        events used to construct it for a listener to respond to.
+
+        A parser can output to a parse tree and a listener, or just one of the two.
+
+    (2.4.3) Error Handlers
+
+        An 'error handler' component may be attached to a parser in order to
+        provide error handling services to it.
+
+        When syntactic analysis encounters a syntax errors, it will attempt to
+        invoke the parser's error handler, if any, in order to resolve the
+        syntax error.
+        
+        If the error handler succeeds in fixing the issue, the parser will 
+        continue as normal.
+        
+        If the error handler fails to fix the issue, the parser will 'abort',
+        exiting syntactic analysis prematurely, performing any parse tree
+        and/or listener behaviour needed prior to doing so.
+
+        Error handler implementations are given the ability to query/manipulate
+        the state of the upstream source of the parser, and are given the 
+        ability to check if said manipulations have resolved the issue.
+
+        The regular error handler implementation simply consumes inputs
+        until the issue is fixed, or until the input is exhausted.
+
+    (2.5) Lexical Analysis
+    
+        This section details lexical analysis in TAUL.
+
+    (2.5.1) Basics
+
+        Lexical analysis in TAUL operates according to the usual LL(1) (see $2.1)
+        pipeline (see $2.4) semantics.
+
+        Lexing is performed by attempting each LPR in the grammar, stopping if
+        one of them matches successfully, and using said result as the result
+        of that round of lexical analysis. The order in which LPRs are performed 
+        is the order in which they appear in the spec. LPRs qualified w/ support 
+        are excluded from this traversal of the LPRs of the grammar.
+
+        The process of the above traversal stopping upon finding a successful
+        match causes the earlier LPRs to 'shadow' the later ones, thus implementing
+        'shadowing' in TAUL.
+
+    (2.5.2) Skip Tokens
+
+        If the lexer matches a token using an LPR qualified w/ skip, the token
+        is marked as a 'skip token'.
+
+        A token does not get marked as a skip token unless the LPR which 
+        it is associated w/ was the one called directly at the top-level by
+        the lexer, not any called indirectly therein.
+
+        Skip tokens are, by default, excluded from the lexer's output. The lexer
+        will keep performing tokenization until it finds a non-skip token which
+        it can use as the output for that round of lexical analysis.
+
+        Skip tokens will be observed the observer, if any, attached to the lexer,
+        regardless of whether the skip token is kept or discarded.
+
+    (2.5.3) End-Of-Input Tokens
+
+        Upon exhausting its upstream source, the lexer will output end-of-input 
+        tokens, and will no longer advance.
+
+    (2.5.4) Failure Tokens
+
+        If the lexer is unable to find a token to match against a portion of input,
+        and the upstream source has not been exhausted, the lexer will generate a
+        failure token to be its output.
+
+        Upon generating the failure token, it will start off unit-length, and will
+        then be extended if the lexer detects that the next round of lexical 
+        analysis would result in another failure token, repeating this process
+        of extension until either the upstream source is exhausted, or until the
+        lexer detects that the next token will not be a failure token.
+
+    (2.5.5) Zero-Length Tokens
+
+        If the lexer matches a token of zero-length which is not an end-of-input
+        token, the next round of lexical analysis will, up-front, behave as 
+        though it failed lexical analysis, in order to break what would otherwise
+        be a deterministic infinite loop.
+
+    (2.6) Syntactic Analysis
+
+        This section details syntactic analysis in TAUL.
+
+    (2.6.1) Basics
+
+        Syntactic analysis in TAUL operates according to the usual LL(1) (see $2.1)
+        pipeline (see $2.4) semantics.
+
+        Parsing is performed as a function of a start rule PPR.
+
+    (3) The Language
+
+        This section details the TAUL language.
+
+    (3.1) Language Grammar
+
+        For the full formal description of TAUL's syntax, see 'taul.taul'.
+
+    (3.2) Specifications
+
+        This section details 'specifications' in TAUL.
+    
+    (3.2.1) Basics
+
+        TAUL 'specifications', or 'specs', refer to the translation units which get
+        compiled into grammars.
+
+        Specs refer both to source code and intermediate binary representations
+        of these translation units, the former being also referred to simply as
+        TAUL source code or, if it's in a file, source file.
+
+        Specs do not have a notion of establishing dependency relationships between
+        one another. Each spec is semantically an island.
+
+        The TAUL API uses a two stage compilation process in which compilation is
+        seperated into 'syntax compilation', which takes source code and compiles
+        intermediate representation binary, and 'loading', which takes said
+        intermediate representation binary and generates a usable grammar from it.
+
+        The above notwithstanding, the term 'compilation' is herein used to refer
+        more broadly to the process of compiling TAUL specs into grammars, regardless
+        of the semantic particulars of the TAUL API.
+
+    (3.2.2) Source Code Encodings
+
+        TAUL source code may be encoded w/ any encoding, w/ the TAUL API supporting
+        usage of source code w/ any UTF-8, UTF-16, or UTF-32 encoding.
+
+        TAUL source files may conceptually be used likewise w/ any encoding, but w/
+        the TAUL API at present supporting only UTF-8 and UTF-8 BOM encoded source files.
+
+    (3.2.3) Source Code Newlines
+
+        TAUL source code accepts LF, CR, or CRLF newlines, w/ these being handled
+        via the TAUL language grammar.
+
+        Take note of how TAUL forbids non-escaped newlines within string and charset 
+        literals (see $3.3.5 and $3.3.6), and how this is in part used to decouple
+        said literals from the newline convention of the OS, to improve portability.
+    
+    (3.2.4) Source Files
+
+        Source files by convention use the '.taul' extension.
+
+        Particulars regarding source file encodings and newlines is beyond the
+        scope of this portion of the TAUL manual.
+
+    (3.3) Lexical Conventions
+
+        This section details lexical conventions in TAUL.
+
+    (3.3.1) Character Set
+
+        Following decoding, TAUL specs encapsulate source code which may
+        contain any valid Unicode codepoint.
+
+    (3.3.2) Whitespace
+
+        TAUL defines a whitespace token as a sequence of one or more ASCII 
+        space or tab characters.
+
+    (3.3.2) Newlines
+
+        TAUL defines a newline token as either a LF, CR, or CRLF character
+        sequence, preferring the longest possible match.
+
+        See also $3.2.3 regarding newlines in TAUL.
+
+    (3.3.2) Comments
+
+        TAUL defines comment tokens as a '#', followed by any character
+        other than the LF or CR of newlines (see $3.3.2).
+
+        TAUL does not support multiline comments.
+
+    (3.3.2) Keywords
+
+        TAUL employs the following keyword tokens:
+
+            lexer
+            parser
+            section
+            skip
+            support
+            end
+            any
+            token
+            failure
+
+    (3.3.3) Operators
+
+        TAUL employs the following operator tokens:
+            
+            .       <- dot
+            :       <- colon
+            ;       <- semicolon
+            |       <- vbar
+            ?
+            *
+            +
+            &
+            -       <- minus
+            ~       <- tilde
+            (
+            )
+
+    (3.3.4) Identifiers
+
+        TAUL defines identifier tokens as sequences of ASCII letters, digits, and underscores, 
+        which do not start w/ digits, and which are not keywords.
+
+            Abc
+            OP_COLON
+            ab123cd
+            __abc
+
+    (3.3.5) Strings
+
+        String literals may contain $3.3.7 escape sequences.
+
+        TAUL defines string tokens w/ the usual syntax, but w/ TAUL demanding that said
+        literals use enclosing single-quotes, rather than double-quotes.
+
+            'this is an example string 123 !@#'
+
+        String literals require single-quote characters must be escaped.
+
+            'abc\'def'
+
+            'abc"def'   <- you don't need to escape double-quotes
+
+        String literals may contain visible ASCII or non-ASCII Unicode codepoints, but
+        are forbidden from having non-visible ASCII, except if said non-visible ASCII
+        is expressed in terms of escape sequences.
+
+        The rule about forbidden non-visible ASCII serves two purposes:
+
+            1) to protect the end-user from potentially hard to diagnose issues which
+               could arise from string literals containing hidden control characters; and
+
+            2) to prevent string literals from containing newlines, as these will translate
+               to different control characters based on the OS the spec is being compiled
+               under, which compromises the TAUL spec's ability to be OS independent.
+
+    (3.3.6) Charsets
+
+        In TAUL, 'charsets' (aka. 'character sets') are literals which express a portion of
+        text of unit-length which may contain one of a set of possible characters.
+
+        Charset literal syntax is modelled off character sets in ANTLR.
+
+        Charset literals may contain $3.3.7 escape sequences.
+
+        TAUL defines charset tokens in a manner similar to strings, but w/ '[' and ']'
+        characters enclosing them, rather than quotes.
+
+            [abc]
+            [a-zA-Z0-9_]
+
+        Charset literals require ']' characters must be escaped.
+
+            [abc\]def]
+        
+        Charset literals may contain visible ASCII or non-ASCII Unicode codepoints, but
+        are forbidden from having non-visible ASCII, except if said non-visible ASCII
+        is expressed in terms of escape sequences.
+
+        This forbidding of non-visible ASCII is the same as for string literals (see $3.3.5).
+
+        Charset literals are expressed as sequences of individual characters, and 
+        character ranges, describing the character set.
+
+        Individual characters in charsets add said characters to their sets.
+
+            [abc]       <- set contains 'a', 'b', and 'c'
+
+        Character ranges in charsets are expressed as X-Y, where X and Y are the ends 
+        of the range, w/ the range being the inclusive (ie. not exclusive) range [X, Y].
+
+            [a-zA-Z]    <- set contains all lowercase and uppercase latin alphabet characters
+
+        Character ranges in charsets need-not be expressed w/ the left value being the
+        lower of the two. The left value of character ranges may be equal to, or even
+        larger than, the right value.
+
+            [a-a]       <- set contains 'a'
+
+            [z-aZ-A]    <- equivalent to [a-zA-Z]
+
+        Individual characters and character ranges may be used together, if that wasn't 
+        already clear.
+            
+            [a-f123g-l_ef] <- contains 'a-f', '1', '2', '3', 'g-l', '_', 'e', and 'f'
+
+        The '-' character must be escaped for use as a regular character in charsets.
+
+            [a\-z]      <- contains 'a', '-', and 'z', *nothing else*!
+
+        There are certain cases where '-' may be used as a regular character w/out
+        needing to escape it:
+
+            1) If the '-' appears at the vary start of the charset.
+
+                [-a-z]  <- contains '-', and all lowercase latin alphabet characters
+
+            2) If the '-' appears as the right value of a character range.
+
+                [a--]   <- contains 'a', '-', and all ASCII characters in between
+
+            3) If the '-' is expressed as an escape sequence.
+
+                [a\x2dz] <- contains 'a', '-' (aka. '\x2d'), and 'z', *nothing else*!
+
+        Charsets may contain duplicates.
+
+            [aa-faaaa]  <- contains 'a' through 'f'
+
+    (3.3.7) Escape Sequences
+
+        TAUL supports the following escape sequences:
+
+            \0              <- Null
+            \a				<- Bell (Alert)
+            \b				<- Backspace
+            \f				<- Form Feed
+            \n				<- Line Feed
+            \r				<- Carriage Return
+            \t				<- Horizontal Tab
+            \v				<- Vertical Tab
+            \'				<- Single Quotation		    <- TAUL doesn't need '\"' escape sequence
+            \]				<- Right Square Bracket     <- for charsets
+            \-				<- Minus				    <- for ranges in charsets
+            \\				<- Backslash
+            \xhh			<- Hex Literal (8-bit)
+            \uhhhh          <- Hex Literal (16-bit)
+            \uhhhhhhhh      <- Hex Literal (32-bit)
+
+        Escaped characters which do not otherwise form one of the above escape 
+        sequences are instead 'literalized', meaning that the opening '\' is 
+        simply removed.
+
+        TAUL doesn't support octal literal escape sequences.
+
+        TAUL hex literal escape sequences are case-insensitive.
+
+        TAUL hex literals which are malformed are interpreted as literalized 
+        'x', 'u', or 'U' characters, and the remaining characters thereafter
+        are not otherwise considered to be escaped.
+    
+    (3.4) Sections
+
+        Specs are syntactically seperated into 'sections', which dictate 
+        whether LPRs or PPRs are being defined at that place in the spec.
+
+        The following syntax is used for declaring entering a section:
+
+            lexer section:
+
+            parser section:
+
+        Above, the first enters a lexer section, and the second enters
+        a parser section.
+
+        The act of entering a new section exits the previous one.
+
+        Prior to one of the above two appearing for the first time, the
+        spec starts off implicitly in a lexer section.
+
+        Example:
+
+                LPR0 : 'abc' ; # implicitly in lexer section
+
+            parser section:
+
+                PPR0 : LPR0 ;
+
+            lexer section:
+
+                LPR1 : 'def' ;
+
+    (3.5) Rule Definitions
+
+        The following syntax is used for the definition of production rules:
+
+            <name> : <expression> ;
+            
+            skip <name> : <expression> ;
+
+            support <name> : <expression> ;
+
+        Above, <name> is the name of the LPR/PPR in question, and <expression>
+        is the top-level expression (see $3.7.4) of the rule.
+
+        As shown, 'skip' and 'support' may be used to qualify definitions, but
+        only for LPRs (see $2.2.2).
+
+        Multiple qualifiers are syntactic, but semantically illegal.
+
+        Whether an LPR or PPR is being defined is based on if the rule definition 
+        is in LPR or PPR section (see $3.4).
+
+        It is illegal to define multiple rules w/ the same name, including when
+        the two rules are seperated by one being a LPR, and another a PPR.
+
+        Example:
+
+            lexer section:
+
+                # these are LPRs
+
+                A               : 'a' ;
+                B               : 'b' ;
+                C               : 'c' ;
+
+                skip WS         : [ \t]+ ;
+
+                support MISC    : 'this is just here as part of the example, lol' ;
+
+            parser section:
+
+                # these are PPRs
+
+                TopLevel        : ABC+ ;
+                ABC             : A B C ;
+
+    (3.6) Defining Newlines In Grammars
+
+        Often times someone working w/ TAUL will find themselves wanting whatever
+        language, or whatever it is, they're making to be able to handle LF, CR, and
+        CRLF newlines properly.
+
+        To this end, take note that TAUL does not have any fancy built-in way of 
+        doing this, and thus the end-user will need to write one themself as part of
+        the spec for their grammar.
+
+        TAUL just treats CR and LF as individual characters.
+
+        The following LPR, or something equivalent to it, can be used to handle
+        LF, CR, and CRLF newlines:
+
+            skip NEWLINE : '\n' | '\r' '\n'? ;
+
+    (3.7) Expressions
+
+        This section details 'expressions' in TAUL, which describe the patterns 
+        associated w/ production rules.
+
+    (3.7.1) Simple & Composite Expressions
+
+        TAUL makes a distinction between 'simple' and 'composite' expressions.
+
+        Simple expressions are primary expressions which cannot have subexpressions.
+
+        Composite expressions are non-primary expressions which can have subexpressions.
+
+    (3.7.2) Set-Like Expressions
+
+        Certain composite expressions are 'set-like', meaning they are specialized
+        such that their subexpression must satisfy the following:
+
+            1) It describes a FIRST set of symbols.     <- pretty trivial
+
+            2) The set of possible symbol sequences which conform to its pattern
+               must be populated by symbol sequences of exactly length one, w/
+               no sequences of length zero, nor of lengths two or greater.
+
+        Given the above, see that set-like expressions exist to describe a set of
+        symbols w/out any additional nuanced patterns, operating like charset literals,
+        except w/ a more nuanced interior.
+
+    (3.7.3) Precedence
+
+        The following lists TAUL expressions in order of precedence,
+        ordered from highest to lowest:
+
+            end
+            any
+            token
+            failure
+            string
+            charset
+            name
+            sequence
+            lookahead
+            lookahead-not
+            not
+            optional
+            kleene-star
+            kleene-plus
+
+        The above excludes the special top-level expression.
+
+    (3.7.4) Top-Level Expressions
+
+        Synopsis:
+
+            <alt-1> | <alt-2> | ... | <alt-N>
+
+        Above, the <alt-#> refer to each 'alternative' of the expression.
+
+        Alternatives refer to sequences of zero or more subexpressions.
+
+        Top-level expressions are a special composite expression which
+        encapsulates the top-level of LPR/PPR expressions.
+
+        Matches the subexpression sequence of the <alt-#> which matches 
+        successfully, consuming input.
+
+        It is illegal for common prefixes between alternatives to cause
+        the grammar to be ambiguous.
+    
+        Example:
+
+            TODO
+
+    (3.7.5) End Expressions
+    
+        Synopsis:
+
+            end
+
+        Matches the end-of-input, consuming no input.
+
+        Example:
+
+            TODO
+
+    (3.7.6) Any Expressions
+    
+        Synopsis:
+
+            any
+
+        Matches any glyph/token, except end-of-input, consuming input.
+
+        Example:
+
+            TODO
+
+    (3.7.7) Token Expressions
+    
+        Synopsis:
+
+            token
+
+        Matches any token except failure or end-of-input tokens, consuming input.
+
+        May be used only in PPRs.
+
+        Example:
+
+            TODO
+
+    (3.7.8) Failure Expressions
+    
+        Synopsis:
+
+            failure
+
+        Matches any failure token, consuming input.
+        
+        May be used only in PPRs.
+
+        Example:
+
+            TODO
+
+    (3.7.9) String Expressions
+    
+        Synopsis:
+
+            <string>
+
+        Above, <string> is the string literal specifying the string (see $3.3.5).
+
+        Matches the glyph sequence described by <string>, consuming input.
+
+        May be used only in LPRs.
+
+        Example:
+
+            TODO
+
+    (3.7.10) Charset Expressions
+    
+        Synopsis:
+
+            <charset>
+
+        Above, <charset> is the charset literal specifying the charset (see $3.3.6).
+
+        Matches a glyph in <charset>, consuming input.
+
+        May be used only in LPRs.
+
+        Example:
+
+            TODO
+
+    (3.7.11) Name Expressions
+
+        Synopsis:
+
+            <name>
+
+        Above, <name> is an identifier specifying a LPR or PPR.
+
+        If in a LPR, <name> must specify another LPR.
+
+        If in a LPR, matches LPR <name>, consuming input.
+
+        If in a PPR, and <name> specifies a LPR, matches a token which is
+        associated w/ LPR <name>.
+
+        If in a PPR, and <name> specifies a PPR, matches PPR <name>, consuming input,
+        and w/ this evaluation being associated w/ a new branch being output to the
+        parse tree and/or listener.
+
+        Example:
+
+            TODO
+
+    (3.7.12) Sequence Expressions
+    
+        Synopsis:
+
+            ( <alt-1> | <alt-2> | ... | <alt-N> )
+
+        Above, the <alt-#> refer to each 'alternative' of the expression.
+
+        Alternatives refer to sequences of zero or more subexpressions.
+
+        Matches the subexpression sequence of the <alt-#> which matches 
+        successfully, consuming input.
+
+        It is illegal for common prefixes between alternatives to cause the 
+        grammar to be ambiguous.
+
+        Example:
+
+            TODO
+
+    (3.7.13) LookAhead Expressions
+
+        Synopsis:
+
+            &<subexpr>
+
+        Above, <subexpr> is the expression's subexpression.
+
+        These expressions are for peeking at what the next symbol is.
+
+        This expression is set-like (see $3.7.2).
+
+        Matches a set S, consuming no input, where S is the FIRST set of <subexpr>.
+        
+        The FIRST set of <subexpr> may not contain the end-of-input.
+
+        This choice to forbid <subexpr>'s FIRST SET from containing the end-of-input 
+        was made deliberately as expressions like lookahead-not and not may be 
+        confusing to use if end-of-input is present, and so the decision was made
+        to forbid it in general, requiring the end-user to specify it elsewhere in
+        their production rules.
+
+        Example:
+
+            TODO
+
+    (3.7.14) LookAhead-Not Expressions
+
+        Synopsis:
+
+            -<subexpr>
+            
+        Above, <subexpr> is the expression's subexpression.
+        
+        These expressions are for peeking at what the next symbol is not.
+
+        This expression is set-like (see $3.7.2).
+
+        Matches a set S, consuming no input, where S is the set of all symbols,
+        except the end-of-input, and except those in the FIRST set of <subexpr>.
+        
+        The FIRST set of <subexpr> may not contain the end-of-input.
+
+        This choice to forbid <subexpr>'s FIRST SET from containing the end-of-input 
+        was made deliberately as expressions like lookahead-not and not may be 
+        confusing to use if end-of-input is present, and so the decision was made
+        to forbid it in general, requiring the end-user to specify it elsewhere in
+        their production rules.
+
+        Example:
+
+            TODO
+
+    (3.7.15) Not Expressions
+
+        Synopsis:
+
+            ~<subexpr>
+            
+        Above, <subexpr> is the expression's subexpression.
+        
+        These expressions are similar almost identical to lookahead-not, except that
+        these consume input, and are used to invert charsets and set-like composite
+        expressions, not for merely peeking at the next symbol.
+
+        This expression is set-like (see $3.7.2).
+
+        Matches a set S, consuming input, where S is the set of all symbols,
+        except the end-of-input, and except those in the FIRST set of <subexpr>.
+        
+        The FIRST set of <subexpr> may not contain the end-of-input.
+
+        This choice to forbid <subexpr>'s FIRST SET from containing the end-of-input 
+        was made deliberately as expressions like lookahead-not and not may be 
+        confusing to use if end-of-input is present, and so the decision was made
+        to forbid it in general, requiring the end-user to specify it elsewhere in
+        their production rules.
+
+        Example:
+
+            TODO
+
+    (3.7.16) Optional Expressions
+
+        Synopsis:
+
+            <subexpr>?
+            
+        Above, <subexpr> is the expression's subexpression.
+
+        Matches a sequence of <subexpr> zero or one times, consuming input.
+        
+        Matching is performed on a greedy basis, consuming as much input as possible.
+        
+        Example:
+
+            TODO
+
+    (3.7.17) Kleene-Star Expressions
+
+        Synopsis:
+
+            <subexpr>*
+            
+        Above, <subexpr> is the expression's subexpression.
+
+        Matches a sequence of <subexpr> zero or more times, consuming input.
+
+        Matching is performed on a greedy basis, consuming as much input as possible.
+        
+        Example:
+
+            TODO
+
+    (3.7.18) Kleene-Plus Expressions
+
+        Synopsis:
+
+            <subexpr>+
+            
+        Above, <subexpr> is the expression's subexpression.
+        
+        Matches a sequence of <subexpr> one or more times, consuming input.
+
+        Matching is performed on a greedy basis, consuming as much input as possible.
+        
+        Example:
+
+            TODO
+
+    (4) The Library
+
+        This section details the TAUL API.
+
+        TODO: this section is a stub, to be filled out later!
+
+    (5) The CLI Driver App
+
+        This section details the 'taulc' CLI driver app used by TAUL in 
+        order to perform services like grammar error checking and grammar 
+        transcompilation into C++.
+
+    (5.1) Help
+        
+        Synopsis:
+
+            taulc help <command>
+
+        Explains form and function of CLI driver app command <command>.
+
+    (5.2) Version
+        
+        Synopsis:
+
+            taulc version
+
+        Explains the TAUL library version the CLI driver app was compiled under.
+
+    (5.3) Check
+        
+        Synopsis:
+
+            taulc check <source-path>
+
+        Checks if TAUL spec file at <source-path>, if any, compiles correctly.
+        
+        Any compilation errors which arise are reported.
+        All stages of TAUL spec compilation and loaded are tested for errors.
+
+    (5.4) Compile
+
+        Synopsis:
+
+            taulc compile <fetcher> <source-path> <output-path>
+
+        Compiles the TAUL spec file at <source-path>, if any, and if successful,
+        outputs a C++ header file at <output-path>, with this generated header file
+        encapsulating a TAUL fetcher function named <fetcher>.
+        
+        Any existing file at <output-path> is overwritten.
+        
+        No checks are made to ensure that <fetcher> is a valid C++ identifier.
+        
+        Any compilation errors which arise are reported.
+        All stages of TAUL spec compilation and loaded are tested for errors.
+
