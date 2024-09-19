@@ -60,7 +60,7 @@ lexer section:
     # \\				<- Backslash
     # \xhh			    <- Hex Literal (8-bit)
     # \uhhhh            <- Hex Literal (16-bit)
-    # \uhhhhhhhh        <- Hex Literal (32-bit)
+    # \Uhhhhhhhh        <- Hex Literal (32-bit)
     # 
     # escaped characters which do not form any of the above are *literalized*,
     # meaning the opening '\' is simply removed
