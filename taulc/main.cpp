@@ -60,7 +60,7 @@ int32_t main(int32_t argc, const char** argv) {
             message("Checks if TAUL spec file at <source-path>, if any, compiles correctly.");
             message("");
             message("Any compilation errors which arise are reported.");
-            message("All stages of TAUL spec compilation and loaded are tested for errors.");
+            message("All stages of TAUL spec compilation and loading are tested for errors.");
         }
         else if (args.expect("compile")) {
             message("Synopsis:");
@@ -76,7 +76,7 @@ int32_t main(int32_t argc, const char** argv) {
             message("No checks are made to ensure that <fetcher> is a valid C++ identifier.");
             message("");
             message("Any compilation errors which arise are reported.");
-            message("All stages of TAUL spec compilation and loaded are tested for errors.");
+            message("All stages of TAUL spec compilation and loading are tested for errors.");
         }
         else error("Cannot provide help for no or unrecognized command!");
     }

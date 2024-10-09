@@ -40,7 +40,31 @@ static std::string _sanitize_s(std::string_view s) {
     while (!d.done()) {
         auto decoded = d.next();
         if (!decoded) break;
-        if (taul::is_visible_ascii(decoded->cp)) {
+        // IMPORTANT: I was getting an issue where srcgen would fail if the transcompiled spec
+        //            had strings/charsets w/ escape sequences in forms like '\r', '\n', etc.
+        //            in them, as this sanatize code wouldn't escape the '\', resulting in a
+        //            raw, unescaped, '\r', '\n', etc. appearing in the C++ code, which caused
+        //            the TAUL spec to fail loading
+        //
+        //            so we're just gonna quickly escape every '\' char that we find, to fix
+        //            the issue (hopefully)
+        //
+        //            this is what we get for not unit testing, lol
+        // TODO: given the above, maybe look into whether its reasonable to liberalize TAUL's
+        //       semantics to allow for unescaped non-visible ASCII in specs
+        //
+        //       I'm fairly sure we had a good reason for disallowing this, so be sure to look
+        //       into why we did this before making a change
+        // TODO: if we have a literalized non-ASCII char, taking a form like '\<poop-emoji>',
+        //       I'm pretty sure the below will break, as both the preceding slash will be
+        //       escaped, and then the char will be written as an escape sequence after it,
+        //       which will be escaped seperately, maybe breaking things
+        // TODO: I'm like 95% sure the answer is for us to replace this code w/ sanatizing
+        //       via [fmt/parse]_taul_[string/charset]
+        if (decoded->cp == U'\\') {
+            result += "\\\\";
+        }
+        else if (taul::is_visible_ascii(decoded->cp)) {
             result += char(decoded->cp);
         }
         // quickly throw together an escape sequence to *sanitize* w/
@@ -183,7 +207,7 @@ taul::source_code taul::export_fetcher(
     export_fetcher_spec_helper(src, tab).interpret(s);
 
     src += std::format("{0}auto loaded = taul::load(sw.done(), lgr);\n", tab);
-    src += std::format("{0}TAUL_LOG_IF(!loaded, lgr, \"TAUL fetcher 'abc' backing data didn't initialize properly!\");\n", tab);
+    src += std::format("{0}TAUL_LOG_IF(!loaded, lgr, \"TAUL fetcher '{1}' backing data didn't initialize properly!\");\n", tab, fetcher_name);
     src += std::format("{0}return loaded.value();\n", tab);
     src += std::format("}}\n");
     src += std::format("static const taul::grammar _TAUL_SRCGEN_{0}_object = _TAUL_SRCGEN_init_{0}();\n", fetcher_name);
