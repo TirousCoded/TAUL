@@ -9,6 +9,7 @@ docs/journal.txt
 docs/LL(1) transition plan.txt
 docs/LL(1) plan notes.txt
 genproj.bat
+gengrammar.bat
 backupdocs.bat
 
 

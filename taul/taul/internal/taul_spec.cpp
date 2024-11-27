@@ -6,7 +6,7 @@
 using namespace taul::string_literals;
 
 
-taul::spec taul::taul_spec() {
+taul::spec taul::internal::taul_spec() {
     return 
         spec_writer()
         .lpr_decl("END_OF_KW"_str)
