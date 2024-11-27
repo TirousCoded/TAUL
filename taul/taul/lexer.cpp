@@ -346,7 +346,7 @@ taul::token taul::lexer::puller::_pull_no_cut() {
 }
 
 void taul::lexer::_resolve_latest_token() {
-    if (!_latest) _latest = std::make_optional(_puller.pull());
+    if (!_latest) _latest = _puller.pull();
     TAUL_ASSERT(_latest);
 }
 

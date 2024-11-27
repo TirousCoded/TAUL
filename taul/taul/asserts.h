@@ -25,3 +25,29 @@
 
 #define TAUL_DEREF_SAFE(cond) if (!(cond)) TAUL_DEADEND; else
 
+// taul::deref_assert wraps a pointer(-like object) deref in a function call which asserts 
+// that bool(x) == true
+
+// taul::deref_assert also helps prevent MSVC from complaining about deref of *potential
+// nullptr* in scenarios where we otherwise 100% know the pointer is safe
+
+namespace taul {
+    template<typename T>
+    concept deref_assert_input_type =
+        requires (T v)
+    {
+        // TODO: how can be require *v to not return void?
+
+        // we don't care what T derefs to
+        *v;
+
+        { (bool)v } -> std::convertible_to<bool>;
+    };
+
+    template<deref_assert_input_type T>
+    inline auto&& deref_assert(T x) {
+        TAUL_ASSERT(bool(x));
+        return *x;
+    }
+}
+

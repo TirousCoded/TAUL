@@ -108,19 +108,17 @@ const taul::internal::parse_table<taul::token>& taul::parser::_policy::fetch_pt(
 }
 
 taul::token taul::parser::_policy::peek() {
-    token result = token::end();
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_source) result = _self_ptr->_source->peek();
-    }
-    return result;
+    return
+        _get_self()._source
+        ? _get_self()._source->peek()
+        : token::end();
 }
 
 taul::token taul::parser::_policy::next() {
-    token result = token::end();
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_source) result = _self_ptr->_source->next();
-    }
-    return result;
+    return
+        _get_self()._source
+        ? _get_self()._source->next()
+        : token::end();
 }
 
 void taul::parser::_policy::reinit_output(rule_ref_type start_rule) {
@@ -128,92 +126,73 @@ void taul::parser::_policy::reinit_output(rule_ref_type start_rule) {
 }
 
 std::string taul::parser::_policy::fmt_output() const {
-    std::string result{};
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_result) result = _self_ptr->_result.value().fmt();
-    }
-    return result;
+    return
+        _get_self()._result
+        ? _get_self()._result.value().fmt()
+        : std::string{};
 }
 
 void taul::parser::_policy::output_startup() {
-    TAUL_DEREF_SAFE(_self_ptr) {
-        _self_ptr->_aborted = false;
-        if (_self_ptr->_listener) _self_ptr->_listener->on_startup();
-    }
+    _get_self()._aborted = false;
+    if (_get_self()._listener) _get_self()._listener->on_startup();
 }
 
 void taul::parser::_policy::output_shutdown() {
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_aborted) {
-            if (_self_ptr->_result) _self_ptr->_result->abort();
-            if (_self_ptr->_listener) _self_ptr->_listener->on_abort();
-        }
-        if (_self_ptr->_listener) _self_ptr->_listener->on_shutdown();
+    if (_get_self()._aborted) {
+        if (_get_self()._result) _get_self()._result->abort();
+        if (_get_self()._listener) _get_self()._listener->on_abort();
     }
+    if (_get_self()._listener) _get_self()._listener->on_shutdown();
 }
 
 void taul::parser::_policy::output_terminal(symbol_type terminal) {
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_result) _self_ptr->_result->lexical(terminal);
-        if (_self_ptr->_listener) _self_ptr->_listener->on_lexical(terminal);
-    }
+    if (_get_self()._result) _get_self()._result->lexical(terminal);
+    if (_get_self()._listener) _get_self()._listener->on_lexical(terminal);
 }
 
 void taul::parser::_policy::output_nonterminal_begin(symbol_id nonterminal) {
-    TAUL_DEREF_SAFE(_self_ptr) {
-        size_t ppr_index = size_t(nonterminal) - size_t(symbol_traits<token>::first_nonterminal_id);
-        ppr_ref ppr = _self_ptr->gram.ppr_at(ppr_index);
-        source_pos pos = peek().pos;
-        if (_self_ptr->_result) _self_ptr->_result->syntactic(ppr, pos);
-        if (_self_ptr->_listener) _self_ptr->_listener->on_syntactic(ppr, pos);
-    }
+    size_t ppr_index = size_t(nonterminal) - size_t(symbol_traits<token>::first_nonterminal_id);
+    ppr_ref ppr = _get_self().gram.ppr_at(ppr_index);
+    source_pos pos = peek().pos;
+    if (_get_self()._result) _get_self()._result->syntactic(ppr, pos);
+    if (_get_self()._listener) _get_self()._listener->on_syntactic(ppr, pos);
 }
 
 void taul::parser::_policy::output_nonterminal_end() {
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_result) _self_ptr->_result->close();
-        if (_self_ptr->_listener) _self_ptr->_listener->on_close();
-    }
+    if (_get_self()._result) _get_self()._result->close();
+    if (_get_self()._listener) _get_self()._listener->on_close();
 }
 
 void taul::parser::_policy::output_terminal_error(symbol_range<symbol_type> ids, symbol_type input) {
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_listener) _self_ptr->_listener->on_terminal_error(ids, input);
-    }
+    if (_get_self()._listener) _get_self()._listener->on_terminal_error(ids, input);
 }
 
 void taul::parser::_policy::output_nonterminal_error(symbol_id id, symbol_type input) {
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_listener) _self_ptr->_listener->on_nonterminal_error(id, input);
-    }
+    if (_get_self()._listener) _get_self()._listener->on_nonterminal_error(id, input);
 }
 
 void taul::parser::_policy::eh_startup() {
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_eh) _self_ptr->_eh->startup(_self_ptr);
-    }
+    if (_get_self()._eh) _get_self()._eh->startup(&_get_self());
 }
 
 void taul::parser::_policy::eh_shutdown() {
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_eh) _self_ptr->_eh->shutdown();
-    }
+    if (_get_self()._eh) _get_self()._eh->shutdown();
 }
 
 void taul::parser::_policy::eh_terminal_error(symbol_range<symbol_type> ids, symbol_type input) {
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_eh) _self_ptr->_eh->terminal_error(ids, input);
-    }
+    if (_get_self()._eh) _get_self()._eh->terminal_error(ids, input);
 }
 
 void taul::parser::_policy::eh_nonterminal_error(symbol_id id, symbol_type input) {
-    TAUL_DEREF_SAFE(_self_ptr) {
-        if (_self_ptr->_eh) _self_ptr->_eh->nonterminal_error(id, input);
-    }
+    if (_get_self()._eh) _get_self()._eh->nonterminal_error(id, input);
 }
 
 void taul::parser::_policy::eh_recovery_failed() {
-    TAUL_DEREF_SAFE(_self_ptr) _self_ptr->_aborted = true;
+    _get_self()._aborted = true;
+}
+
+taul::parser& taul::parser::_policy::_get_self() const noexcept {
+    return deref_assert(_self_ptr);
 }
 
 void taul::parser::_perform_parse(ppr_ref start_rule) {
@@ -224,9 +203,9 @@ void taul::parser::_perform_parse(ppr_ref start_rule) {
 
 taul::parse_tree taul::parser::_parse(ppr_ref start_rule) {
     TAUL_ASSERT(!_result);
-    _result = std::make_optional(parse_tree(gram));
+    _result = parse_tree(gram);
     _perform_parse(start_rule);
-    parse_tree result = std::move(_result.value());
+    const auto result = std::move(_result.value());
     _result.reset();
     return result;
 }

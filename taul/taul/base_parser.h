@@ -99,7 +99,7 @@ namespace taul {
         // behaviour is undefined if this is called from an error handler
         // during one of its events
 
-        // TODO: the '(grammar gram, const str& name)' overloads haven't really been unit tested
+        // TODO: the '(const str& name)' overloads haven't really been unit tested
 
         virtual parse_tree parse(ppr_ref start_rule) = 0;
         virtual parse_tree parse(const str& name) = 0;
@@ -108,12 +108,12 @@ namespace taul {
         virtual void parse_notree(const str& name) = 0;
 
 
+        // TODO: the below methods haven't really been unit tested
+
         // these are used by error handler impls to query/manipulate the pipeline
 
         // behaviour is undefined if these are used outside the context
         // of parser error recovery
-
-        // TODO: the below methods haven't really been unit tested
 
         virtual token eh_peek() = 0; // forwards 'peek' call to lexer
         virtual token eh_next() = 0; // forwards 'next' call to lexer

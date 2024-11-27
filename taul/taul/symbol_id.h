@@ -66,7 +66,7 @@ namespace taul {
 
 
     // we define the maximum number of normal IDs for a given section, and the number 
-    // of sentinel IDs for it, which added together is the total number of IDs for it
+    // of special IDs for it, which added together is the total number of IDs for it
 
     // the below values are measures of ID counts, not IDs themselves
 
@@ -74,21 +74,21 @@ namespace taul {
     constexpr symbol_id_num normal_lpr_ids = 0x10000;
     constexpr symbol_id_num normal_ppr_ids = 0x10000;
 
-    constexpr symbol_id_num sentinel_cp_ids = 1;
-    constexpr symbol_id_num sentinel_lpr_ids = 2;
-    constexpr symbol_id_num sentinel_ppr_ids = 0;
+    constexpr symbol_id_num special_cp_ids = 1;
+    constexpr symbol_id_num special_lpr_ids = 2;
+    constexpr symbol_id_num special_ppr_ids = 0;
 
 
 #define TAUL_NORMAL_IDS(section) taul::normal_ ## section ## _ids
-#define TAUL_SENTINEL_IDS(section) taul::sentinel_ ## section ## _ids
+#define TAUL_SPECIAL_IDS(section) taul::special_ ## section ## _ids
 
-#define TAUL_TOTAL_IDS(section) (TAUL_NORMAL_IDS(section) + TAUL_SENTINEL_IDS(section))
+#define TAUL_TOTAL_IDS(section) (TAUL_NORMAL_IDS(section) + TAUL_SPECIAL_IDS(section))
 
 
     // notice that ranges [TAUL_FIRST_ID(cp), TAUL_LAST_ID(cp)], [TAUL_FIRST_ID(lpr), TAUL_LAST_ID(lpr)], 
     // and [TAUL_FIRST_ID(ppr), TAUL_LAST_ID(ppr)] are inclusive
 
-    // normal (ie. non-sentinel) symbols
+    // normal (ie. non-special) symbols
 
     constexpr symbol_id first_cp_id = symbol_id(0);
     constexpr symbol_id first_lpr_id = symbol_id(TAUL_TOTAL_IDS(cp));
@@ -103,19 +103,19 @@ namespace taul {
 #define TAUL_FIRST_NORMAL_ID(section) TAUL_FIRST_ID(section)
 #define TAUL_LAST_NORMAL_ID(section) (TAUL_FIRST_NORMAL_ID(section) + TAUL_NORMAL_IDS(section) - 1)
 
-#define TAUL_FIRST_SENTINEL_ID(section) (TAUL_FIRST_NORMAL_ID(section) + TAUL_NORMAL_IDS(section))
-#define TAUL_LAST_SENTINEL_ID(section) (TAUL_FIRST_SENTINEL_ID(section) + TAUL_SENTINEL_IDS(section) - 1)
+#define TAUL_FIRST_SPECIAL_ID(section) (TAUL_FIRST_NORMAL_ID(section) + TAUL_NORMAL_IDS(section))
+#define TAUL_LAST_SPECIAL_ID(section) (TAUL_FIRST_SPECIAL_ID(section) + TAUL_SPECIAL_IDS(section) - 1)
 
 #define TAUL_NORMAL_ID(section, offset) (TAUL_FIRST_NORMAL_ID(section) + offset)
-#define TAUL_SENTINEL_ID(section, offset) (TAUL_FIRST_SENTINEL_ID(section) + offset)
+#define TAUL_SPECIAL_ID(section, offset) (TAUL_FIRST_SPECIAL_ID(section) + offset)
 
 
-    // sentinel symbols
+    // special symbols
 
-    constexpr symbol_id end_cp_id = TAUL_SENTINEL_ID(cp, 0);
+    constexpr symbol_id end_cp_id = TAUL_SPECIAL_ID(cp, 0);
 
-    constexpr symbol_id failure_lpr_id = TAUL_SENTINEL_ID(lpr, 0);
-    constexpr symbol_id end_lpr_id = TAUL_SENTINEL_ID(lpr, 1);
+    constexpr symbol_id failure_lpr_id = TAUL_SPECIAL_ID(lpr, 0);
+    constexpr symbol_id end_lpr_id = TAUL_SPECIAL_ID(lpr, 1);
 
 
     // TODO: add static_assert *unit tests* for below
@@ -151,9 +151,9 @@ namespace taul {
     constexpr bool is_normal_lpr_id(symbol_id id) noexcept { return in_symbol_id_range(id, TAUL_FIRST_NORMAL_ID(lpr), TAUL_LAST_NORMAL_ID(lpr)); }
     constexpr bool is_normal_ppr_id(symbol_id id) noexcept { return in_symbol_id_range(id, TAUL_FIRST_NORMAL_ID(ppr), TAUL_LAST_NORMAL_ID(ppr)); }
     
-    constexpr bool is_sentinel_cp_id(symbol_id id) noexcept { return in_symbol_id_range(id, TAUL_FIRST_SENTINEL_ID(cp), TAUL_LAST_SENTINEL_ID(cp)); }
-    constexpr bool is_sentinel_lpr_id(symbol_id id) noexcept { return in_symbol_id_range(id, TAUL_FIRST_SENTINEL_ID(lpr), TAUL_LAST_SENTINEL_ID(lpr)); }
-    constexpr bool is_sentinel_ppr_id(symbol_id id) noexcept { return in_symbol_id_range(id, TAUL_FIRST_SENTINEL_ID(ppr), TAUL_LAST_SENTINEL_ID(ppr)); }
+    constexpr bool is_special_cp_id(symbol_id id) noexcept { return in_symbol_id_range(id, TAUL_FIRST_SPECIAL_ID(cp), TAUL_LAST_SPECIAL_ID(cp)); }
+    constexpr bool is_special_lpr_id(symbol_id id) noexcept { return in_symbol_id_range(id, TAUL_FIRST_SPECIAL_ID(lpr), TAUL_LAST_SPECIAL_ID(lpr)); }
+    constexpr bool is_special_ppr_id(symbol_id id) noexcept { return in_symbol_id_range(id, TAUL_FIRST_SPECIAL_ID(ppr), TAUL_LAST_SPECIAL_ID(ppr)); }
     
     constexpr bool is_cp_id(symbol_id id) noexcept { return in_symbol_id_range(id, TAUL_FIRST_ID(cp), TAUL_LAST_ID(cp)); }
     constexpr bool is_lpr_id(symbol_id id) noexcept { return in_symbol_id_range(id, TAUL_FIRST_ID(lpr), TAUL_LAST_ID(lpr)); }

@@ -7,7 +7,7 @@
 #include "parser.h"
 #include "regular_error_handler.h"
 #include "load.h"
-#include "taul_spec.h"
+#include "taul_gram.h"
 
 #include "internal/util.h"
 #include "internal/compiler_backend.h"
@@ -24,12 +24,11 @@ std::optional<taul::spec> taul::compile(const std::shared_ptr<source_code>& src,
             "passed src argument was nullptr!");
         return std::nullopt;
     }
-    auto gram = taul::load(taul::taul_spec());
-    TAUL_ASSERT(gram);
-    taul::internal::compiler_backend backend(*src, ec, gram.value(), lgr, dbgsyms);
+    auto gram = taul_gram();
+    taul::internal::compiler_backend backend(*src, ec, gram, lgr, dbgsyms);
     taul::source_reader rdr(*src);
-    taul::lexer lxr(gram.value());
-    taul::parser psr(gram.value());
+    taul::lexer lxr(gram);
+    taul::parser psr(gram);
     taul::regular_error_handler eh{};
     lxr.bind_source(&rdr);
     psr.bind_source(&lxr);

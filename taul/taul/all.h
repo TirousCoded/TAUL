@@ -46,6 +46,7 @@
 #include "symbol_filter.h"
 
 #include "parse_tree.h"
+#include "parse_tree_pattern.h"
 
 #include "reader.h"
 #include "source_reader.h"
@@ -61,7 +62,8 @@
 #include "regular_error_handler.h"
 #include "no_recovery_error_handler.h"
 
-#include "taul_spec.h"
+#include "taul_spec.h" // TODO: delete later
+#include "taul_gram.h"
 #include "compile.h"
 #include "load.h"
 #include "export_fetcher.h"

@@ -81,6 +81,13 @@ namespace taul::internal {
             return result;
         }
 
+        // the rule translator operates via a stack machine of 'frames', one for
+        // each subrule
+
+        // frame state is dictated by the semantic mode of it, and the details of
+        // downstream frames nested within it, which the final output state of the
+        // translator w/ regards to the frame is a function of
+
         struct frame final {
             symbol_id nonterminal; // the current non-terminal
             size_t rule; // the current rule index
@@ -88,21 +95,26 @@ namespace taul::internal {
             glyph_set set_lxr; // set for 'set-like' subrules
             token_set set_psr; // set for 'set-like' subrules
 
-            // exprs like kleene-plus requiring >1 helper subrules to define them fully,
-            // and so we need to communicate to on_close how many times end_subrule
-            // should be called
+            // by default, subrule begins/ends are each intended to correspond to one
+            // pair of on_###/on_close method calls, meaning that on_close need only
+            // call end_subrule to end whatever the current subrule is
 
-            // to this end what we'll do is have every expr's corresponding on_close
-            // only call end_subrule once, however, if subrules > 1 for any given subrule,
-            // we'll have its end_subrule call perform a sequence of subrules - 1 calls
-            // to end_subrule, to cleanup any additional helper rules
+            // however, this is not powerful enough for things like kleene-plus, which
+            // requires >1 helper subrules to define fully, so we need to communicate
+            // to on_close how many additional times end_subrule should be called
 
-            // thus, for any given expr, all of its subrules will have subrules == 1,
-            // EXCEPT for the vary LAST (not first!!) one, which'll have subrules equal 
-            // the number the number of subrules in the expr's composition, thus giving 
-            // us a quick-n'-dirty way to clean them up *in bulk*
+            // to solve this, we'll have the begin_subrule chain for exprs like kleene-plus
+            // have all but the inner-most nested subrule be marked as 'autoend', which
+            // tells on_close to ALSO call end_subrule for those as well, w/ it continuing
+            // to call end_subrule until the *main* subrule, and the *helpers* have all
+            // been ended
 
-            size_t subrules;
+            // the inner-most nested subrule of the group is NOT marked 'autoend' as we need
+            // a way to tell on_close NOT to continue calling end_subrule for subrules past
+            // the current group, so the next group's inner-most nested subrule not being
+            // marked 'autoend' helps tell on_close when to stop
+
+            bool autoend;
 
 
             // for lookahead, lookahead-not, and not, the way we'll do things is that we'll
@@ -221,7 +233,7 @@ namespace taul::internal {
 
         // these used to begin/end a new subrule, be it a main or helper one
 
-        void begin_subrule(symbol_id x, mode m, size_t subrules = 1);
+        void begin_subrule(symbol_id x, mode m, bool autoend = false);
         void end_subrule();
 
         // this is used to begin a new alternative of the current subrule

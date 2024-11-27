@@ -18,15 +18,6 @@
 namespace taul {
 
 
-    namespace internal {
-
-
-        // we'll use no_index to specify a lack of association
-
-        constexpr auto no_index = std::size_t(-1);
-    }
-
-
     // taul::parse_tree encapsulates a parse tree which is immutable, except
     // that it allows for new incremental additions to be ammended to it
 
@@ -35,23 +26,6 @@ namespace taul {
     // this internal array performs a depth-first traversal of the tree
 
     // nodes identify themselves and one another via indices in this array
-
-    // parse_tree nodes are either 'lexical' or 'syntactic'
-
-    // lexical nodes are simply added as leaf nodes, w/ no children
-
-    // syntactic nodes are added via 'open' and 'close' operations, w/ any
-    // nodes added between their open/close calls being added as children 
-    // of said syntactic node
-
-    // internally, syntactic nodes are handled via a stack which dictates
-    // which syntactic nodes are currently dictating scope, w/ the top
-    // node being called the 'current' node, which the next node added will
-    // be added as a child of
-
-    // the open operation is encapsulated by the 'syntactic' method
-
-    // the close operation is encapsulated by the 'close' method
 
     class parse_tree final {
     public:
@@ -66,22 +40,29 @@ namespace taul {
         parse_tree(grammar gram);
 
         parse_tree() = delete;
-        parse_tree(const parse_tree& x);
-        parse_tree(parse_tree&& x) noexcept;
+        parse_tree(const parse_tree& rhs);
+        parse_tree(parse_tree&&) noexcept = default;
 
         ~parse_tree() noexcept = default;
 
         parse_tree& operator=(const parse_tree& rhs);
-        parse_tree& operator=(parse_tree&& rhs) noexcept;
+        parse_tree& operator=(parse_tree&&) noexcept = default;
 
 
-        // is_sealed returns if the parse_tree is *sealed*, which
-        // is defined as it both having a root node, and having
-        // an empty node stack
+        // is_sealed returns if the parse_tree is *sealed*
+
+        // a parse_tree is sealed if it has a root, and has no syntactic
+        // nodes not yet closed
 
         // if a parse_tree is sealed it can no longer be ammended
 
         bool is_sealed() const noexcept;
+
+
+        // TODO: for sanity, the below query methods have largely NOT been unit
+        //       tested in the context of an unsealed parse_tree, as trying to do
+        //       so would require unit testing each and every little detail of each
+        //       state transition of the parse_tree
 
 
         // aborted returns if the parse_tree described is *incomplete*
@@ -92,7 +73,7 @@ namespace taul {
 
         // nodes returns the total node count of the parse_tree
 
-        std::size_t nodes() const noexcept;
+        size_t nodes() const noexcept;
 
         bool has_nodes() const noexcept;
 
@@ -102,27 +83,20 @@ namespace taul {
 
         // throws std::out_of_range if there is no node at ind
 
-        const node& at(std::size_t ind) const;
-
-        // current returns the latest syntactic node added to 
-        // the parse_tree
-
-        // throws std::out_of_range if there is no current node
-
-        const node& current() const;
+        const node& at(size_t ind) const;
 
         // root returns the root node parse_tree, which is always
         // the node at index 0
 
-        // throws std::out_of_range if there is no current node
+        // behaviour is undefined if is_sealed() == false
 
         const node& root() const;
 
 
+        // TODO: we might add in *local* iterator later if we need to
+
         // the iterators of the parse_tree perform depth-first
         // traversals of the nodes of the tree
-
-        // TODO: we might add in *local* iterator later if we need to
 
         iterator cbegin() const noexcept;
         iterator begin() const noexcept;
@@ -133,12 +107,10 @@ namespace taul {
 
         // parse_tree objects may be equality compared by value
 
-        // it does matter whether or not the two parse trees differ
-        // w/ regards to being closing their syntactic nodes, as 
-        // closing modifies other nodes in the tree
-
         // whether *this and other are marked as 'aborted' or not
         // does not matter when judging structural equivalence
+
+        // behaviour is undefined if is_sealed() == false
 
         bool equal(const parse_tree& other) const noexcept;
 
@@ -146,24 +118,16 @@ namespace taul {
         bool operator!=(const parse_tree& rhs) const noexcept;
 
 
-        // skip adds len to the length of the current syntactic node of
-        // the parse tree
+        // TODO: only the first overload for lexical has been unit tested, w/ the
+        //       others, and the failure/end methods, being expected just to wrap it
 
-        // behaviour is undefined if there is no current node
-
-        parse_tree& skip(source_len len);
-
-        // lexical creates a new node encapsulating a token, making 
-        // it a child of the current node
-
-        // lexical nodes are leaf nodes, not allowing children
-
-        // lexical nodes may be added as root nodes
+        // lexical creates a new node encapsulating a token, making it the
+        // root node, or a child of the current node
 
         // behaviour is undefined if is_sealed() == true
 
-        // behaviour is undefined if lpr is not part of the parse
-        // tree's associated grammar
+        // behaviour is undefined if lpr is not part of the parse tree's
+        // associated grammar
 
         parse_tree& lexical(token tkn);
         parse_tree& lexical(lpr_ref lpr, source_pos pos, source_len len);
@@ -177,15 +141,24 @@ namespace taul {
         parse_tree& failure(source_pos pos, source_len len = 0);
         parse_tree& end(source_pos pos);
 
-        // syntactic creates a new node encapsulating syntax, making 
-        // it a child of the current node, then pushing it to the node
-        // stack, making it the new current node
+        // TODO: only the first overload for syntactic has been unit tested, w/ the
+        //       other being expected just to wrap it
 
-        // the source code length associated w/ the syntactic node
-        // will be defined by the aggregate length of its children
+        // syntactic creates a new node encapsulating syntax, making
+        // it the root node, or a child of the current node, and in
+        // either case making it the current node
 
-        // if there is no root node, the node created becomes the root
-        
+        // the syntactic node's len value is defined by the largest
+        // high_pos() value of its child nodes, or is defined as 0
+        // if none of those values are above the low_pos() value of
+        // the syntactic node itself
+
+        // the syntactic node tolerates child nodes being defined w/
+        // pos values which are below the low_pos() of the syntactic
+        // node itself, w/ these child nodes' pos values not modifying
+        // the source code range associated w/ the syntactic node
+        // (the child node's high_pos() value will still, however)
+
         // behaviour is undefined if is_sealed() == true
 
         // behaviour is undefined if ppr is not part of the parse
@@ -197,15 +170,22 @@ namespace taul {
 
         parse_tree& syntactic(const str& name, source_pos pos);
 
-        // close pops the current node from the node stack, reverting
-        // back to its parent node, if any, being the current node
+        // close makes the parent of the current node the current node,
+        // sealing the parse_tree if the current node is the root node
 
         // behaviour is undefined if there is no current node
 
         parse_tree& close() noexcept;
 
-        // abort marks the parse_tree as being the result of an
-        // aborted parsing process
+        // skip adds len to the length of the current syntactic node of
+        // the parse tree
+
+        // behaviour is undefined if there is no current node
+
+        parse_tree& skip(source_len len);
+
+        // abort marks the parse_tree as being the result of an aborted
+        // parsing process
 
         parse_tree& abort();
 
@@ -215,17 +195,22 @@ namespace taul {
 
     private:
 
-        grammar _gram;
-        std::vector<node> _nodes;
-
-        // for our 'node stack', we'll not actually use a real stack
-
-        std::size_t _current = internal::no_index;
-
-        bool _aborted = false;
+        static constexpr auto _no_index = size_t(-1); // we'll use _no_index to specify a lack of association
 
 
-        inline bool _has_current() const noexcept { return _current != internal::no_index; }
+        struct _state_t final {
+            grammar _gram;
+            std::vector<node> _nodes;
+            size_t _current = _no_index;
+            bool _aborted = false;
+        };
+
+        _state_t _state;
+
+
+        inline bool _has_current() const noexcept { return _state._current != _no_index; }
+
+        const node& _current() const;
 
 
         void _create_latest_node();
@@ -273,6 +258,9 @@ namespace taul {
         std::optional<std::variant<lpr_ref, ppr_ref>> _make_no_rule() const;
         std::optional<std::variant<lpr_ref, ppr_ref>> _make_lpr_rule(lpr_ref ref) const;
         std::optional<std::variant<lpr_ref, ppr_ref>> _make_ppr_rule(ppr_ref ref) const;
+
+
+        void _update_owner_ptrs();
     };
 
     class parse_tree::node final {
@@ -293,13 +281,13 @@ namespace taul {
 
         // index returns the node's index in its parse_tree
 
-        std::size_t index() const noexcept;
+        size_t index() const noexcept;
 
 
         // level returns the number of parent-to-child jumps it takes to
         // reach this node from the root
 
-        std::size_t level() const noexcept;
+        size_t level() const noexcept;
 
 
         // these returns the nodes associated w/ this one in the parse_tree,
@@ -315,7 +303,7 @@ namespace taul {
         bool has_left_sibling() const noexcept;
         bool has_right_sibling() const noexcept;
 
-        std::size_t children() const noexcept;
+        size_t children() const noexcept;
 
         bool has_children() const noexcept;
 
@@ -342,8 +330,6 @@ namespace taul {
 
         // low_pos returns pos()
         // high_pos returns pos() + len() (as source_pos)
-
-        // TODO: these two have not been unit tested
 
         inline source_pos low_pos() const noexcept { return pos(); }
         inline source_pos high_pos() const noexcept { return pos() + len(); }
@@ -372,26 +358,26 @@ namespace taul {
         struct data final {
             parse_tree* _owner = nullptr;
 
-            std::size_t _index = internal::no_index;
-            std::size_t _level = 0;
+            size_t _index = _no_index;
+            size_t _level = 0;
 
             symbol_id _id = symbol_id{};
             source_pos _pos = 0;
             source_len _len = 0;
             std::optional<std::variant<lpr_ref, ppr_ref>> _rule = std::nullopt;
 
-            std::size_t _parent_index = internal::no_index;
-            std::size_t _left_sibling_index = internal::no_index;
-            std::size_t _right_sibling_index = internal::no_index;
+            size_t _parent_index = _no_index;
+            size_t _left_sibling_index = _no_index;
+            size_t _right_sibling_index = _no_index;
 
-            std::size_t _children = 0;
+            size_t _children = 0;
 
-            std::size_t _right_child_index = internal::no_index;
+            size_t _right_child_index = _no_index;
         };
 
         data _data;
 
-
+        public:
         parse_tree& _get_owner() const noexcept;
 
         bool _equal(const node& other) const noexcept;

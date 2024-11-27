@@ -65,6 +65,8 @@ namespace taul {
 
 
             parser* _self_ptr = nullptr; // link to parser
+
+            parser& _get_self() const noexcept;
         };
 
 

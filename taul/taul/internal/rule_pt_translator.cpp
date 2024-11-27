@@ -92,12 +92,11 @@ taul::symbol_id taul::internal::rule_pt_translator::add_helper_symbol_psr(str na
     return result;
 }
 
-void taul::internal::rule_pt_translator::begin_subrule(symbol_id x, mode m, size_t subrules) {
+void taul::internal::rule_pt_translator::begin_subrule(symbol_id x, mode m, bool autoend) {
     TAUL_ASSERT(stk.empty() || !stk.back().is_set_like());
 #if _DUMP_LOG
-    TAUL_LOG(make_stderr_logger(), "-> begin_subrule({}, {})", x, fmt_mode(m), subrules);
+    TAUL_LOG(make_stderr_logger(), "-> begin_subrule({}, {}, {})", x, fmt_mode(m), autoend);
 #endif
-    TAUL_ASSERT(subrules >= 1); // illegal for subrules == 0
     if (!stk.empty()) {
         next_nonterminal(x); // if not toplevel, put ref to x before start new rule
     }
@@ -120,7 +119,7 @@ void taul::internal::rule_pt_translator::begin_subrule(symbol_id x, mode m, size
                 .nonterminal = x,
                 .rule = lexer_pt.rules.size() - 1,
                 .m = m,
-                .subrules = subrules,
+                .autoend = autoend,
             });
     }
     else {
@@ -129,7 +128,7 @@ void taul::internal::rule_pt_translator::begin_subrule(symbol_id x, mode m, size
                 .nonterminal = x,
                 .rule = parser_pt.rules.size() - 1,
                 .m = m,
-                .subrules = subrules,
+                .autoend = autoend,
             });
     }
     if (stk.back().is_optional()) next_alternative(); // ensure has empty alt if expected
@@ -141,7 +140,6 @@ void taul::internal::rule_pt_translator::end_subrule() {
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> end_subrule");
 #endif
-    const size_t subrules = stk.back().subrules; // copy so we still have it after popping its frame
     if (stk.back().is_set_like()) {
         // if inverted, invert stk.back().set now
         if (is_in_lpr_not_ppr()) {
@@ -187,8 +185,6 @@ void taul::internal::rule_pt_translator::end_subrule() {
     if (stk.back().is_recursive()) next_nonterminal(stk.back().nonterminal);
     // pop frame, exiting its scope
     stk.pop_back();
-    // call end_subrule to cleanup any other subrules this subrule is to be cleaned up *in bulk* w/
-    for (size_t i = 0; i < subrules - 1; i++) end_subrule();
 }
 
 void taul::internal::rule_pt_translator::next_alternative() {
@@ -355,7 +351,12 @@ void taul::internal::rule_pt_translator::on_close() {
         sequence_counter--;
         return;
     }
+    // call end_subrule for *main* inner-most nested subrule
     end_subrule();
+    // call end_subrule for *helper* subrules which'll be marked 'autoend'
+    while (!stk.empty() && stk.back().autoend) {
+        end_subrule();
+    }
 }
 
 void taul::internal::rule_pt_translator::on_alternative() {
@@ -460,7 +461,7 @@ void taul::internal::rule_pt_translator::on_token() {
     TAUL_LOG(make_stderr_logger(), "-> on_token");
 #endif
     TAUL_ASSERT(!is_in_lpr_not_ppr());
-    next_terminal(symbol_traits<token>::first_id, symbol_traits<token>::last_id - sentinel_lpr_ids);
+    next_terminal(symbol_traits<token>::first_id, symbol_traits<token>::last_id - special_lpr_ids);
 }
 
 void taul::internal::rule_pt_translator::on_failure() {
@@ -596,19 +597,19 @@ void taul::internal::rule_pt_translator::on_kleene_plus() {
         auto a = add_helper_symbol_lxr("kleene-plus expr"_str); // the sequence for toplevel 'VV*'
         auto b = add_helper_symbol_lxr("kleene-plus expr"_str); // the kleene-star for 'V*'
         auto c = add_helper_symbol_lxr("kleene-plus expr"_str); // the open subrule for 'V'
-        begin_subrule(a, mode::sequence);
+        begin_subrule(a, mode::sequence, true);
         next_nonterminal(c);
-        begin_subrule(b, mode::kleene_star);
-        begin_subrule(c, mode::sequence, 3);
+        begin_subrule(b, mode::kleene_star, true);
+        begin_subrule(c, mode::sequence);
     }
     else {
         auto a = add_helper_symbol_psr("kleene-plus expr"_str); // the sequence for toplevel 'VV*'
         auto b = add_helper_symbol_psr("kleene-plus expr"_str); // the kleene-star for 'V*'
         auto c = add_helper_symbol_psr("kleene-plus expr"_str); // the open subrule for 'V'
-        begin_subrule(a, mode::sequence);
+        begin_subrule(a, mode::sequence, true);
         next_nonterminal(c);
-        begin_subrule(b, mode::kleene_star);
-        begin_subrule(c, mode::sequence, 3);
+        begin_subrule(b, mode::kleene_star, true);
+        begin_subrule(c, mode::sequence);
     }
 }
 

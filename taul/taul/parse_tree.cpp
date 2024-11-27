@@ -9,60 +9,37 @@
 
 
 taul::parse_tree::parse_tree(grammar gram) 
-    : _gram(gram) {}
+    : _state({ ._gram = gram }) {}
 
-taul::parse_tree::parse_tree(const parse_tree& x) 
-    : _gram(x._gram), 
-    _nodes(x._nodes), 
-    _current(x._current), 
-    _aborted(x._aborted) {}
-
-taul::parse_tree::parse_tree(parse_tree&& x) noexcept
-    : _gram(std::move(x._gram)),
-    _nodes(std::move(x._nodes)),
-    _current(std::move(x._current)), 
-    _aborted(std::move(x._aborted)) {}
-
-taul::parse_tree& taul::parse_tree::operator=(const parse_tree& rhs) {
-    _gram = rhs._gram;
-    _nodes = rhs._nodes;
-    _current = rhs._current;
-    _aborted = rhs._aborted;
-    return *this;
+taul::parse_tree::parse_tree(const parse_tree& rhs)
+    : _state(rhs._state) {
+    _update_owner_ptrs();
 }
 
-taul::parse_tree& taul::parse_tree::operator=(parse_tree&& rhs) noexcept {
-    if (&rhs != this) {
-        _gram = std::move(rhs._gram);
-        _nodes = std::move(rhs._nodes);
-        _current = std::move(rhs._current);
-        _aborted = std::move(rhs._aborted);
-    }
+taul::parse_tree& taul::parse_tree::operator=(const parse_tree& rhs) {
+    _state = rhs._state;
+    _update_owner_ptrs();
     return *this;
 }
 
 bool taul::parse_tree::is_sealed() const noexcept {
-    return has_nodes() && _current == internal::no_index;
+    return has_nodes() && !_has_current();
 }
 
 bool taul::parse_tree::is_aborted() const noexcept {
-    return _aborted;
+    return _state._aborted;
 }
 
-std::size_t taul::parse_tree::nodes() const noexcept {
-    return _nodes.size();
+size_t taul::parse_tree::nodes() const noexcept {
+    return _state._nodes.size();
 }
 
 bool taul::parse_tree::has_nodes() const noexcept {
     return nodes() > 0;
 }
 
-const taul::parse_tree::node& taul::parse_tree::at(std::size_t ind) const {
-    return _nodes.at(ind);
-}
-
-const taul::parse_tree::node& taul::parse_tree::current() const {
-    return at(_current);
+const taul::parse_tree::node& taul::parse_tree::at(size_t ind) const {
+    return _state._nodes.at(ind);
 }
 
 const taul::parse_tree::node& taul::parse_tree::root() const {
@@ -70,7 +47,7 @@ const taul::parse_tree::node& taul::parse_tree::root() const {
 }
 
 taul::parse_tree::iterator taul::parse_tree::cbegin() const noexcept {
-    return _nodes.begin();
+    return _state._nodes.begin();
 }
 
 taul::parse_tree::iterator taul::parse_tree::begin() const noexcept {
@@ -78,7 +55,7 @@ taul::parse_tree::iterator taul::parse_tree::begin() const noexcept {
 }
 
 taul::parse_tree::iterator taul::parse_tree::cend() const noexcept {
-    return _nodes.end();
+    return _state._nodes.end();
 }
 
 taul::parse_tree::iterator taul::parse_tree::end() const noexcept {
@@ -86,6 +63,7 @@ taul::parse_tree::iterator taul::parse_tree::end() const noexcept {
 }
 
 bool taul::parse_tree::equal(const parse_tree& other) const noexcept {
+    TAUL_ASSERT(is_sealed());
     if (nodes() != other.nodes()) return false;
     for (iterator it0 = begin(), it1 = other.begin(); it0 != end(); it0++, it1++) {
         if (!it0->_equal(*it1)) return false;
@@ -101,13 +79,9 @@ bool taul::parse_tree::operator!=(const parse_tree& rhs) const noexcept {
     return !(*this == rhs);
 }
 
-taul::parse_tree& taul::parse_tree::skip(source_len len) {
-    _contribute_to_current_len(len);
-    return *this;
-}
-
 taul::parse_tree& taul::parse_tree::lexical(token tkn) {
-    TAUL_ASSERT(bool(tkn) ? _gram.is_associated(tkn.lpr.value()) : true);
+    TAUL_ASSERT(bool(tkn) ? _state._gram.is_associated(tkn.lpr.value()) : true);
+    TAUL_ASSERT(!is_sealed());
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "taul::parse_tree::lexical({})", tkn);
 #endif
@@ -120,8 +94,7 @@ taul::parse_tree& taul::parse_tree::lexical(lpr_ref lpr, source_pos pos, source_
 }
 
 taul::parse_tree& taul::parse_tree::lexical(const str& name, source_pos pos, source_len len) {
-    TAUL_ASSERT(_gram.has_lpr(name));
-    return lexical(_gram.lpr(name).value(), pos, len);
+    return lexical(token::normal(_state._gram, name, pos, len));
 }
 
 taul::parse_tree& taul::parse_tree::failure(source_pos pos, source_len len) {
@@ -133,7 +106,8 @@ taul::parse_tree& taul::parse_tree::end(source_pos pos) {
 }
 
 taul::parse_tree& taul::parse_tree::syntactic(ppr_ref ppr, source_pos pos) {
-    TAUL_ASSERT(_gram.is_associated(ppr));
+    TAUL_ASSERT(_state._gram.is_associated(ppr));
+    TAUL_ASSERT(!is_sealed());
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "taul::parse_tree::syntactic({}, {})", ppr, size_t(pos));
 #endif
@@ -142,15 +116,24 @@ taul::parse_tree& taul::parse_tree::syntactic(ppr_ref ppr, source_pos pos) {
 }
 
 taul::parse_tree& taul::parse_tree::syntactic(const str& name, source_pos pos) {
-    TAUL_ASSERT(_gram.has_ppr(name));
-    return syntactic(_gram.ppr(name).value(), pos);
+    return syntactic(_state._gram.ppr(name).value(), pos);
 }
 
 taul::parse_tree& taul::parse_tree::close() noexcept {
+    TAUL_ASSERT(!is_sealed());
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "taul::parse_tree::close()");
 #endif
     _close_branch();
+    return *this;
+}
+
+taul::parse_tree& taul::parse_tree::skip(source_len len) {
+    TAUL_ASSERT(!is_sealed());
+#if _DUMP_LOG
+    TAUL_LOG(make_stderr_logger(), "taul::parse_tree::skip({})", size_t(len));
+#endif
+    _contribute_to_current_len(len);
     return *this;
 }
 
@@ -169,7 +152,7 @@ std::string taul::parse_tree::fmt(const char* tab) const {
         if (!result.empty()) {
             result += '\n';
         }
-        for (std::size_t i = 0; i < I.level(); i++) {
+        for (size_t i = 0; i < I.level(); i++) {
             result += tab;
         }
         result += I.fmt();
@@ -177,17 +160,21 @@ std::string taul::parse_tree::fmt(const char* tab) const {
     return result;
 }
 
+const taul::parse_tree::node& taul::parse_tree::_current() const {
+    return at(_state._current);
+}
+
 void taul::parse_tree::_create_latest_node() {
-    _nodes.push_back({});
+    _state._nodes.push_back({});
 }
 
 void taul::parse_tree::_setup_latest_node_basic_info(symbol_id id, source_pos pos, source_len len, std::optional<std::variant<lpr_ref, ppr_ref>> rule) {
-    TAUL_ASSERT(!_nodes.empty());
+    TAUL_ASSERT(!_state._nodes.empty());
     const size_t latest_node_index = nodes() - 1;
-    auto& latest_node = _nodes.back();
+    auto& latest_node = _state._nodes.back();
     latest_node._data._owner = this;
     latest_node._data._index = latest_node_index;
-    latest_node._data._level = _has_current() ? _nodes[_current].level() + 1 : 0;
+    latest_node._data._level = _has_current() ? _state._nodes[_state._current].level() + 1 : 0;
     latest_node._data._id = id;
     latest_node._data._pos = pos;
     latest_node._data._len = len;
@@ -197,15 +184,15 @@ void taul::parse_tree::_setup_latest_node_basic_info(symbol_id id, source_pos po
 
 void taul::parse_tree::_setup_latest_node_relationships() {
     if (!_has_current()) return; // if setting up root, exit
-    TAUL_ASSERT(!_nodes.empty());
+    TAUL_ASSERT(!_state._nodes.empty());
     const size_t latest_node_index = nodes() - 1;
-    const size_t current_node_index = _current;
-    auto& latest_node = _nodes.back();
-    auto& current_node = _nodes[current_node_index];
+    const size_t current_node_index = _state._current;
+    auto& latest_node = _state._nodes.back();
+    auto& current_node = _state._nodes[current_node_index];
     latest_node._data._parent_index = current_node_index; // make new node's parent the current node
     if (current_node.has_children()) { // setup relationship w/ new left sibling, if any
         const size_t new_left_sibling_index = current_node.right_child()->index();
-        auto& new_left_sibling = _nodes[new_left_sibling_index];
+        auto& new_left_sibling = _state._nodes[new_left_sibling_index];
         new_left_sibling._data._right_sibling_index = latest_node_index;
         latest_node._data._left_sibling_index = new_left_sibling_index;
     }
@@ -219,37 +206,37 @@ void taul::parse_tree::_setup_latest_node(symbol_id id, source_pos pos, source_l
 }
 
 void taul::parse_tree::_make_latest_node_the_current_node() {
-    _current = _nodes.size() - 1;
+    _state._current = nodes() - 1;
 }
 
 void taul::parse_tree::_contribute_latest_node_to_parent_len() {
-    auto& latest_node = _nodes.back();
+    auto& latest_node = _state._nodes.back();
     if (!latest_node.has_parent()) return; // if no parent, exit
     const size_t parent_node_index = latest_node._data._parent_index;
-    auto& parent_node = _nodes[parent_node_index];
+    auto& parent_node = _state._nodes[parent_node_index];
     parent_node._data._len = std::max(latest_node.high_pos(), parent_node.high_pos()) - parent_node.low_pos();
 }
 
 void taul::parse_tree::_contribute_current_node_to_parent_len() {
     TAUL_ASSERT(_has_current());
-    auto& current_node = current();
+    auto& current_node = _current();
     if (!current_node.has_parent()) return; // if no parent, exit
     const size_t parent_node_index = current_node._data._parent_index;
-    auto& parent_node = _nodes[parent_node_index];
+    auto& parent_node = _state._nodes[parent_node_index];
     parent_node._data._len = std::max(current_node.high_pos(), parent_node.high_pos()) - parent_node.low_pos();
 }
 
 void taul::parse_tree::_close_current_node() {
-    _current =
-        current().has_parent()
-        ? current().parent()->index()
-        : internal::no_index;
+    _state._current =
+        _current().has_parent()
+        ? _current().parent()->index()
+        : _no_index;
 }
 
 void taul::parse_tree::_contribute_to_current_len(source_len len) {
     TAUL_ASSERT(_has_current());
-    const size_t current_node_index = _current;
-    auto& current_node = _nodes[current_node_index];
+    const size_t current_node_index = _state._current;
+    auto& current_node = _state._nodes[current_node_index];
     current_node._data._len += len;
 }
 
@@ -277,7 +264,7 @@ void taul::parse_tree::_close_branch() {
 }
 
 void taul::parse_tree::_mark_abort() {
-    _aborted = true;
+    _state._aborted = true;
 }
 
 std::optional<std::variant<taul::lpr_ref, taul::ppr_ref>> taul::parse_tree::_make_no_rule() const {
@@ -285,13 +272,22 @@ std::optional<std::variant<taul::lpr_ref, taul::ppr_ref>> taul::parse_tree::_mak
 }
 
 std::optional<std::variant<taul::lpr_ref, taul::ppr_ref>> taul::parse_tree::_make_lpr_rule(lpr_ref ref) const {
-    TAUL_ASSERT(_gram.is_associated(ref));
+    TAUL_ASSERT(_state._gram.is_associated(ref));
     return std::make_optional(std::variant<lpr_ref, ppr_ref>{ std::in_place_index<0>, ref });
 }
 
 std::optional<std::variant<taul::lpr_ref, taul::ppr_ref>> taul::parse_tree::_make_ppr_rule(ppr_ref ref) const {
-    TAUL_ASSERT(_gram.is_associated(ref));
+    TAUL_ASSERT(_state._gram.is_associated(ref));
     return std::make_optional(std::variant<lpr_ref, ppr_ref>{ std::in_place_index<1>, ref });
+}
+
+void taul::parse_tree::_update_owner_ptrs() {
+    // TODO: I got some NASTY memory corruption problems from this not occurring
+    //       on copy ctor/assign, so maybe write some unit tests to cover behaviour
+    //       about copies being as expected
+    for (auto& I : _state._nodes) { // update _data._owner ptrs
+        I._data._owner = this;
+    }
 }
 
 taul::parse_tree::node::node() 
@@ -315,11 +311,11 @@ taul::parse_tree::node& taul::parse_tree::node::operator=(node&& rhs) noexcept {
     return *this;
 }
 
-std::size_t taul::parse_tree::node::index() const noexcept {
+size_t taul::parse_tree::node::index() const noexcept {
     return _data._index;
 }
 
-std::size_t taul::parse_tree::node::level() const noexcept {
+size_t taul::parse_tree::node::level() const noexcept {
     return _data._level;
 }
 
@@ -359,18 +355,18 @@ taul::parse_tree::iterator taul::parse_tree::node::right_child() const noexcept 
 }
 
 bool taul::parse_tree::node::has_parent() const noexcept {
-    return _data._parent_index != internal::no_index;
+    return _data._parent_index != _no_index;
 }
 
 bool taul::parse_tree::node::has_left_sibling() const noexcept {
-    return _data._left_sibling_index != internal::no_index;
+    return _data._left_sibling_index != _no_index;
 }
 
 bool taul::parse_tree::node::has_right_sibling() const noexcept {
-    return _data._right_sibling_index != internal::no_index;
+    return _data._right_sibling_index != _no_index;
 }
 
-std::size_t taul::parse_tree::node::children() const noexcept {
+size_t taul::parse_tree::node::children() const noexcept {
     return _data._children;
 }
 
@@ -446,8 +442,7 @@ std::string taul::parse_tree::node::fmt() const {
 }
 
 taul::parse_tree& taul::parse_tree::node::_get_owner() const noexcept {
-    TAUL_ASSERT(_data._owner);
-    return *_data._owner;
+    return deref_assert(_data._owner);
 }
 
 bool taul::parse_tree::node::_equal(const node& other) const noexcept {

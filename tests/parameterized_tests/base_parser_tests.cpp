@@ -135,7 +135,7 @@ TEST_P(BaseParserTests, Parse) {
 
     psr->reset();
 
-    taul::parse_tree result = psr->parse(gram->ppr("abcabc"_str).value());
+    auto result = psr->parse(gram->ppr("abcabc"_str).value());
 
     test_listener expected{};
     expected.on_startup();
@@ -190,7 +190,7 @@ TEST_P(BaseParserTests, Parse_ErrorRecovery_TerminalError) {
 
     psr->reset();
 
-    taul::parse_tree result = psr->parse(gram->ppr("abcabc"_str).value());
+    auto result = psr->parse(gram->ppr("abcabc"_str).value());
 
     test_listener expected{};
     expected.on_startup();
@@ -249,7 +249,7 @@ TEST_P(BaseParserTests, Parse_ErrorRecovery_NonTerminalError) {
 
     psr->reset();
 
-    taul::parse_tree result = psr->parse(gram->ppr("abcabc"_str).value());
+    auto result = psr->parse(gram->ppr("abcabc"_str).value());
 
     test_listener expected{};
     expected.on_startup();
@@ -306,7 +306,7 @@ TEST_P(BaseParserTests, Parse_FailErrorRecovery_TerminalError) {
 
     psr->reset();
 
-    taul::parse_tree result = psr->parse(gram->ppr("abcabc"_str).value());
+    auto result = psr->parse(gram->ppr("abcabc"_str).value());
 
     test_listener expected{};
     expected.on_startup();
@@ -363,7 +363,7 @@ TEST_P(BaseParserTests, Parse_FailErrorRecovery_NonTerminalError) {
 
     psr->reset();
 
-    taul::parse_tree result = psr->parse(gram->ppr("abcabc"_str).value());
+    auto result = psr->parse(gram->ppr("abcabc"_str).value());
 
     test_listener expected{};
     expected.on_startup();
@@ -686,7 +686,7 @@ TEST_P(BaseParserTests, Reset_PipelineReUse) {
 
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("abcabc"_str).value());
+    auto result0 = psr->parse(gram->ppr("abcabc"_str).value());
 
     // the *current* state of the pipeline (ie. the one actually under test)
 
@@ -695,7 +695,7 @@ TEST_P(BaseParserTests, Reset_PipelineReUse) {
 
     psr->reset(); // <- reset is the method we're actually testing here
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("abcabc"_str).value());
+    auto result1 = psr->parse(gram->ppr("abcabc"_str).value());
 
     EXPECT_TRUE(input1.done());
     EXPECT_TRUE(lxr1.done());
@@ -770,14 +770,14 @@ TEST_P(BaseParserTests, AllowAnyPPRToBeTheStartRule) {
 
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("abc1"_str).value());
+    auto result0 = psr->parse(gram->ppr("abc1"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
 
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("abc2"_str).value());
+    auto result1 = psr->parse(gram->ppr("abc2"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -855,9 +855,9 @@ TEST_P(BaseParserTests, Parse_AllowMultipleRoundsOfParsingUsingSameStreamOfInput
     psr->bind_listener(&lstnr);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1023,7 +1023,7 @@ TEST_P(BaseParserTests, PPR_Empty) {
     psr->bind_source(&lxr);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1031,7 +1031,7 @@ TEST_P(BaseParserTests, PPR_Empty) {
     input.change_input("a"_str);
     psr->reset();
     
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1094,19 +1094,19 @@ TEST_P(BaseParserTests, PPR_NonEmpty_WithNoAlts) {
 
     input.change_input("a"_str);
     psr->reset();
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("b"_str);
     psr->reset();
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input(""_str);
     psr->reset();
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("aa"_str);
     psr->reset();
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -1186,19 +1186,19 @@ TEST_P(BaseParserTests, PPR_NonEmpty_WithAlts_WithNoEmptyAlts) {
 
     input.change_input("a"_str);
     psr->reset();
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("b"_str);
     psr->reset();
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input(""_str);
     psr->reset();
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("ab"_str);
     psr->reset();
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -1281,7 +1281,7 @@ TEST_P(BaseParserTests, PPR_NonEmpty_WithAlts_WithEmptyAlts) {
     psr->bind_source(&lxr);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1289,7 +1289,7 @@ TEST_P(BaseParserTests, PPR_NonEmpty_WithAlts_WithEmptyAlts) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1297,7 +1297,7 @@ TEST_P(BaseParserTests, PPR_NonEmpty_WithAlts_WithEmptyAlts) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1305,7 +1305,7 @@ TEST_P(BaseParserTests, PPR_NonEmpty_WithAlts_WithEmptyAlts) {
     input.change_input("ab"_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1396,7 +1396,7 @@ TEST_P(BaseParserTests, PPR_Nesting) {
     psr->bind_source(&lxr);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1404,7 +1404,7 @@ TEST_P(BaseParserTests, PPR_Nesting) {
     input.change_input("abca"_str);
     psr->reset();
     
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1412,7 +1412,7 @@ TEST_P(BaseParserTests, PPR_Nesting) {
     input.change_input("ab"_str);
     psr->reset();
     
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1420,7 +1420,7 @@ TEST_P(BaseParserTests, PPR_Nesting) {
     input.change_input(""_str);
     psr->reset();
     
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1520,7 +1520,7 @@ TEST_P(BaseParserTests, End) {
     psr->bind_source(&lxr);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1528,7 +1528,7 @@ TEST_P(BaseParserTests, End) {
     input.change_input("abca"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1593,11 +1593,11 @@ TEST_P(BaseParserTests, End_EndOnly) {
 
     input.change_input(""_str);
     psr->reset();
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("a"_str);
     psr->reset();
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -1666,7 +1666,7 @@ TEST_P(BaseParserTests, Any) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1674,7 +1674,7 @@ TEST_P(BaseParserTests, Any) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1682,7 +1682,7 @@ TEST_P(BaseParserTests, Any) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1690,7 +1690,7 @@ TEST_P(BaseParserTests, Any) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1698,7 +1698,7 @@ TEST_P(BaseParserTests, Any) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1706,7 +1706,7 @@ TEST_P(BaseParserTests, Any) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result5 = psr->parse(gram->ppr("f"_str).value());
+    auto result5 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1819,7 +1819,7 @@ TEST_P(BaseParserTests, Token) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1827,7 +1827,7 @@ TEST_P(BaseParserTests, Token) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1835,7 +1835,7 @@ TEST_P(BaseParserTests, Token) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1843,7 +1843,7 @@ TEST_P(BaseParserTests, Token) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1851,7 +1851,7 @@ TEST_P(BaseParserTests, Token) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1859,7 +1859,7 @@ TEST_P(BaseParserTests, Token) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result5 = psr->parse(gram->ppr("f"_str).value());
+    auto result5 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1970,7 +1970,7 @@ TEST_P(BaseParserTests, Failure) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1978,7 +1978,7 @@ TEST_P(BaseParserTests, Failure) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1986,7 +1986,7 @@ TEST_P(BaseParserTests, Failure) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -1994,7 +1994,7 @@ TEST_P(BaseParserTests, Failure) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2002,7 +2002,7 @@ TEST_P(BaseParserTests, Failure) {
     input.change_input("da"_str); // <- test w/ failure followed by another token
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2010,7 +2010,7 @@ TEST_P(BaseParserTests, Failure) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result5 = psr->parse(gram->ppr("f"_str).value());
+    auto result5 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2107,7 +2107,7 @@ TEST_P(BaseParserTests, Name_RefToLPR) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2115,7 +2115,7 @@ TEST_P(BaseParserTests, Name_RefToLPR) {
     input.change_input("b"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2123,7 +2123,7 @@ TEST_P(BaseParserTests, Name_RefToLPR) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2131,7 +2131,7 @@ TEST_P(BaseParserTests, Name_RefToLPR) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2213,7 +2213,7 @@ TEST_P(BaseParserTests, Name_RefToPPR) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2221,7 +2221,7 @@ TEST_P(BaseParserTests, Name_RefToPPR) {
     input.change_input("b"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2229,7 +2229,7 @@ TEST_P(BaseParserTests, Name_RefToPPR) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2237,7 +2237,7 @@ TEST_P(BaseParserTests, Name_RefToPPR) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2326,7 +2326,7 @@ TEST_P(BaseParserTests, Name_RefToPPR_Recursion) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2334,7 +2334,7 @@ TEST_P(BaseParserTests, Name_RefToPPR_Recursion) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2342,7 +2342,7 @@ TEST_P(BaseParserTests, Name_RefToPPR_Recursion) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2350,7 +2350,7 @@ TEST_P(BaseParserTests, Name_RefToPPR_Recursion) {
     input.change_input("aaa"_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2358,7 +2358,7 @@ TEST_P(BaseParserTests, Name_RefToPPR_Recursion) {
     input.change_input("aaab"_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2366,7 +2366,7 @@ TEST_P(BaseParserTests, Name_RefToPPR_Recursion) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result5 = psr->parse(gram->ppr("f"_str).value());
+    auto result5 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2491,7 +2491,7 @@ TEST_P(BaseParserTests, Sequence_Empty) {
     psr->bind_source(&lxr);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2499,7 +2499,7 @@ TEST_P(BaseParserTests, Sequence_Empty) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2563,7 +2563,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithNoAlts) {
     psr->bind_source(&lxr);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2571,7 +2571,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithNoAlts) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2579,7 +2579,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithNoAlts) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2587,7 +2587,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithNoAlts) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2671,7 +2671,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithAlts_WithNoEmptyAlt) {
     psr->bind_source(&lxr);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2679,7 +2679,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithAlts_WithNoEmptyAlt) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2687,7 +2687,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithAlts_WithNoEmptyAlt) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2695,7 +2695,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithAlts_WithNoEmptyAlt) {
     input.change_input("ab"_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2783,7 +2783,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithAlts_WithEmptyAlt) {
     psr->bind_source(&lxr);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2791,7 +2791,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithAlts_WithEmptyAlt) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2799,7 +2799,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithAlts_WithEmptyAlt) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2807,7 +2807,7 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithAlts_WithEmptyAlt) {
     input.change_input("ab"_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2902,7 +2902,7 @@ TEST_P(BaseParserTests, Sequence_Nesting) {
     input.change_input("abc"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2910,7 +2910,7 @@ TEST_P(BaseParserTests, Sequence_Nesting) {
     input.change_input("abca"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2918,7 +2918,7 @@ TEST_P(BaseParserTests, Sequence_Nesting) {
     input.change_input("ab"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -2926,7 +2926,7 @@ TEST_P(BaseParserTests, Sequence_Nesting) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3027,7 +3027,7 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithNoAlts) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3035,7 +3035,7 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithNoAlts) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3043,7 +3043,7 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithNoAlts) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3051,7 +3051,7 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithNoAlts) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3059,7 +3059,7 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithNoAlts) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3155,7 +3155,7 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithAlts) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3163,7 +3163,7 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithAlts) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3171,7 +3171,7 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithAlts) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3179,7 +3179,7 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithAlts) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3187,7 +3187,7 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithAlts) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3284,7 +3284,7 @@ TEST_P(BaseParserTests, LookAhead_WithFailureAlt) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3292,7 +3292,7 @@ TEST_P(BaseParserTests, LookAhead_WithFailureAlt) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3300,7 +3300,7 @@ TEST_P(BaseParserTests, LookAhead_WithFailureAlt) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3308,7 +3308,7 @@ TEST_P(BaseParserTests, LookAhead_WithFailureAlt) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3316,7 +3316,7 @@ TEST_P(BaseParserTests, LookAhead_WithFailureAlt) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3415,7 +3415,7 @@ TEST_P(BaseParserTests, LookAhead_Nesting) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3423,7 +3423,7 @@ TEST_P(BaseParserTests, LookAhead_Nesting) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3431,7 +3431,7 @@ TEST_P(BaseParserTests, LookAhead_Nesting) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3439,7 +3439,7 @@ TEST_P(BaseParserTests, LookAhead_Nesting) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3447,7 +3447,7 @@ TEST_P(BaseParserTests, LookAhead_Nesting) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3546,7 +3546,7 @@ TEST_P(BaseParserTests, LookAheadNot_NonEmpty_WithNoAlts) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3554,7 +3554,7 @@ TEST_P(BaseParserTests, LookAheadNot_NonEmpty_WithNoAlts) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3562,7 +3562,7 @@ TEST_P(BaseParserTests, LookAheadNot_NonEmpty_WithNoAlts) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3570,7 +3570,7 @@ TEST_P(BaseParserTests, LookAheadNot_NonEmpty_WithNoAlts) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3578,7 +3578,7 @@ TEST_P(BaseParserTests, LookAheadNot_NonEmpty_WithNoAlts) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -3675,23 +3675,23 @@ TEST_P(BaseParserTests, LookAheadNot_NonEmpty_WithAlts) {
 
     input.change_input("a"_str);
     psr->reset();
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("b"_str);
     psr->reset();
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("c"_str);
     psr->reset();
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input(""_str);
     psr->reset();
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -3784,23 +3784,23 @@ TEST_P(BaseParserTests, LookAheadNot_WithFailureAlt) {
 
     input.change_input("a"_str);
     psr->reset();
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("b"_str);
     psr->reset();
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("c"_str);
     psr->reset();
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input(""_str);
     psr->reset();
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -3895,23 +3895,23 @@ TEST_P(BaseParserTests, LookAheadNot_Nesting) {
 
     input.change_input("a"_str);
     psr->reset();
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("b"_str);
     psr->reset();
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("c"_str);
     psr->reset();
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     input.change_input(""_str);
     psr->reset();
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -4007,7 +4007,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithNoAlts) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4015,7 +4015,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithNoAlts) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4023,7 +4023,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithNoAlts) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4031,7 +4031,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithNoAlts) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4039,7 +4039,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithNoAlts) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4140,7 +4140,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithAlts) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4148,7 +4148,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithAlts) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4156,7 +4156,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithAlts) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4164,7 +4164,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithAlts) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4172,7 +4172,7 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithAlts) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4271,7 +4271,7 @@ TEST_P(BaseParserTests, Not_WithFailureAlt) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4279,7 +4279,7 @@ TEST_P(BaseParserTests, Not_WithFailureAlt) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4287,7 +4287,7 @@ TEST_P(BaseParserTests, Not_WithFailureAlt) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4295,7 +4295,7 @@ TEST_P(BaseParserTests, Not_WithFailureAlt) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4303,7 +4303,7 @@ TEST_P(BaseParserTests, Not_WithFailureAlt) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4404,7 +4404,7 @@ TEST_P(BaseParserTests, Not_Nesting) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4412,7 +4412,7 @@ TEST_P(BaseParserTests, Not_Nesting) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4420,7 +4420,7 @@ TEST_P(BaseParserTests, Not_Nesting) {
     input.change_input("c"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4428,7 +4428,7 @@ TEST_P(BaseParserTests, Not_Nesting) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4436,7 +4436,7 @@ TEST_P(BaseParserTests, Not_Nesting) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4537,7 +4537,7 @@ TEST_P(BaseParserTests, Optional) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4545,7 +4545,7 @@ TEST_P(BaseParserTests, Optional) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4553,7 +4553,7 @@ TEST_P(BaseParserTests, Optional) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4561,7 +4561,7 @@ TEST_P(BaseParserTests, Optional) {
     input.change_input("aaa"_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4569,7 +4569,7 @@ TEST_P(BaseParserTests, Optional) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4577,7 +4577,7 @@ TEST_P(BaseParserTests, Optional) {
     input.change_input("ab"_str);
     psr->reset();
 
-    taul::parse_tree result5 = psr->parse(gram->ppr("f"_str).value());
+    auto result5 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4585,7 +4585,7 @@ TEST_P(BaseParserTests, Optional) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result6 = psr->parse(gram->ppr("f"_str).value());
+    auto result6 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4593,7 +4593,7 @@ TEST_P(BaseParserTests, Optional) {
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result7 = psr->parse(gram->ppr("f"_str).value());
+    auto result7 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4725,7 +4725,7 @@ TEST_P(BaseParserTests, Optional_Nesting) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4733,7 +4733,7 @@ TEST_P(BaseParserTests, Optional_Nesting) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4741,7 +4741,7 @@ TEST_P(BaseParserTests, Optional_Nesting) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4749,7 +4749,7 @@ TEST_P(BaseParserTests, Optional_Nesting) {
     input.change_input("aaa"_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4757,7 +4757,7 @@ TEST_P(BaseParserTests, Optional_Nesting) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4765,7 +4765,7 @@ TEST_P(BaseParserTests, Optional_Nesting) {
     input.change_input("ab"_str);
     psr->reset();
 
-    taul::parse_tree result5 = psr->parse(gram->ppr("f"_str).value());
+    auto result5 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4773,7 +4773,7 @@ TEST_P(BaseParserTests, Optional_Nesting) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result6 = psr->parse(gram->ppr("f"_str).value());
+    auto result6 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4781,7 +4781,7 @@ TEST_P(BaseParserTests, Optional_Nesting) {
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result7 = psr->parse(gram->ppr("f"_str).value());
+    auto result7 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4915,7 +4915,7 @@ TEST_P(BaseParserTests, KleeneStar) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4923,7 +4923,7 @@ TEST_P(BaseParserTests, KleeneStar) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4931,7 +4931,7 @@ TEST_P(BaseParserTests, KleeneStar) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4939,7 +4939,7 @@ TEST_P(BaseParserTests, KleeneStar) {
     input.change_input("aaa"_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4947,7 +4947,7 @@ TEST_P(BaseParserTests, KleeneStar) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4955,7 +4955,7 @@ TEST_P(BaseParserTests, KleeneStar) {
     input.change_input("ab"_str);
     psr->reset();
 
-    taul::parse_tree result5 = psr->parse(gram->ppr("f"_str).value());
+    auto result5 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4963,7 +4963,7 @@ TEST_P(BaseParserTests, KleeneStar) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result6 = psr->parse(gram->ppr("f"_str).value());
+    auto result6 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -4971,7 +4971,7 @@ TEST_P(BaseParserTests, KleeneStar) {
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result7 = psr->parse(gram->ppr("f"_str).value());
+    auto result7 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5106,7 +5106,7 @@ TEST_P(BaseParserTests, KleeneStar_Nesting) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5114,7 +5114,7 @@ TEST_P(BaseParserTests, KleeneStar_Nesting) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5122,7 +5122,7 @@ TEST_P(BaseParserTests, KleeneStar_Nesting) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5130,7 +5130,7 @@ TEST_P(BaseParserTests, KleeneStar_Nesting) {
     input.change_input("aaa"_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5138,7 +5138,7 @@ TEST_P(BaseParserTests, KleeneStar_Nesting) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5146,7 +5146,7 @@ TEST_P(BaseParserTests, KleeneStar_Nesting) {
     input.change_input("ab"_str);
     psr->reset();
 
-    taul::parse_tree result5 = psr->parse(gram->ppr("f"_str).value());
+    auto result5 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5154,7 +5154,7 @@ TEST_P(BaseParserTests, KleeneStar_Nesting) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result6 = psr->parse(gram->ppr("f"_str).value());
+    auto result6 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5162,7 +5162,7 @@ TEST_P(BaseParserTests, KleeneStar_Nesting) {
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result7 = psr->parse(gram->ppr("f"_str).value());
+    auto result7 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5299,7 +5299,7 @@ TEST_P(BaseParserTests, KleenePlus) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5307,7 +5307,7 @@ TEST_P(BaseParserTests, KleenePlus) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5315,7 +5315,7 @@ TEST_P(BaseParserTests, KleenePlus) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5323,7 +5323,7 @@ TEST_P(BaseParserTests, KleenePlus) {
     input.change_input("aaa"_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5331,7 +5331,7 @@ TEST_P(BaseParserTests, KleenePlus) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5339,7 +5339,7 @@ TEST_P(BaseParserTests, KleenePlus) {
     input.change_input("ab"_str);
     psr->reset();
 
-    taul::parse_tree result5 = psr->parse(gram->ppr("f"_str).value());
+    auto result5 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5347,7 +5347,7 @@ TEST_P(BaseParserTests, KleenePlus) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result6 = psr->parse(gram->ppr("f"_str).value());
+    auto result6 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5355,7 +5355,7 @@ TEST_P(BaseParserTests, KleenePlus) {
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result7 = psr->parse(gram->ppr("f"_str).value());
+    auto result7 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5487,7 +5487,7 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
     input.change_input(""_str);
     psr->reset();
 
-    taul::parse_tree result0 = psr->parse(gram->ppr("f"_str).value());
+    auto result0 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5495,7 +5495,7 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
     input.change_input("a"_str);
     psr->reset();
 
-    taul::parse_tree result1 = psr->parse(gram->ppr("f"_str).value());
+    auto result1 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5503,7 +5503,7 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
     input.change_input("aa"_str);
     psr->reset();
 
-    taul::parse_tree result2 = psr->parse(gram->ppr("f"_str).value());
+    auto result2 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5511,7 +5511,7 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
     input.change_input("aaa"_str);
     psr->reset();
 
-    taul::parse_tree result3 = psr->parse(gram->ppr("f"_str).value());
+    auto result3 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5519,7 +5519,7 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
     input.change_input("b"_str);
     psr->reset();
 
-    taul::parse_tree result4 = psr->parse(gram->ppr("f"_str).value());
+    auto result4 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5527,7 +5527,7 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
     input.change_input("ab"_str);
     psr->reset();
 
-    taul::parse_tree result5 = psr->parse(gram->ppr("f"_str).value());
+    auto result5 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5535,7 +5535,7 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result6 = psr->parse(gram->ppr("f"_str).value());
+    auto result6 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
@@ -5543,7 +5543,7 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
-    taul::parse_tree result7 = psr->parse(gram->ppr("f"_str).value());
+    auto result7 = psr->parse(gram->ppr("f"_str).value());
 
     //EXPECT_TRUE(input.done());
     //EXPECT_TRUE(lxr.done());
