@@ -6,7 +6,7 @@
 #include "string_and_charset.h"
 #include "compile.h"
 
-#include "internal/spec_load_interpreter.h"
+#include "internal/loader.h"
 
 
 std::optional<taul::grammar> taul::load(
@@ -20,9 +20,8 @@ std::optional<taul::grammar> taul::load(
     const taul::spec& s, 
     taul::spec_error_counter& ec, 
     const std::shared_ptr<logger>& lgr) {
-    internal::spec_load_interpreter interp(s.src, ec, lgr);
-    interp.interpret(s);
-    return interp.get_result();
+    internal::loader ldr(s.src, ec, lgr);
+    return ldr.load(s);
 }
 
 std::optional<taul::grammar> taul::load(

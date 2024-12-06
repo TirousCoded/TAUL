@@ -5,7 +5,6 @@
 
 #include <vector>
 #include <unordered_set>
-#include <unordered_map>
 #include <optional>
 #include <format>
 
@@ -17,32 +16,44 @@
 #include "util.h"
 #include "rule_pt_translator.h"
 #include "grammar_builder.h"
+#include "spec_lowerer.h"
 
 
 namespace taul::internal {
 
 
-    class spec_load_interpreter final : public spec_interpreter {
+    class loader final {
     public:
+
+        // the loader performs the following:
+        //
+        //      spec -> llspec -> parse table
+
+        // spec_stage is a spec interpreter which performs the
+        // 'spec -> llspec' above, reporting most semantic errors
+
+        class spec_stage;
+
+        // llspec_stage is a llspec interpreter which performs the
+        // 'llspec -> parse table' above, reporting semantic errors
+        // which require parse table info to detect
+
+        class llspec_stage;
+
 
         std::shared_ptr<source_code> src = nullptr;
         spec_error_counter* ec = nullptr;
         std::shared_ptr<logger> lgr = nullptr;
 
+        spec_lowerer sl;
         rule_pt_translator rule_pt_trans;
         grammar_builder gb;
-
-
-        spec_load_interpreter(std::shared_ptr<source_code> src, spec_error_counter& ec, std::shared_ptr<logger> lgr);
-
-
-        inline std::optional<grammar> get_result() { return gb.get_result(); }
 
 
         // success specifies whether or not the loading process has failed yet
 
         // if loading fails, interpretation will continue, to catch all errors,
-        // but grammar generation will be cancelled (see grammar_generator.h)
+        // but spec lowering, and thus grammar generation, will be cancelled
 
         // our system is designed so that an invalid spec can still be interpreted
         // properly, meaning w/out invalid spec data *corrupting* later interpretation
@@ -50,18 +61,25 @@ namespace taul::internal {
 
         bool success = false;
 
-
         // this records the current source code position of the loader,
         // in order to report helpful error info
 
+        // pos is used both by spec_stage and llspec_stage
+
         source_pos pos = 0;
+
+
+        loader(std::shared_ptr<source_code> src, spec_error_counter& ec, std::shared_ptr<logger> lgr);
+
+
+        std::optional<grammar> load(const spec& s);
 
 
         template<typename... Args>
         inline void raise_at(source_pos pos, spec_error err, std::format_string<Args...> fmt, Args&&... args) {
             raise_error(lgr, ec, src.get(), pos, err, fmt, std::forward<Args&&>(args)...);
             if (success) {
-                gb.cancel();
+                gb.cancel(); // <- needed by llspec_stage
                 success = false;
             }
         }
@@ -69,6 +87,20 @@ namespace taul::internal {
         inline void raise(spec_error err, std::format_string<Args...> fmt, Args&&... args) {
             raise_at(pos, err, fmt, std::forward<Args&&>(args)...);
         }
+    };
+
+    class loader::spec_stage final : public spec_interpreter {
+    public:
+
+        loader* owner_ptr;
+
+        inline loader& owner() const noexcept { return deref_assert(owner_ptr); }
+
+
+        spec_stage(loader& owner);
+
+
+        std::optional<llspec> result();
 
 
         // the 'expr scope stack' (ess) defines the current expr
@@ -219,12 +251,61 @@ namespace taul::internal {
         void check_err_illegal_in_no_alternation_scope(spec_opcode opcode);
         void check_err_illegal_in_single_subexpr_scope(spec_opcode opcode);
         void check_err_illegal_in_no_end_subexpr_scope(spec_opcode opcode);
-        void check_err_illegal_ambiguity();
-        void check_err_illegal_ambiguity_due_to_trivial_left_recursion();
         void check_err_illegal_string_literal_due_to_illegal_codepoints(std::u32string_view s);
         void check_err_illegal_string_literal_due_to_nonvisible_ascii(std::string_view unparsed_literal);
         void check_err_illegal_charset_literal_due_to_illegal_codepoints(std::u32string_view s);
         void check_err_illegal_charset_literal_due_to_nonvisible_ascii(std::string_view unparsed_literal);
+
+
+    protected:
+
+        void on_startup() override final;
+        void on_shutdown() override final;
+
+        static_assert(spec_opcodes == 21);
+
+        void on_pos(source_pos new_pos) override final;
+        void on_close() override final;
+        void on_alternative() override final;
+        void on_lpr_decl(std::string_view name) override final;
+        void on_ppr_decl(std::string_view name) override final;
+        void on_lpr(std::string_view name, qualifier qualifier) override final;
+        void on_ppr(std::string_view name, qualifier qualifier) override final;
+
+        void on_end() override final;
+        void on_any() override final;
+        void on_string(std::string_view s) override final;
+        void on_charset(std::string_view s) override final;
+        void on_token() override final;
+        void on_failure() override final;
+        void on_name(std::string_view name) override final;
+        void on_sequence() override final;
+        void on_lookahead() override final;
+        void on_lookahead_not() override final;
+        void on_not() override final;
+        void on_optional() override final;
+        void on_kleene_star() override final;
+        void on_kleene_plus() override final;
+    };
+
+    class loader::llspec_stage final : public llspec_interpreter {
+    public:
+
+        loader* owner_ptr;
+
+        inline loader& owner() const noexcept { return deref_assert(owner_ptr); }
+
+
+        llspec_stage(loader& owner);
+
+
+        std::optional<grammar> result();
+
+
+        static_assert(spec_errors == 24);
+
+        void check_err_illegal_ambiguity();
+        void check_err_illegal_ambiguity_due_to_trivial_left_recursion();
 
         void check_for_internal_errors();
 
@@ -234,7 +315,7 @@ namespace taul::internal {
         void on_startup() override final;
         void on_shutdown() override final;
 
-        static_assert(spec_opcodes == 21);
+        static_assert(llspec_opcodes == 21);
 
         void on_pos(source_pos new_pos) override final;
         void on_close() override final;

@@ -3,8 +3,7 @@
 #pragma once
 
 
-#include "../spec.h"
-
+#include "llspec.h"
 #include "nonterminal_id_alloc.h"
 #include "parse_table.h"
 
@@ -16,7 +15,7 @@ namespace taul::internal {
     // into a low-level parse table w/ regards to its lexer component
 
     // the instruction methods of this object are to be called inline w/
-    // the main spec interpreter, at points appropriate for the creation
+    // the main llspec interpreter, at points appropriate for the creation
     // of the lexer component's parse table to occur
 
 
@@ -39,13 +38,15 @@ namespace taul::internal {
         parse_table<glyph> lexer_pt;
         parse_table<token> parser_pt;
 
-        // these help lookup non-terminal symbol IDs
+
+        // these help lookup non-terminal symbol IDs w/ names (ie. not helpers)
 
         std::unordered_map<std::string_view, symbol_id> main_nonterminal_name_map_lxr;
         std::unordered_map<std::string_view, symbol_id> main_nonterminal_name_map_psr;
 
         inline bool is_lpr_name(std::string_view name) const noexcept { return main_nonterminal_name_map_lxr.contains(name); }
         inline bool is_ppr_name(std::string_view name) const noexcept { return main_nonterminal_name_map_psr.contains(name); }
+
 
         // *most* composite exprs get their own 'mode', which allows a single subrule
         // to encapsulate it entirely, however some (ie. kleene-plus) may not be so
@@ -81,40 +82,24 @@ namespace taul::internal {
             return result;
         }
 
-        // the rule translator operates via a stack machine of 'frames', one for
-        // each subrule
 
-        // frame state is dictated by the semantic mode of it, and the details of
-        // downstream frames nested within it, which the final output state of the
+        // the rule translator operates using two main stacks: one for composite
+        // exprs, and one for subrules therein
+
+        // subrule frame state is dictated by the semantic mode of it, and the details
+        // of downstream frames nested within it, which the final output state of the
         // translator w/ regards to the frame is a function of
 
-        struct frame final {
+        struct composite_expr_frame final {
+            size_t subrules = 0; // the number times end_composite_expr needs to call end_subrule
+        };
+
+        struct subrule_frame final {
             symbol_id nonterminal; // the current non-terminal
             size_t rule; // the current rule index
             mode m; // the semantic 'mode'
             glyph_set set_lxr; // set for 'set-like' subrules
             token_set set_psr; // set for 'set-like' subrules
-
-            // by default, subrule begins/ends are each intended to correspond to one
-            // pair of on_###/on_close method calls, meaning that on_close need only
-            // call end_subrule to end whatever the current subrule is
-
-            // however, this is not powerful enough for things like kleene-plus, which
-            // requires >1 helper subrules to define fully, so we need to communicate
-            // to on_close how many additional times end_subrule should be called
-
-            // to solve this, we'll have the begin_subrule chain for exprs like kleene-plus
-            // have all but the inner-most nested subrule be marked as 'autoend', which
-            // tells on_close to ALSO call end_subrule for those as well, w/ it continuing
-            // to call end_subrule until the *main* subrule, and the *helpers* have all
-            // been ended
-
-            // the inner-most nested subrule of the group is NOT marked 'autoend' as we need
-            // a way to tell on_close NOT to continue calling end_subrule for subrules past
-            // the current group, so the next group's inner-most nested subrule not being
-            // marked 'autoend' helps tell on_close when to stop
-
-            bool autoend;
 
 
             // for lookahead, lookahead-not, and not, the way we'll do things is that we'll
@@ -176,7 +161,9 @@ namespace taul::internal {
             }
         };
 
-        std::vector<frame> stk; // the central frame stack
+        std::vector<composite_expr_frame> composite_expr_stk;
+        std::vector<subrule_frame> subrule_stk;
+
 
         // if we're in the scope of an LPR/PPR, then this dictates which one it is
 
@@ -189,6 +176,7 @@ namespace taul::internal {
             assert_in_subrule();
             return in_lpr_not_ppr;
         }
+
 
         // in 'set-like' subrules, we want 'sequence' exprs to be *transparent*, and so to 
         // do this we'll have on_sequence incr this rather than call begin_subrule, and likewise
@@ -206,6 +194,9 @@ namespace taul::internal {
         inline void cancel() noexcept { cancelled = true; }
 
 
+        void assert_in_composite_expr() const noexcept;
+        void assert_not_in_composite_expr() const noexcept;
+
         void assert_in_subrule() const noexcept;
         void assert_not_in_subrule() const noexcept;
 
@@ -214,8 +205,6 @@ namespace taul::internal {
 
         str fetch_name_str_lxr(symbol_id x) const noexcept;
         str fetch_name_str_psr(symbol_id x) const noexcept;
-        str fetch_name_str_lxr(std::string_view name) const noexcept;
-        str fetch_name_str_psr(std::string_view name) const noexcept;
 
         // this is for quick lookup of non-terminal symbol IDs
 
@@ -223,23 +212,40 @@ namespace taul::internal {
         symbol_id fetch_symbol_psr(std::string_view name) const noexcept;
 
 
-        // these add new main/helper non-terminal symbol mappings
+        // these are used to register newly declared LPR/PPR main non-terminal symbols
 
-        symbol_id add_main_symbol_lxr(str name);
-        symbol_id add_main_symbol_psr(str name);
-        symbol_id add_helper_symbol_lxr(str name);
-        symbol_id add_helper_symbol_psr(str name);
+        void create_main_symbol_lxr(str name);
+        void create_main_symbol_psr(str name);
+
+        // this is used to register new helper subrule *on demand*, returning their IDs
+
+        // whether the helper subrule is lexer/parser is deduced by context
+
+        symbol_id create_helper_symbol(str name);
+
+
+        // these are used to begin/end composite exprs
+
+        void begin_composite_expr();
+        void end_composite_expr();
 
 
         // these used to begin/end a new subrule, be it a main or helper one
 
-        void begin_subrule(symbol_id x, mode m, bool autoend = false);
+        // begin_subrule_uncounted DOES NOT incr the subrules count of the top
+        // composite expr, which is important for when beginning/ending subrules
+        // in methods like next_terminal_set
+
+        void begin_subrule(symbol_id x, mode m);
+        void begin_subrule_uncounted(symbol_id x, mode m);
         void end_subrule();
 
-        // this is used to begin a new alternative of the current subrule
+        // these are used to begin a new alternative of the current subrule
 
-        // the ***_nocheck variant doesn't care if it's inside of a set-like subrule,
-        // which is only needed so we can impl the set-like stuff in end_subrule properly
+        // the regular overload fails quietly if it's inside a set-like subrule
+
+        // the ***_nocheck overload does not fail if it's inside a set-like subrule,
+        // and is required in order to impl set-like subrule code
 
         void next_alternative();
         void next_alternative_nocheck();
@@ -264,7 +270,7 @@ namespace taul::internal {
         void on_startup();
         void on_shutdown();
 
-        static_assert(spec_opcodes == 21);
+        static_assert(llspec_opcodes == 21);
 
         void on_pos(source_pos);
         void on_close();

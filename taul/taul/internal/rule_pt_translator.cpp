@@ -12,12 +12,20 @@ using namespace taul::string_literals;
 #define _DUMP_OUTPUT_LOG 0
 
 
+void taul::internal::rule_pt_translator::assert_in_composite_expr() const noexcept {
+    TAUL_ASSERT(!composite_expr_stk.empty());
+}
+
+void taul::internal::rule_pt_translator::assert_not_in_composite_expr() const noexcept {
+    TAUL_ASSERT(composite_expr_stk.empty());
+}
+
 void taul::internal::rule_pt_translator::assert_in_subrule() const noexcept {
-    TAUL_ASSERT(!stk.empty());
+    TAUL_ASSERT(!subrule_stk.empty());
 }
 
 void taul::internal::rule_pt_translator::assert_not_in_subrule() const noexcept {
-    TAUL_ASSERT(stk.empty());
+    TAUL_ASSERT(subrule_stk.empty());
 }
 
 taul::str taul::internal::rule_pt_translator::fetch_name_str_lxr(symbol_id x) const noexcept {
@@ -26,14 +34,6 @@ taul::str taul::internal::rule_pt_translator::fetch_name_str_lxr(symbol_id x) co
 
 taul::str taul::internal::rule_pt_translator::fetch_name_str_psr(symbol_id x) const noexcept {
     return parser_id_alloc.output_debug.dbgsyms.at(x).name;
-}
-
-taul::str taul::internal::rule_pt_translator::fetch_name_str_lxr(std::string_view name) const noexcept {
-    return fetch_name_str_lxr(fetch_symbol_lxr(name));
-}
-
-taul::str taul::internal::rule_pt_translator::fetch_name_str_psr(std::string_view name) const noexcept {
-    return fetch_name_str_psr(fetch_symbol_psr(name));
 }
 
 taul::symbol_id taul::internal::rule_pt_translator::fetch_symbol_lxr(std::string_view name) const noexcept {
@@ -46,58 +46,66 @@ taul::symbol_id taul::internal::rule_pt_translator::fetch_symbol_psr(std::string
     return main_nonterminal_name_map_psr.at(name);
 }
 
-taul::symbol_id taul::internal::rule_pt_translator::add_main_symbol_lxr(str name) {
+void taul::internal::rule_pt_translator::create_main_symbol_lxr(str name) {
     TAUL_ASSERT(lexer_id_alloc.is_defining_main());
 #if _DUMP_LOG
-    TAUL_LOG(make_stderr_logger(), "-> add_main_symbol_lxr(\"{}\")", name);
+    TAUL_LOG(make_stderr_logger(), "-> create_main_symbol_lxr(\"{}\")", name);
 #endif
-    TAUL_DEREF_SAFE(pos_ptr) {
-        main_nonterminal_name_map_lxr[name] = lexer_id_alloc.define(*pos_ptr, name);
-    }
-    return main_nonterminal_name_map_lxr.at(name);
+    main_nonterminal_name_map_lxr[name] = lexer_id_alloc.define(deref_assert(pos_ptr), name);
 }
 
-taul::symbol_id taul::internal::rule_pt_translator::add_main_symbol_psr(str name) {
+void taul::internal::rule_pt_translator::create_main_symbol_psr(str name) {
     TAUL_ASSERT(parser_id_alloc.is_defining_main());
 #if _DUMP_LOG
-    TAUL_LOG(make_stderr_logger(), "-> add_main_symbol_psr(\"{}\")", name);
+    TAUL_LOG(make_stderr_logger(), "-> create_main_symbol_psr(\"{}\")", name);
 #endif
-    TAUL_DEREF_SAFE(pos_ptr) {
-        main_nonterminal_name_map_psr[name] = parser_id_alloc.define(*pos_ptr, name);
-    }
-    return main_nonterminal_name_map_psr.at(name);
+    main_nonterminal_name_map_psr[name] = parser_id_alloc.define(deref_assert(pos_ptr), name);
 }
 
-taul::symbol_id taul::internal::rule_pt_translator::add_helper_symbol_lxr(str name) {
+taul::symbol_id taul::internal::rule_pt_translator::create_helper_symbol(str name) {
+    assert_in_composite_expr();
+    assert_in_subrule();
 #if _DUMP_LOG
-    TAUL_LOG(make_stderr_logger(), "-> add_helper_symbol_lxr(\"{}\")", name);
+    TAUL_LOG(make_stderr_logger(), "-> create_helper_symbol(\"{}\")", name);
 #endif
-    symbol_id result{};
-    TAUL_DEREF_SAFE(pos_ptr) {
+    if (is_in_lpr_not_ppr()) {
         if (lexer_id_alloc.is_defining_main()) lexer_id_alloc.done_defining_main();
-        result = lexer_id_alloc.define(*pos_ptr, name);
+        return lexer_id_alloc.define(deref_assert(pos_ptr), name);
     }
-    return result;
-}
-
-taul::symbol_id taul::internal::rule_pt_translator::add_helper_symbol_psr(str name) {
-#if _DUMP_LOG
-    TAUL_LOG(make_stderr_logger(), "-> add_helper_symbol_psr(\"{}\")", name);
-#endif
-    symbol_id result{};
-    TAUL_DEREF_SAFE(pos_ptr) {
+    else {
         if (parser_id_alloc.is_defining_main()) parser_id_alloc.done_defining_main();
-        result = parser_id_alloc.define(*pos_ptr, name);
+        return parser_id_alloc.define(deref_assert(pos_ptr), name);
     }
-    return result;
 }
 
-void taul::internal::rule_pt_translator::begin_subrule(symbol_id x, mode m, bool autoend) {
-    TAUL_ASSERT(stk.empty() || !stk.back().is_set_like());
+void taul::internal::rule_pt_translator::begin_composite_expr() {
+    composite_expr_stk.push_back(composite_expr_frame{ .subrules = 0 });
+    assert_in_composite_expr();
+}
+
+void taul::internal::rule_pt_translator::end_composite_expr() {
+    assert_in_composite_expr();
+    for (size_t i = 0; i < composite_expr_stk.back().subrules; i++) end_subrule();
+    composite_expr_stk.pop_back();
+}
+
+void taul::internal::rule_pt_translator::begin_subrule(symbol_id x, mode m) {
+    assert_in_composite_expr();
+    TAUL_ASSERT(subrule_stk.empty() || !subrule_stk.back().is_set_like());
 #if _DUMP_LOG
-    TAUL_LOG(make_stderr_logger(), "-> begin_subrule({}, {}, {})", x, fmt_mode(m), autoend);
+    TAUL_LOG(make_stderr_logger(), "-> begin_subrule({}, {})", x, fmt_mode(m));
 #endif
-    if (!stk.empty()) {
+    begin_subrule_uncounted(x, m);
+    composite_expr_stk.back().subrules++; // inform top composite expr about subrule
+}
+
+void taul::internal::rule_pt_translator::begin_subrule_uncounted(symbol_id x, mode m) {
+    assert_in_composite_expr();
+    TAUL_ASSERT(subrule_stk.empty() || !subrule_stk.back().is_set_like());
+#if _DUMP_LOG
+    TAUL_LOG(make_stderr_logger(), "-> begin_subrule_uncounted({}, {})", x, fmt_mode(m));
+#endif
+    if (!subrule_stk.empty()) {
         next_nonterminal(x); // if not toplevel, put ref to x before start new rule
     }
     else { // if toplevel, update in_lpr_not_ppr as needed
@@ -113,139 +121,136 @@ void taul::internal::rule_pt_translator::begin_subrule(symbol_id x, mode m, bool
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> added rule for {}", x);
 #endif
-    if (in_lpr_not_ppr) { // (can't use is_in_lpr_not_ppr until we push frame)
-        stk.push_back(
-            frame{
-                .nonterminal = x,
-                .rule = lexer_pt.rules.size() - 1,
-                .m = m,
-                .autoend = autoend,
-            });
-    }
-    else {
-        stk.push_back(
-            frame{
-                .nonterminal = x,
-                .rule = parser_pt.rules.size() - 1,
-                .m = m,
-                .autoend = autoend,
-            });
-    }
-    if (stk.back().is_optional()) next_alternative(); // ensure has empty alt if expected
+    const size_t rule =
+        in_lpr_not_ppr // (can't use is_in_lpr_not_ppr until we push frame)
+        ? lexer_pt.rules.size() - 1
+        : parser_pt.rules.size() - 1;
+    subrule_stk.push_back(
+        subrule_frame{
+            .nonterminal = x,
+            .rule = rule,
+            .m = m,
+        });
+    if (subrule_stk.back().is_optional()) next_alternative(); // ensure has empty alt if expected
     assert_in_subrule();
 }
 
 void taul::internal::rule_pt_translator::end_subrule() {
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> end_subrule");
 #endif
-    if (stk.back().is_set_like()) {
-        // if inverted, invert stk.back().set now
+    if (subrule_stk.back().is_set_like()) {
+        // having populated stk.back().set, now check if stk.back().is_inverted() == true,
+        // and if so, invert stk.back().set
         if (is_in_lpr_not_ppr()) {
-            if (stk.back().is_inverted()) {
-                stk.back().set_lxr =
-                    stk.back().set_lxr
+            if (subrule_stk.back().is_inverted()) {
+                subrule_stk.back().set_lxr =
+                    subrule_stk.back().set_lxr
                     .inverse()
                     .remove_id(symbol_traits<glyph>::end_of_input_id)
                     .remove_epsilon();
-                TAUL_ASSERT(!stk.back().set_lxr.includes_id(symbol_traits<glyph>::end_of_input_id)); // don't forget!
-                TAUL_ASSERT(!stk.back().set_lxr.includes_epsilon()); // don't forget!
+                TAUL_ASSERT(!subrule_stk.back().set_lxr.includes_id(symbol_traits<glyph>::end_of_input_id)); // don't forget!
+                TAUL_ASSERT(!subrule_stk.back().set_lxr.includes_epsilon()); // don't forget!
             }
         }
         else {
-            if (stk.back().is_inverted()) {
-                stk.back().set_psr =
-                    stk.back().set_psr
+            if (subrule_stk.back().is_inverted()) {
+                subrule_stk.back().set_psr =
+                    subrule_stk.back().set_psr
                     .inverse()
                     .remove_id(symbol_traits<token>::end_of_input_id)
                     .remove_epsilon();
-                TAUL_ASSERT(!stk.back().set_psr.includes_id(symbol_traits<token>::end_of_input_id)); // don't forget!
-                TAUL_ASSERT(!stk.back().set_psr.includes_epsilon()); // don't forget!
+                TAUL_ASSERT(!subrule_stk.back().set_psr.includes_id(symbol_traits<token>::end_of_input_id)); // don't forget!
+                TAUL_ASSERT(!subrule_stk.back().set_psr.includes_epsilon()); // don't forget!
             }
         }
         // if set-like, add set alternatives now
         bool not_first = false;
         if (is_in_lpr_not_ppr()) {
-            for (const auto& I : stk.back().set_lxr.ranges()) {
-                if (not_first) next_alternative_nocheck(); // important to use variant here
-                lexer_pt.add_terminal(stk.back().rule, I.low, I.high, stk.back().is_assertion());
+            for (const auto& I : subrule_stk.back().set_lxr.ranges()) {
+                if (not_first) next_alternative_nocheck(); // important to use ***_nocheck overload here
+                lexer_pt.add_terminal(subrule_stk.back().rule, I.low, I.high, subrule_stk.back().is_assertion());
                 not_first = true;
             }
         }
         else {
-            for (const auto& I : stk.back().set_psr.ranges()) {
-                if (not_first) next_alternative_nocheck(); // important to use variant here
-                parser_pt.add_terminal(stk.back().rule, I.low, I.high, stk.back().is_assertion());
+            for (const auto& I : subrule_stk.back().set_psr.ranges()) {
+                if (not_first) next_alternative_nocheck(); // important to use ***_nocheck overload here
+                parser_pt.add_terminal(subrule_stk.back().rule, I.low, I.high, subrule_stk.back().is_assertion());
                 not_first = true;
             }
         }
     }
     // add proceeding recurse non-terminal if required
-    if (stk.back().is_recursive()) next_nonterminal(stk.back().nonterminal);
+    if (subrule_stk.back().is_recursive()) next_nonterminal(subrule_stk.back().nonterminal);
     // pop frame, exiting its scope
-    stk.pop_back();
+    subrule_stk.pop_back();
 }
 
 void taul::internal::rule_pt_translator::next_alternative() {
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> next_alternative");
 #endif
-    if (!stk.back().is_set_like()) next_alternative_nocheck();
+    if (!subrule_stk.back().is_set_like()) next_alternative_nocheck(); // perform checks, then ***_nocheck overload does the actual work
     assert_in_subrule();
 }
 
 void taul::internal::rule_pt_translator::next_alternative_nocheck() {
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> next_alternative_nocheck");
 #endif
     // for the next alternative, we change out the rule for a new one
     if (is_in_lpr_not_ppr()) {
-        lexer_pt.add_rule(stk.back().nonterminal);
+        lexer_pt.add_rule(subrule_stk.back().nonterminal);
     }
     else {
-        parser_pt.add_rule(stk.back().nonterminal);
+        parser_pt.add_rule(subrule_stk.back().nonterminal);
     }
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> added rule for {}", stk.back().nonterminal);
 #endif
     // bind the new rule via its index
-    if (is_in_lpr_not_ppr()) {
-        stk.back().rule = lexer_pt.rules.size() - 1;
-    }
-    else {
-        stk.back().rule = parser_pt.rules.size() - 1;
-    }
+    const size_t rule =
+        is_in_lpr_not_ppr()
+        ? lexer_pt.rules.size() - 1
+        : parser_pt.rules.size() - 1;
+    subrule_stk.back().rule = rule;
     assert_in_subrule();
 }
 
 void taul::internal::rule_pt_translator::next_terminal(symbol_id low, symbol_id high, bool assertion) {
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> next_terminal({}, {}, {})", low, high, assertion);
 #endif
-    if (!stk.back().is_set_like()) {
+    if (!subrule_stk.back().is_set_like()) {
         if (is_in_lpr_not_ppr()) {
-            lexer_pt.add_terminal(stk.back().rule, low, high, assertion);
+            lexer_pt.add_terminal(subrule_stk.back().rule, low, high, assertion);
         }
         else {
-            parser_pt.add_terminal(stk.back().rule, low, high, assertion);
+            parser_pt.add_terminal(subrule_stk.back().rule, low, high, assertion);
         }
     }
-    else { // assertion arg shouldn't matter below as the context guarantees assertion usage anyway
+    else { // the function's assertion param shouldn't matter below as the context guarantees assertion usage anyway
         // inversion will be handled in end_subrule
         if (is_in_lpr_not_ppr()) {
-            stk.back().set_lxr.add_id_range(low, high);
+            subrule_stk.back().set_lxr.add_id_range(low, high);
         }
         else {
-            stk.back().set_psr.add_id_range(low, high);
+            subrule_stk.back().set_psr.add_id_range(low, high);
         }
     }
 }
 
 void taul::internal::rule_pt_translator::next_terminal(symbol_id x, bool assertion) {
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> next_terminal({}, {})", x, assertion);
@@ -254,13 +259,14 @@ void taul::internal::rule_pt_translator::next_terminal(symbol_id x, bool asserti
 }
 
 void taul::internal::rule_pt_translator::next_terminal_set(const glyph_set& set, bool assertion) {
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> next_terminal_set({}, {})", set, assertion);
 #endif
     TAUL_ASSERT(is_in_lpr_not_ppr());
-    if (!stk.back().is_set_like()) {
-        begin_subrule(add_helper_symbol_lxr(fetch_name_str_lxr(stk.back().nonterminal)), mode::sequence);
+    if (!subrule_stk.back().is_set_like()) {
+        begin_subrule_uncounted(create_helper_symbol(fetch_name_str_lxr(subrule_stk.back().nonterminal)), mode::sequence);
         bool not_first = false;
         for (const auto& I : set.ranges()) {
             if (not_first) next_alternative();
@@ -270,11 +276,12 @@ void taul::internal::rule_pt_translator::next_terminal_set(const glyph_set& set,
         end_subrule();
     }
     else {
-        stk.back().set_lxr.add_set(set);
+        subrule_stk.back().set_lxr.add_set(set);
     }
 }
 
 void taul::internal::rule_pt_translator::next_terminal_set(std::u32string_view charset_str, bool assertion) {
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> next_terminal_set({}, {})", taul::fmt_taul_charset(charset_str), assertion);
@@ -283,29 +290,30 @@ void taul::internal::rule_pt_translator::next_terminal_set(std::u32string_view c
     glyph_set set{};
     TAUL_ASSERT(charset_str.length() % 2 == 0);
     for (size_t i = 0; i < charset_str.length(); i += 2) {
-        unicode_t low = charset_str[i];
-        unicode_t high = charset_str[i + 1];
-
+        const unicode_t low = charset_str[i];
+        const unicode_t high = charset_str[i + 1];
         set.add_range(low, high);
     }
     next_terminal_set(set, assertion);
 }
 
 void taul::internal::rule_pt_translator::next_nonterminal(symbol_id nonterminal) {
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> next_nonterminal({})", nonterminal);
 #endif
     if (is_in_lpr_not_ppr()) {
-        lexer_pt.add_nonterminal(stk.back().rule, nonterminal);
+        lexer_pt.add_nonterminal(subrule_stk.back().rule, nonterminal);
     }
     else {
-        parser_pt.add_nonterminal(stk.back().rule, nonterminal);
+        parser_pt.add_nonterminal(subrule_stk.back().rule, nonterminal);
     }
 }
 
 void taul::internal::rule_pt_translator::on_startup() {
     if (cancelled) return;
+    assert_not_in_composite_expr();
     assert_not_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_startup");
@@ -314,6 +322,7 @@ void taul::internal::rule_pt_translator::on_startup() {
 
 void taul::internal::rule_pt_translator::on_shutdown() {
     if (cancelled) return;
+    assert_not_in_composite_expr();
     assert_not_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_shutdown");
@@ -342,6 +351,7 @@ void taul::internal::rule_pt_translator::on_pos(source_pos) {
 
 void taul::internal::rule_pt_translator::on_close() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_close");
@@ -351,16 +361,12 @@ void taul::internal::rule_pt_translator::on_close() {
         sequence_counter--;
         return;
     }
-    // call end_subrule for *main* inner-most nested subrule
-    end_subrule();
-    // call end_subrule for *helper* subrules which'll be marked 'autoend'
-    while (!stk.empty() && stk.back().autoend) {
-        end_subrule();
-    }
+    end_composite_expr();
 }
 
 void taul::internal::rule_pt_translator::on_alternative() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_alternative");
@@ -370,72 +376,74 @@ void taul::internal::rule_pt_translator::on_alternative() {
 
 void taul::internal::rule_pt_translator::on_lpr_decl(std::string_view name) {
     if (cancelled) return;
+    assert_not_in_composite_expr();
     assert_not_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_lpr_decl");
 #endif
-    add_main_symbol_lxr(str(name));
+    create_main_symbol_lxr(str(name));
 }
 
 void taul::internal::rule_pt_translator::on_ppr_decl(std::string_view name) {
     if (cancelled) return;
+    assert_not_in_composite_expr();
     assert_not_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_ppr_decl");
 #endif
-    add_main_symbol_psr(str(name));
+    create_main_symbol_psr(str(name));
 }
 
 void taul::internal::rule_pt_translator::on_lpr(std::string_view name, qualifier) {
     if (cancelled) return;
+    assert_not_in_composite_expr();
     assert_not_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_lpr");
     TAUL_LOG(make_stderr_logger(), "->     stack depth == {}", stk.size());
 #endif
+    begin_composite_expr();
     begin_subrule(fetch_symbol_lxr(name), mode::lpr);
 }
 
 void taul::internal::rule_pt_translator::on_ppr(std::string_view name, qualifier) {
     if (cancelled) return;
+    assert_not_in_composite_expr();
     assert_not_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_ppr");
     TAUL_LOG(make_stderr_logger(), "->     stack depth == {}", stk.size());
 #endif
+    begin_composite_expr();
     begin_subrule(fetch_symbol_psr(name), mode::ppr);
 }
 
 void taul::internal::rule_pt_translator::on_end() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_end");
 #endif
-    if (is_in_lpr_not_ppr()) {
-        next_terminal(end_cp_id, true);
-    }
-    else {
-        next_terminal(end_lpr_id, true);
-    }
+    next_terminal(is_in_lpr_not_ppr() ? end_cp_id : end_lpr_id, true);
 }
 
 void taul::internal::rule_pt_translator::on_any() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_any");
 #endif
-    if (is_in_lpr_not_ppr()) {
-        next_terminal(symbol_traits<glyph>::first_id, symbol_traits<glyph>::last_id - 1); // the '- 1' removes end_cp_id
-    }
-    else {
-        next_terminal(symbol_traits<token>::first_id, symbol_traits<token>::last_id - 1); // the '- 1' removes end_lpr_id
-    }
+    const auto first = is_in_lpr_not_ppr() ? symbol_traits<glyph>::first_id : symbol_traits<token>::first_id;
+    const auto last = is_in_lpr_not_ppr() ? symbol_traits<glyph>::last_id : symbol_traits<token>::last_id;
+    // the '- 1' below removes end_cp_id/end_lpr_id
+    next_terminal(first, last - 1);
 }
 
 void taul::internal::rule_pt_translator::on_string(std::u32string_view s) {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_string");
@@ -446,16 +454,18 @@ void taul::internal::rule_pt_translator::on_string(std::u32string_view s) {
 
 void taul::internal::rule_pt_translator::on_charset(std::u32string_view s) {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_charset");
 #endif
     TAUL_ASSERT(is_in_lpr_not_ppr());
-    next_terminal_set(s); // the s passed in is the product of parse_taul_charset
+    next_terminal_set(s); // the s arg passed in is the product of parse_taul_charset (at on_charset call site)
 }
 
 void taul::internal::rule_pt_translator::on_token() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_token");
@@ -466,6 +476,7 @@ void taul::internal::rule_pt_translator::on_token() {
 
 void taul::internal::rule_pt_translator::on_failure() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_failure");
@@ -476,6 +487,7 @@ void taul::internal::rule_pt_translator::on_failure() {
 
 void taul::internal::rule_pt_translator::on_name(std::string_view name) {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_name");
@@ -492,124 +504,97 @@ void taul::internal::rule_pt_translator::on_name(std::string_view name) {
 
 void taul::internal::rule_pt_translator::on_sequence() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_sequence");
     TAUL_LOG(make_stderr_logger(), "->     stack depth == {}", stk.size());
 #endif
-    if (stk.back().is_set_like()) {
+    if (subrule_stk.back().is_set_like()) {
         sequence_counter++;
         return;
     }
-    if (is_in_lpr_not_ppr()) {
-        begin_subrule(add_helper_symbol_lxr("sequence expr"_str), mode::sequence);
-    }
-    else {
-        begin_subrule(add_helper_symbol_psr("sequence expr"_str), mode::sequence);
-    }
+    begin_composite_expr();
+    begin_subrule(create_helper_symbol("sequence expr"_str), mode::sequence);
 }
 
 void taul::internal::rule_pt_translator::on_lookahead() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_lookahead");
     TAUL_LOG(make_stderr_logger(), "->     stack depth == {}", stk.size());
 #endif
-    if (is_in_lpr_not_ppr()) {
-        begin_subrule(add_helper_symbol_lxr("lookahead expr"_str), mode::lookahead);
-    }
-    else {
-        begin_subrule(add_helper_symbol_psr("lookahead expr"_str), mode::lookahead);
-    }
+    begin_composite_expr();
+    begin_subrule(create_helper_symbol("lookahead expr"_str), mode::lookahead);
 }
 
 void taul::internal::rule_pt_translator::on_lookahead_not() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_lookahead_not");
     TAUL_LOG(make_stderr_logger(), "->     stack depth == {}", stk.size());
 #endif
-    if (is_in_lpr_not_ppr()) {
-        begin_subrule(add_helper_symbol_lxr("lookahead-not expr"_str), mode::lookahead_not);
-    }
-    else {
-        begin_subrule(add_helper_symbol_psr("lookahead-not expr"_str), mode::lookahead_not);
-    }
+    begin_composite_expr();
+    begin_subrule(create_helper_symbol("lookahead-not expr"_str), mode::lookahead_not);
 }
 
 void taul::internal::rule_pt_translator::on_not() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_not");
     TAUL_LOG(make_stderr_logger(), "->     stack depth == {}", stk.size());
 #endif
-    if (is_in_lpr_not_ppr()) {
-        begin_subrule(add_helper_symbol_lxr("not expr"_str), mode::not0);
-    }
-    else {
-        begin_subrule(add_helper_symbol_psr("not expr"_str), mode::not0);
-    }
+    begin_composite_expr();
+    begin_subrule(create_helper_symbol("not expr"_str), mode::not0);
 }
 
 void taul::internal::rule_pt_translator::on_optional() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_optional");
     TAUL_LOG(make_stderr_logger(), "->     stack depth == {}", stk.size());
 #endif
-    if (is_in_lpr_not_ppr()) {
-        begin_subrule(add_helper_symbol_lxr("optional expr"_str), mode::optional);
-    }
-    else {
-        begin_subrule(add_helper_symbol_psr("optional expr"_str), mode::optional);
-    }
+    begin_composite_expr();
+    begin_subrule(create_helper_symbol("optional expr"_str), mode::optional);
 }
 
 void taul::internal::rule_pt_translator::on_kleene_star() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_kleene_star");
     TAUL_LOG(make_stderr_logger(), "->     stack depth == {}", stk.size());
 #endif
-    if (is_in_lpr_not_ppr()) {
-        begin_subrule(add_helper_symbol_lxr("kleene-star expr"_str), mode::kleene_star);
-    }
-    else {
-        begin_subrule(add_helper_symbol_psr("kleene-star expr"_str), mode::kleene_star);
-    }
+    begin_composite_expr();
+    begin_subrule(create_helper_symbol("kleene-star expr"_str), mode::kleene_star);
 }
 
 void taul::internal::rule_pt_translator::on_kleene_plus() {
     if (cancelled) return;
+    assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> on_kleene_plus");
     TAUL_LOG(make_stderr_logger(), "->     stack depth == {}", stk.size());
 #endif
+    begin_composite_expr();
     // kleene-plus is a bit more complicated than the others, and requires
     // us to define a total of three helper subrules to define 'VV*'
-    if (is_in_lpr_not_ppr()) {
-        auto a = add_helper_symbol_lxr("kleene-plus expr"_str); // the sequence for toplevel 'VV*'
-        auto b = add_helper_symbol_lxr("kleene-plus expr"_str); // the kleene-star for 'V*'
-        auto c = add_helper_symbol_lxr("kleene-plus expr"_str); // the open subrule for 'V'
-        begin_subrule(a, mode::sequence, true);
-        next_nonterminal(c);
-        begin_subrule(b, mode::kleene_star, true);
-        begin_subrule(c, mode::sequence);
-    }
-    else {
-        auto a = add_helper_symbol_psr("kleene-plus expr"_str); // the sequence for toplevel 'VV*'
-        auto b = add_helper_symbol_psr("kleene-plus expr"_str); // the kleene-star for 'V*'
-        auto c = add_helper_symbol_psr("kleene-plus expr"_str); // the open subrule for 'V'
-        begin_subrule(a, mode::sequence, true);
-        next_nonterminal(c);
-        begin_subrule(b, mode::kleene_star, true);
-        begin_subrule(c, mode::sequence);
-    }
+    const auto a = create_helper_symbol("kleene-plus expr"_str); // the sequence for toplevel 'VV*'
+    const auto b = create_helper_symbol("kleene-plus expr"_str); // the kleene-star for 'V*'
+    const auto c = create_helper_symbol("kleene-plus expr"_str); // the open subrule for 'V'
+    begin_subrule(a, mode::sequence);
+    next_nonterminal(c);
+    begin_subrule(b, mode::kleene_star);
+    begin_subrule(c, mode::sequence);
 }
 

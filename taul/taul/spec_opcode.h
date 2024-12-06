@@ -13,7 +13,10 @@
 namespace taul {
 
 
-    enum class spec_opcode : std::uint8_t {
+    // IMPORTANT: update llspec stuff whenever we modify spec stuff
+
+
+    enum class spec_opcode : uint8_t {
 
         // composite exprs may encapsulate the following special scopes:
         //      - single-terminal scope
@@ -188,7 +191,7 @@ namespace taul {
         num,            // this is not a valid spec opcode
     };
 
-    constexpr std::size_t spec_opcodes = (std::size_t)spec_opcode::num;
+    constexpr size_t spec_opcodes = (size_t)spec_opcode::num;
 
     std::string fmt_spec_opcode(spec_opcode x);
 }

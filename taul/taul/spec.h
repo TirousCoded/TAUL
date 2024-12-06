@@ -21,11 +21,13 @@ namespace taul {
     // IMPORTANT: at present, spec binaries are NOT PORTABLE, and exist simply to decouple
     //            TAUL's notions of 'loading' and 'syntax compilation' from one another
 
+    // IMPORTANT: update llspec stuff whenever we modify spec stuff
+
 
     // usage of invalid spec will result in undefined behaviour
 
     struct spec final {
-        std::vector<std::uint8_t>       bin;                // the spec binary itself
+        std::vector<uint8_t>            bin;                // the spec binary itself
         std::shared_ptr<source_code>    src = nullptr;      // the source_code the spec will be associated with, if any
 
 
@@ -35,13 +37,9 @@ namespace taul {
         // if x == nullptr, the spec will be imbued will be disassociated from
         // any current source_code association it may have
 
-        inline void associate(const std::shared_ptr<source_code>& x) noexcept {
-            src = x;
-        }
+        inline void associate(const std::shared_ptr<source_code>& x) noexcept { src = x; }
 
-        inline bool associated(const std::shared_ptr<source_code>& x) const noexcept {
-            return src == x;
-        }
+        inline bool associated(const std::shared_ptr<source_code>& x) const noexcept { return src == x; }
 
 
         // concat concatenates two specs together, producing a new specification
@@ -60,9 +58,14 @@ namespace taul {
     class spec_writer final {
     public:
 
-        // make everything public to auto-gen copy/move ctor/assign
+        spec_writer() = default;
+        spec_writer(const spec_writer&) = default;
+        spec_writer(spec_writer&&) noexcept = default;
 
-        spec _temp = spec{}; // internal, do not use
+        ~spec_writer() noexcept = default;
+
+        spec_writer& operator=(const spec_writer&) = default;
+        spec_writer& operator=(spec_writer&&) noexcept = default;
 
 
         static_assert(spec_opcodes == 21);
@@ -137,7 +140,7 @@ namespace taul {
         spec_writer& kleene_star();
         spec_writer& kleene_plus();
 
-        // write_spec write the entirety of x to the spec being written
+        // write_spec writes the entirety of x to the spec being written
 
         // write_spec behaviour is undefined if &x == this
 
@@ -151,6 +154,14 @@ namespace taul {
         // the writer's state thereafter
 
         spec done();
+
+
+    private:
+
+        spec _temp = spec{};
+
+
+        class write_spec_method_spec_interpreter;
     };
 
 
@@ -164,10 +175,21 @@ namespace taul {
         spec_interpreter(const spec_interpreter&) = delete;
         spec_interpreter(spec_interpreter&&) noexcept = delete;
 
-        ~spec_interpreter() noexcept = default;
+        virtual ~spec_interpreter() noexcept = default;
 
         spec_interpreter& operator=(const spec_interpreter&) = delete;
         spec_interpreter& operator=(spec_interpreter&&) noexcept = delete;
+
+
+        // TODO: lookahead has not been unit tested
+
+        // lookahead returns the spec_opcode, if any, of the opcode of the
+        // next instruction in the interpretation after the current one
+
+        // behaviour is undefined if used outside the context of the on_###
+        // methods of a spec_interpreter impl
+
+        std::optional<spec_opcode> lookahead() const noexcept;
 
 
         void interpret(const spec& x);
@@ -206,66 +228,49 @@ namespace taul {
 
     private:
 
-        std::size_t _step(const spec& s, std::size_t offset);
+        std::optional<spec_opcode> _lookahead;
+
+
+        size_t _step(const spec& s, size_t offset);
     };
 
 
-    namespace internal {
+    class spec_writer::write_spec_method_spec_interpreter final : public spec_interpreter {
+    public:
+
+        spec_writer* client;
 
 
-        void spec_write_u8(spec& s, std::uint8_t x) noexcept;
-        void spec_write_u16(spec& s, std::uint16_t x) noexcept;
-        void spec_write_u32(spec& s, std::uint32_t x) noexcept;
-        void spec_write_char(spec& s, char x) noexcept;
-        void spec_write_opcode(spec& s, spec_opcode opcode) noexcept;
-        void spec_write_qualifier(spec& s, qualifier q) noexcept;
-        void spec_write_str(spec& s, std::string_view x) noexcept;
-
-        std::uint8_t spec_read_u8(const spec& s, std::size_t offset, std::size_t& len) noexcept;
-        std::uint16_t spec_read_u16(const spec& s, std::size_t offset, std::size_t& len) noexcept;
-        std::uint32_t spec_read_u32(const spec& s, std::size_t offset, std::size_t& len) noexcept;
-        char spec_read_char(const spec& s, std::size_t offset, std::size_t& len) noexcept;
-        taul::spec_opcode spec_read_opcode(const spec& s, std::size_t offset, std::size_t& len) noexcept;
-        taul::qualifier spec_read_qualifier(const spec& s, std::size_t offset, std::size_t& len) noexcept;
-        std::string_view spec_read_str(const spec& s, std::size_t offset, std::size_t& len) noexcept;
+        write_spec_method_spec_interpreter(spec_writer& client)
+            : spec_interpreter(),
+            client(&client) {}
 
 
-        class write_spec_method_spec_interpreter final : public spec_interpreter {
-        public:
+    protected:
 
-            spec_writer* client;
+        static_assert(spec_opcodes == 21);
 
-
-            write_spec_method_spec_interpreter(spec_writer& client) 
-                : client(&client) {}
-
-
-        protected:
-
-            static_assert(spec_opcodes == 21);
-
-            void on_pos(source_pos new_pos) override final { TAUL_DEREF_SAFE(client) client->pos(new_pos); }
-            void on_close() override final { TAUL_DEREF_SAFE(client) client->close(); }
-            void on_alternative() override final { TAUL_DEREF_SAFE(client) client->alternative(); }
-            void on_lpr_decl(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->lpr_decl(name); }
-            void on_ppr_decl(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->ppr_decl(name); }
-            void on_lpr(std::string_view name, qualifier qualifier) override final { TAUL_DEREF_SAFE(client) client->lpr(name, qualifier); }
-            void on_ppr(std::string_view name, qualifier qualifier) override final { TAUL_DEREF_SAFE(client) client->ppr(name, qualifier); }
-            void on_end() override final { TAUL_DEREF_SAFE(client) client->end(); }
-            void on_any() override final { TAUL_DEREF_SAFE(client) client->any(); }
-            void on_string(std::string_view s) override final { TAUL_DEREF_SAFE(client) client->string(s); }
-            void on_charset(std::string_view s) override final { TAUL_DEREF_SAFE(client) client->charset(s); }
-            void on_token() override final { TAUL_DEREF_SAFE(client) client->token(); }
-            void on_failure() override final { TAUL_DEREF_SAFE(client) client->failure(); }
-            void on_name(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->name(name); }
-            void on_sequence() override final { TAUL_DEREF_SAFE(client) client->sequence(); }
-            void on_lookahead() override final { TAUL_DEREF_SAFE(client) client->lookahead(); }
-            void on_lookahead_not() override final { TAUL_DEREF_SAFE(client) client->lookahead_not(); }
-            void on_not() override final { TAUL_DEREF_SAFE(client) client->not0(); }
-            void on_optional() override final { TAUL_DEREF_SAFE(client) client->optional(); }
-            void on_kleene_star() override final { TAUL_DEREF_SAFE(client) client->kleene_star(); }
-            void on_kleene_plus() override final { TAUL_DEREF_SAFE(client) client->kleene_plus(); }
-        };
-    }
+        void on_pos(source_pos new_pos) override final { TAUL_DEREF_SAFE(client) client->pos(new_pos); }
+        void on_close() override final { TAUL_DEREF_SAFE(client) client->close(); }
+        void on_alternative() override final { TAUL_DEREF_SAFE(client) client->alternative(); }
+        void on_lpr_decl(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->lpr_decl(name); }
+        void on_ppr_decl(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->ppr_decl(name); }
+        void on_lpr(std::string_view name, qualifier qualifier) override final { TAUL_DEREF_SAFE(client) client->lpr(name, qualifier); }
+        void on_ppr(std::string_view name, qualifier qualifier) override final { TAUL_DEREF_SAFE(client) client->ppr(name, qualifier); }
+        void on_end() override final { TAUL_DEREF_SAFE(client) client->end(); }
+        void on_any() override final { TAUL_DEREF_SAFE(client) client->any(); }
+        void on_string(std::string_view s) override final { TAUL_DEREF_SAFE(client) client->string(s); }
+        void on_charset(std::string_view s) override final { TAUL_DEREF_SAFE(client) client->charset(s); }
+        void on_token() override final { TAUL_DEREF_SAFE(client) client->token(); }
+        void on_failure() override final { TAUL_DEREF_SAFE(client) client->failure(); }
+        void on_name(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->name(name); }
+        void on_sequence() override final { TAUL_DEREF_SAFE(client) client->sequence(); }
+        void on_lookahead() override final { TAUL_DEREF_SAFE(client) client->lookahead(); }
+        void on_lookahead_not() override final { TAUL_DEREF_SAFE(client) client->lookahead_not(); }
+        void on_not() override final { TAUL_DEREF_SAFE(client) client->not0(); }
+        void on_optional() override final { TAUL_DEREF_SAFE(client) client->optional(); }
+        void on_kleene_star() override final { TAUL_DEREF_SAFE(client) client->kleene_star(); }
+        void on_kleene_plus() override final { TAUL_DEREF_SAFE(client) client->kleene_plus(); }
+    };
 }
 

@@ -10,7 +10,7 @@ taul::internal::grammar_builder::grammar_builder(
     : rule_pt_trans(&rule_pt_trans) {}
 
 void taul::internal::grammar_builder::cancel() noexcept {
-    TAUL_DEREF_SAFE(rule_pt_trans) rule_pt_trans->cancel();
+    deref_assert(rule_pt_trans).cancel();
     cancelled = true;
 }
 
@@ -62,12 +62,10 @@ const taul::internal::parse_table_build_details<taul::token>& taul::internal::gr
 std::optional<taul::grammar> taul::internal::grammar_builder::get_result() {
     if (cancelled) return std::nullopt;
     data.build_lookup();
-    TAUL_DEREF_SAFE(rule_pt_trans) {
-        data._lpr_id_allocs = std::move(rule_pt_trans->lexer_id_alloc.output);
-        data._ppr_id_allocs = std::move(rule_pt_trans->parser_id_alloc.output);
-        data._lpr_pt = std::move(rule_pt_trans->lexer_pt);
-        data._ppr_pt = std::move(rule_pt_trans->parser_pt);
-    }
+    data._lpr_id_allocs = std::move(deref_assert(rule_pt_trans).lexer_id_alloc.output);
+    data._ppr_id_allocs = std::move(deref_assert(rule_pt_trans).parser_id_alloc.output);
+    data._lpr_pt = std::move(deref_assert(rule_pt_trans).lexer_pt);
+    data._ppr_pt = std::move(deref_assert(rule_pt_trans).parser_pt);
     return std::make_optional(grammar(std::move(data)));
 }
 

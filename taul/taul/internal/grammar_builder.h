@@ -30,8 +30,7 @@ namespace taul::internal {
         bool cancelled = false;
 
 
-        grammar_builder(
-            rule_pt_translator& rule_pt_trans);
+        grammar_builder(rule_pt_translator& rule_pt_trans);
 
 
         void cancel() noexcept;
