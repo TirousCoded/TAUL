@@ -14,8 +14,9 @@ namespace taul {
 
     enum class qualifier : std::uint8_t {
         none,
-        skip,       // skip qualified lexers participates in grammar-wide usage, but is discarded during tokenization
-        support,    // support qualified lexers does not participate in grammar-wide usage
+        skip,       // skip qualified LPRs participates in grammar-wide usage, but is discarded during tokenization
+        support,    // support qualified LPRs does not participate in grammar-wide usage
+        precedence, // precedence qualified PPRs allow for direct left-recursion in top-level alternatives
 
         num,        // not a valid qualifier
     };
@@ -27,8 +28,9 @@ namespace taul {
 
     // these are here to summarize end-user usage
 
-    constexpr qualifier skip = qualifier::skip;
-    constexpr qualifier support = qualifier::support;
+    constexpr qualifier skip        = qualifier::skip;
+    constexpr qualifier support     = qualifier::support;
+    constexpr qualifier precedence  = qualifier::precedence;
 }
 
 

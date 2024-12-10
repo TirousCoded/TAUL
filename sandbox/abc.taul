@@ -2,15 +2,19 @@
 
 lexer section:
 
-	A		: 'a' ;
-	B		: 'b' ;
-	C		: 'c' ;
-	D		: 'd' ;
-	JP		: '元気ですか' ;
+    A		: 'a' ;
+    B		: 'b' ;
+    C		: 'c' ;
+    D		: 'd' ;
+    JP		: '元気ですか' ;
 
 parser section:
 
-	Start	: ABC+ ;
+    Start	: ABC+ ;
 
-	ABC		: A ( B | D ) C ;
+    ABC		: A ( B | D ) C ;
+
+    Number	        : A ;
+    precedence Expr	: Number
+                    | Expr? B Expr ;
 

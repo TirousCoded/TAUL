@@ -174,8 +174,20 @@ void taul::internal::loader::spec_stage::check_err_illegal_in_no_scope(spec_opco
     }
 }
 
-void taul::internal::loader::spec_stage::check_err_illegal_qualifier(std::string_view name, taul::qualifier qualifier) {
-    if (qualifier != qualifier::none) {
+void taul::internal::loader::spec_stage::check_err_illegal_qualifier(std::string_view name, taul::qualifier qualifier, bool lpr_not_ppr) {
+    if (lpr_not_ppr) {
+        if (qualifier == qualifier::none) return;
+        if (qualifier == qualifier::skip) return;
+        if (qualifier == qualifier::support) return;
+        owner().raise(
+            spec_error::illegal_qualifier,
+            "lexer rule {} may not have {} qualifier!",
+            std::string(name),
+            qualifier);
+    }
+    else {
+        if (qualifier == qualifier::none) return;
+        if (qualifier == qualifier::precedence) return;
         owner().raise(
             spec_error::illegal_qualifier,
             "parser rule {} may not have {} qualifier!",
@@ -412,6 +424,7 @@ void taul::internal::loader::spec_stage::on_lpr(std::string_view name, qualifier
     check_err_rule_already_defined(name, true);
     check_err_illegal_in_lpr_scope(spec_opcode::lpr);
     check_err_illegal_in_ppr_scope(spec_opcode::lpr);
+    check_err_illegal_qualifier(name, qualifier, true);
     count_subexpr_for_top_ess();
     add_lpr_def(name);
     push_ess(ess_frame{ spec_opcode::lpr });
@@ -424,7 +437,7 @@ void taul::internal::loader::spec_stage::on_ppr(std::string_view name, qualifier
     check_err_rule_already_defined(name, false);
     check_err_illegal_in_lpr_scope(spec_opcode::ppr);
     check_err_illegal_in_ppr_scope(spec_opcode::ppr);
-    check_err_illegal_qualifier(name, qualifier);
+    check_err_illegal_qualifier(name, qualifier, false);
     count_subexpr_for_top_ess();
     add_ppr_def(name);
     push_ess(ess_frame{ spec_opcode::ppr });

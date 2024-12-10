@@ -91,6 +91,7 @@ void taul::internal::compiler_backend::on_nonterminal_error(symbol_id id, token 
     TAUL_DEREF_SAFE(src) {
         TAUL_ASSERT(is_ppr_id(id));
 
+        // subtract start of PPR IDs to compute index in grammar of PPR which PPR ID id corresponds to
         str nonterminal_name = gram.ppr_at(size_t(id) - size_t(TAUL_FIRST_ID(ppr))).name();
 
         str input_name{};
@@ -253,6 +254,9 @@ void taul::internal::compiler_backend::_handle_syntactic_begin() {
         }
         else if (name == "Qualifier_Support"_str) {
             current_qualifier = qualifier::support;
+        }
+        else if (name == "Qualifier_Precedence"_str) {
+            current_qualifier = qualifier::precedence;
         }
         else if (name == "Expr"_str) {
             push_expr();

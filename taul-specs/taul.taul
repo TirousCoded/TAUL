@@ -20,6 +20,7 @@ lexer section:
     KW_SECTION                      : 'section' END_OF_KW ;
     KW_SKIP                         : 'skip' END_OF_KW ;
     KW_SUPPORT                      : 'support' END_OF_KW ;
+    KW_PRECEDENCE                   : 'precedence' END_OF_KW ;
     KW_END                          : 'end' END_OF_KW ;
     KW_ANY                          : 'any' END_OF_KW ;
     KW_TOKEN                        : 'token' END_OF_KW ;
@@ -145,6 +146,32 @@ parser section:
     LexerSection                    : KW_LEXER KW_SECTION OP_COLON ;
     ParserSection                   : KW_PARSER KW_SECTION OP_COLON ;
 
+    # SPECIAL DIRECT LEFT-RECURSION
+    #
+    # PPRs qualified w/ 'precedence' are allowed to be left-recursive:
+    #
+    #       - in these PPRs, non-left-recursive alts are called 'base' alts
+    #       - in these PPRs, left-recursive alts are called 'recurse' alts
+    #       - in these PPRs, the name expr marking an alt as a recurse alt is called the 'self-ref'
+    #
+    #       - being left-recursive changes the eval semantics of the PPR in a manner
+    #         modelled off of ANTLR (TODO: better explain this in good copy ref material)
+    #
+    #       - recurse alts w/ only the self-ref name expr (ie. nothing after it) are ignored
+    #
+    #       - only enabled on PPRs qualified w/ 'precedence'
+    #       - only PPRs may be qualified w/ 'precedence'
+    #
+    #       - the left-recursion must be direct, never indirect (ie. must have self-ref name expr
+    #         at start of recurse alt)
+    #
+    #       - the left-recursive self-ref MUST appear only in alts of the top-level of the PPR,
+    #         and not be nested in sequence, optional, kleene-star, or kleene-plus exprs
+    #
+    #       - recurse alts of a PPR must not be ambiguous (ie. w/ their self-refs removed)
+    #
+    #       - illegal to have PPR w/ only recurse alts
+
     Rule                            : Rule_Qualifiers Rule_Name OP_COLON Rule_Alts OP_SEMICOLON ;
     Rule_Qualifiers                 : Qualifiers ;
     Rule_Name                       : IDENTIFIER ;
@@ -152,9 +179,11 @@ parser section:
 
     Qualifiers                      : Qualifier* ;
     Qualifier                       : Qualifier_Skip
-                                    | Qualifier_Support ;
+                                    | Qualifier_Support
+                                    | Qualifier_Precedence ;
     Qualifier_Skip                  : KW_SKIP ;
     Qualifier_Support               : KW_SUPPORT ;
+    Qualifier_Precedence            : KW_PRECEDENCE ;
     
     # expr precedence (ordered highest to lowest)
     #       (base)

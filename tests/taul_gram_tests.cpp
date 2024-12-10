@@ -43,13 +43,14 @@ protected:
 TEST_F(TAULGramTests, LPRs) {
     ASSERT_TRUE(gram);
 
-    EXPECT_EQ(gram->nonsupport_lprs(), 27);
+    EXPECT_EQ(gram->nonsupport_lprs(), 28);
 
     ASSERT_TRUE(gram->has_lpr("KW_LEXER"_str));
     ASSERT_TRUE(gram->has_lpr("KW_PARSER"_str));
     ASSERT_TRUE(gram->has_lpr("KW_SECTION"_str));
     ASSERT_TRUE(gram->has_lpr("KW_SKIP"_str));
     ASSERT_TRUE(gram->has_lpr("KW_SUPPORT"_str));
+    ASSERT_TRUE(gram->has_lpr("KW_PRECEDENCE"_str));
     ASSERT_TRUE(gram->has_lpr("KW_END"_str));
     ASSERT_TRUE(gram->has_lpr("KW_ANY"_str));
     ASSERT_TRUE(gram->has_lpr("KW_TOKEN"_str));
@@ -60,6 +61,7 @@ TEST_F(TAULGramTests, LPRs) {
     EXPECT_EQ(gram->lpr("KW_SECTION"_str)->qualifier(), taul::qualifier::none);
     EXPECT_EQ(gram->lpr("KW_SKIP"_str)->qualifier(), taul::qualifier::none);
     EXPECT_EQ(gram->lpr("KW_SUPPORT"_str)->qualifier(), taul::qualifier::none);
+    EXPECT_EQ(gram->lpr("KW_PRECEDENCE"_str)->qualifier(), taul::qualifier::none);
     EXPECT_EQ(gram->lpr("KW_END"_str)->qualifier(), taul::qualifier::none);
     EXPECT_EQ(gram->lpr("KW_ANY"_str)->qualifier(), taul::qualifier::none);
     EXPECT_EQ(gram->lpr("KW_TOKEN"_str)->qualifier(), taul::qualifier::none);
@@ -111,7 +113,7 @@ TEST_F(TAULGramTests, LPRs) {
 TEST_F(TAULGramTests, PPRs) {
     ASSERT_TRUE(gram);
 
-    EXPECT_EQ(gram->pprs(), 35);
+    EXPECT_EQ(gram->pprs(), 36);
 
     ASSERT_TRUE(gram->has_ppr("Spec"_str));
 
@@ -129,6 +131,7 @@ TEST_F(TAULGramTests, PPRs) {
     ASSERT_TRUE(gram->has_ppr("Qualifier"_str));
     ASSERT_TRUE(gram->has_ppr("Qualifier_Skip"_str));
     ASSERT_TRUE(gram->has_ppr("Qualifier_Support"_str));
+    ASSERT_TRUE(gram->has_ppr("Qualifier_Precedence"_str));
     
     ASSERT_TRUE(gram->has_ppr("Expr"_str));
     ASSERT_TRUE(gram->has_ppr("Expr_NoSuffix"_str));
@@ -215,6 +218,7 @@ _KW_TEST(KW_PARSER, "parser", 6);
 _KW_TEST(KW_SECTION, "section", 7);
 _KW_TEST(KW_SKIP, "skip", 4);
 _KW_TEST(KW_SUPPORT, "support", 7);
+_KW_TEST(KW_PRECEDENCE, "precedence", 10);
 _KW_TEST(KW_END, "end", 3);
 _KW_TEST(KW_ANY, "any", 3);
 _KW_TEST(KW_TOKEN, "token", 5);
@@ -569,6 +573,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
     ASSERT_TRUE(gram->has_lpr("KW_SECTION"_str));
     ASSERT_TRUE(gram->has_lpr("KW_SKIP"_str));
     ASSERT_TRUE(gram->has_lpr("KW_SUPPORT"_str));
+    ASSERT_TRUE(gram->has_lpr("KW_PRECEDENCE"_str));
     ASSERT_TRUE(gram->has_lpr("KW_ANY"_str));
     ASSERT_TRUE(gram->has_lpr("OP_COLON"_str));
     ASSERT_TRUE(gram->has_lpr("OP_SEMICOLON"_str));
@@ -585,6 +590,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
     ASSERT_TRUE(gram->has_ppr("Qualifier"_str));
     ASSERT_TRUE(gram->has_ppr("Qualifier_Skip"_str));
     ASSERT_TRUE(gram->has_ppr("Qualifier_Support"_str));
+    ASSERT_TRUE(gram->has_ppr("Qualifier_Precedence"_str));
     ASSERT_TRUE(gram->has_ppr("Expr"_str));
     ASSERT_TRUE(gram->has_ppr("Base"_str));
     ASSERT_TRUE(gram->has_ppr("Primary"_str));
@@ -762,6 +768,41 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close()
         .close()
+        .lexical("OP_SEMICOLON"_str, cntr(30), 1)
+        .close()
+        .close();
+
+    expected
+        .syntactic("Clause"_str, cntr())
+        .syntactic("Rule"_str, cntr())
+        .syntactic("Rule_Qualifiers"_str, cntr())
+        .syntactic("Qualifiers"_str, cntr())
+        .syntactic("Qualifier"_str, cntr())
+        .syntactic("Qualifier_Precedence"_str, cntr())
+        .lexical("KW_PRECEDENCE"_str, cntr(11), 10)
+        .close()
+        .close()
+        .close()
+        .close()
+        .syntactic("Rule_Name"_str, cntr())
+        .lexical("IDENTIFIER"_str, cntr(2), 1)
+        .close()
+        .lexical("OP_COLON"_str, cntr(2), 1)
+        .syntactic("Rule_Alts"_str, cntr())
+        .syntactic("Alts"_str, cntr())
+        .syntactic("Alt"_str, cntr())
+        .syntactic("Expr"_str, cntr())
+        .syntactic("Base"_str, cntr())
+        .syntactic("Primary"_str, cntr())
+        .syntactic("Any"_str, cntr())
+        .lexical("KW_ANY"_str, cntr(4), 3)
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
         .lexical("OP_SEMICOLON"_str, cntr(28), 1)
         .close()
         .close();
@@ -780,6 +821,41 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .syntactic("Rule"_str, cntr())
         .syntactic("Rule_Qualifiers"_str, cntr())
         .syntactic("Qualifiers"_str, cntr())
+        .close()
+        .close()
+        .syntactic("Rule_Name"_str, cntr())
+        .lexical("IDENTIFIER"_str, cntr(2), 1)
+        .close()
+        .lexical("OP_COLON"_str, cntr(2), 1)
+        .syntactic("Rule_Alts"_str, cntr())
+        .syntactic("Alts"_str, cntr())
+        .syntactic("Alt"_str, cntr())
+        .syntactic("Expr"_str, cntr())
+        .syntactic("Base"_str, cntr())
+        .syntactic("Primary"_str, cntr())
+        .syntactic("Any"_str, cntr())
+        .lexical("KW_ANY"_str, cntr(4), 3)
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .lexical("OP_SEMICOLON"_str, cntr(7), 1)
+        .close()
+        .close();
+
+    expected
+        .syntactic("Clause"_str, cntr())
+        .syntactic("Rule"_str, cntr())
+        .syntactic("Rule_Qualifiers"_str, cntr())
+        .syntactic("Qualifiers"_str, cntr())
+        .syntactic("Qualifier"_str, cntr())
+        .syntactic("Qualifier_Precedence"_str, cntr())
+        .lexical("KW_PRECEDENCE"_str, cntr(11), 10)
+        .close()
+        .close()
         .close()
         .close()
         .syntactic("Rule_Name"_str, cntr())

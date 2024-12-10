@@ -1472,6 +1472,775 @@ TEST_P(BaseParserTests, PPR_Nesting) {
     EXPECT_EQ(expected3.output, actual3.output);
 }
 
+static std::optional<taul::grammar> make_grammar_2f(std::shared_ptr<taul::logger> lgr) {
+    auto spec =
+        taul::spec_writer()
+        .lpr_decl("PLUS"_str)
+        .lpr_decl("MULTIPLY"_str)
+        .lpr_decl("NUMBER"_str)
+        .ppr_decl("Expr"_str)
+        .lpr("PLUS"_str)
+        .string("+"_str)
+        .close()
+        .lpr("MULTIPLY"_str)
+        .string("*"_str)
+        .close()
+        .lpr("NUMBER"_str)
+        .string("a"_str)
+        .close()
+        .ppr("Expr"_str, taul::precedence)
+        // goes from least to greatest precedence
+        .name("Expr"_str)
+        .name("PLUS"_str)
+        .name("Expr"_str)
+        .alternative()
+        .name("Expr"_str)
+        .name("MULTIPLY"_str)
+        .name("Expr"_str)
+        .alternative()
+        .name("NUMBER"_str)
+        .close()
+        .done();
+    return taul::load(spec, lgr);
+}
+
+TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithNoEmptyAlt) {
+    auto gram = make_grammar_2f(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("PLUS"_str));
+    ASSERT_TRUE(gram->has_lpr("MULTIPLY"_str));
+    ASSERT_TRUE(gram->has_lpr("NUMBER"_str));
+    ASSERT_TRUE(gram->has_ppr("Expr"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    {
+        taul::source_reader input(""_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      ** abort **
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_abort();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a+a+a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //      )
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 3, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a*a*a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //      MULTIPLY
+        //      Expr (
+        //          NUMBER
+        //      )
+        //      MULTIPLY
+        //      Expr (
+        //          NUMBER
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 3, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a*a+a*a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //      MULTIPLY
+        //      Expr (
+        //          NUMBER
+        //      )
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //          MULTIPLY
+        //          Expr (
+        //              NUMBER
+        //          )
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 3, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 5, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 6, 1));
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a+a*a+a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //          MULTIPLY
+        //          Expr (
+        //              NUMBER
+        //          )
+        //      )
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 3, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 5, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 6, 1));
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a+*a+++a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          ** abort **
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_abort();
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+}
+
+static std::optional<taul::grammar> make_grammar_2g(std::shared_ptr<taul::logger> lgr) {
+    auto spec =
+        taul::spec_writer()
+        .lpr_decl("PLUS"_str)
+        .lpr_decl("MULTIPLY"_str)
+        .lpr_decl("NUMBER"_str)
+        .ppr_decl("Expr"_str)
+        .lpr("PLUS"_str)
+        .string("+"_str)
+        .close()
+        .lpr("MULTIPLY"_str)
+        .string("*"_str)
+        .close()
+        .lpr("NUMBER"_str)
+        .string("a"_str)
+        .close()
+        .ppr("Expr"_str, taul::precedence)
+        // goes from least to greatest precedence
+        .name("Expr"_str)
+        .name("PLUS"_str)
+        .name("Expr"_str)
+        .alternative()
+        .name("Expr"_str)
+        .name("MULTIPLY"_str)
+        .name("Expr"_str)
+        .alternative()
+        .name("NUMBER"_str)
+        .alternative()
+        // empty alt
+        .close()
+        .done();
+    return taul::load(spec, lgr);
+}
+
+TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithEmptyAlt) {
+    auto gram = make_grammar_2g(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("PLUS"_str));
+    ASSERT_TRUE(gram->has_lpr("MULTIPLY"_str));
+    ASSERT_TRUE(gram->has_lpr("NUMBER"_str));
+    ASSERT_TRUE(gram->has_ppr("Expr"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    {
+        taul::source_reader input(""_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            //
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a+a+a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //      )
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 3, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a*a*a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //      MULTIPLY
+        //      Expr (
+        //          NUMBER
+        //      )
+        //      MULTIPLY
+        //      Expr (
+        //          NUMBER
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 3, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a*a+a*a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //      MULTIPLY
+        //      Expr (
+        //          NUMBER
+        //      )
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //          MULTIPLY
+        //          Expr (
+        //              NUMBER
+        //          )
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 3, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 5, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 6, 1));
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a+a*a+a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //          MULTIPLY
+        //          Expr (
+        //              NUMBER
+        //          )
+        //      )
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 3, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 5, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 6, 1));
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a+*a+++a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //EXPECT_TRUE(input.done());
+        //EXPECT_TRUE(lxr.done());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          MULTIPLY
+        //          Expr (
+        //              NUMBER
+        //          )
+        //      )
+        //      PLUS
+        //      Expr (
+        //      )
+        //      PLUS
+        //      Expr (
+        //      )
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 2, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 3);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 3, 1));
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 4, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 5);
+            {
+                //
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 5, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+            {
+                //
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 6, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 7);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 7, 1));
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+}
+
 
 // end
 

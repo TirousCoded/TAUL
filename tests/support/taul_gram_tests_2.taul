@@ -7,12 +7,14 @@ lexer section:
     support C : any ;
 
     skip support skip skip support D : any ; # semantically illegal
+    precedence E : any ; # semantically illegal
 
 parser section:
 
     a : any ;
+    precedence b : any ;
 
-    skip b : any ; # semantically illegal
-    support c : any ; # semantically illegal
-    skip support skip skip support d : any ; # semantically illegal
+    skip c : any ; # semantically illegal
+    support d : any ; # semantically illegal
+    skip support skip skip support e : any ; # semantically illegal
 

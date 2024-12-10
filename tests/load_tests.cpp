@@ -170,6 +170,30 @@ TEST(LoadTests, success_empty_noneQualifier_forPPRs) {
     else ADD_FAILURE();
 }
 
+TEST(LoadTests, success_empty_precedenceQualifier_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("a"_str)
+        .ppr("a"_str, taul::qualifier::precedence)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+    EXPECT_EQ(ec.total(), 0);
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+        if (gram->has_ppr("a"_str)) {
+            EXPECT_EQ(gram->ppr("a"_str)->name(), "a"_str);
+            EXPECT_EQ(gram->ppr("a"_str)->index(), 0);
+        }
+        else ADD_FAILURE();
+    }
+    else ADD_FAILURE();
+}
+
 // test having multiple empty LPRs and PPRs
 
 TEST(LoadTests, success_empty_multipleLPRsAndPPRs) {
@@ -1901,9 +1925,11 @@ TEST(LoadTests, success_kleene_plus_forPPRs) {
     else ADD_FAILURE();
 }
 
+// misc
+
 // this tests that name works w/ lprs/pprs defined AFTER name usage
 
-TEST(LoadTests, success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage) {
+TEST(LoadTests, success_misc_withNameRefsWhichAppearBeforeLPROrPPRIsDefined) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1961,7 +1987,7 @@ TEST(LoadTests, success_withNameUsageForLPRsAndPPRsDefinedAfterNameUsage) {
 // test that charset strings are allowed to have duplicate chars w/out it
 // causing ambiguity errors to arise
 
-TEST(LoadTests, success_withCharsetWithDuplicateChars) {
+TEST(LoadTests, success_misc_withCharsetWithDuplicateChars) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -1982,6 +2008,221 @@ TEST(LoadTests, success_withCharsetWithDuplicateChars) {
 
         EXPECT_EQ(gram->lprs(), 1);
         EXPECT_EQ(gram->pprs(), 0);
+    }
+    else ADD_FAILURE();
+}
+
+// test precedence PPRs w/ base and recurse alts works
+
+TEST(LoadTests, success_misc_precedencePPR_withBaseAndRecurseAlts) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a")
+        .close()
+        .lpr("b"_str)
+        .string("b")
+        .close()
+        .lpr("c"_str)
+        .string("c")
+        .close()
+        .ppr("ppr0"_str)
+        .name("a"_str) // base alt
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("a"_str)
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("b"_str)
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("c"_str)
+        .alternative()
+        .name("b"_str) // base alt
+        .alternative()
+        .name("c"_str) // base alt
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+
+        EXPECT_EQ(gram->lprs(), 3);
+        EXPECT_EQ(gram->pprs(), 1);
+
+        if (gram->has_ppr("ppr0"_str)) {
+            EXPECT_EQ(gram->ppr("ppr0"_str)->name(), "ppr0"_str);
+            EXPECT_EQ(gram->ppr("ppr0"_str)->index(), 0);
+        }
+        else ADD_FAILURE();
+    }
+    else ADD_FAILURE();
+}
+
+// test precedence PPRs w/ only base alts works
+
+TEST(LoadTests, success_misc_precedencePPR_withOnlyBaseAlts) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a")
+        .close()
+        .lpr("b"_str)
+        .string("b")
+        .close()
+        .lpr("c"_str)
+        .string("c")
+        .close()
+        .ppr("ppr0"_str)
+        .name("a"_str) // base alt
+        .alternative()
+        .name("b"_str) // base alt
+        .alternative()
+        .name("c"_str) // base alt
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+
+        EXPECT_EQ(gram->lprs(), 3);
+        EXPECT_EQ(gram->pprs(), 1);
+
+        if (gram->has_ppr("ppr0"_str)) {
+            EXPECT_EQ(gram->ppr("ppr0"_str)->name(), "ppr0"_str);
+            EXPECT_EQ(gram->ppr("ppr0"_str)->index(), 0);
+        }
+        else ADD_FAILURE();
+    }
+    else ADD_FAILURE();
+}
+
+// test precedence PPRs w/ recurse alt w/ only self-ref (which is
+// legal, but will semantically be ignored)
+
+TEST(LoadTests, success_misc_precedencePPR_withRecurseAltWithOnlySelfRef_altWillBeIgnored) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a")
+        .close()
+        .lpr("b"_str)
+        .string("b")
+        .close()
+        .lpr("c"_str)
+        .string("c")
+        .close()
+        .ppr("ppr0"_str)
+        .name("a"_str) // base alt
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+
+        EXPECT_EQ(gram->lprs(), 3);
+        EXPECT_EQ(gram->pprs(), 1);
+
+        if (gram->has_ppr("ppr0"_str)) {
+            EXPECT_EQ(gram->ppr("ppr0"_str)->name(), "ppr0"_str);
+            EXPECT_EQ(gram->ppr("ppr0"_str)->index(), 0);
+        }
+        else ADD_FAILURE();
+    }
+    else ADD_FAILURE();
+}
+
+// test precedence PPRs w/ an empty base alt works
+
+TEST(LoadTests, success_misc_precedencePPR_withAnEmptyBaseAlt) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a")
+        .close()
+        .lpr("b"_str)
+        .string("b")
+        .close()
+        .lpr("c"_str)
+        .string("c")
+        .close()
+        .ppr("ppr0"_str)
+        .name("a"_str) // base alt
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("a"_str)
+        .alternative()
+        // our empty base alt
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("b"_str)
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("c"_str)
+        .alternative()
+        .name("b"_str) // base alt
+        .alternative()
+        .name("c"_str) // base alt
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+
+        EXPECT_EQ(gram->lprs(), 3);
+        EXPECT_EQ(gram->pprs(), 1);
+
+        if (gram->has_ppr("ppr0"_str)) {
+            EXPECT_EQ(gram->ppr("ppr0"_str)->name(), "ppr0"_str);
+            EXPECT_EQ(gram->ppr("ppr0"_str)->index(), 0);
+        }
+        else ADD_FAILURE();
     }
     else ADD_FAILURE();
 }
@@ -2165,7 +2406,7 @@ TEST(LoadTests, HasExpectedPrefixes_LPRs_TopLevel_WithAlts_WithEmptyAlt) {
     else ADD_FAILURE();
 }
 
-TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_Empty) {
+TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithNoPrecedence_Empty) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -2203,7 +2444,45 @@ TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_Empty) {
     else ADD_FAILURE();
 }
 
-TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithNoAlts) {
+TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithPrecedence_Empty) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("f"_str)
+        .ppr("f"_str, taul::precedence)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+        ASSERT_TRUE(gram->has_ppr("f"_str));
+        taul::ppr_ref f = gram->ppr("f"_str).value();
+
+        taul::token_set expected_first_set =
+            taul::token_set()
+            .add_epsilon();
+
+        taul::token_set expected_follow_set =
+            taul::token_set()
+            .add_all()
+            .remove_epsilon();
+
+        taul::token_set expected_prefix_set =
+            expected_first_set + expected_follow_set;
+
+        EXPECT_EQ(f.first_set(), expected_first_set);
+        EXPECT_EQ(f.follow_set(), expected_follow_set);
+        EXPECT_EQ(f.prefix_set(), expected_prefix_set);
+    }
+    else ADD_FAILURE();
+}
+
+TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithNoPrecedence_WithNoAlts) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -2260,7 +2539,64 @@ TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithNoAlts) {
     else ADD_FAILURE();
 }
 
-TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithAlts_WithNoEmptyAlt) {
+TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithPrecedence_WithNoAlts) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("f"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .ppr("f"_str, taul::precedence)
+        .name("a"_str) // base alt
+        .name("b"_str)
+        .name("c"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+        ASSERT_TRUE(gram->has_lpr("a"_str));
+        ASSERT_TRUE(gram->has_lpr("b"_str));
+        ASSERT_TRUE(gram->has_lpr("c"_str));
+        ASSERT_TRUE(gram->has_ppr("f"_str));
+        taul::ppr_ref f = gram->ppr("f"_str).value();
+
+        taul::token_set expected_first_set =
+            taul::token_set()
+            .add(gram->lpr("a"_str).value().index());
+
+        taul::token_set expected_follow_set =
+            taul::token_set()
+            .add_all()
+            .remove_epsilon()
+            .remove(gram->lpr("a"_str).value().index());
+
+        taul::token_set expected_prefix_set =
+            expected_first_set;
+
+        EXPECT_EQ(f.first_set(), expected_first_set);
+        EXPECT_EQ(f.follow_set(), expected_follow_set);
+        EXPECT_EQ(f.prefix_set(), expected_prefix_set);
+    }
+    else ADD_FAILURE();
+}
+
+TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithNoPrecedence_WithAlts_WithNoEmptyAlt) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -2326,7 +2662,90 @@ TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithAlts_WithNoEmptyAlt) {
     else ADD_FAILURE();
 }
 
-TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithAlts_WithEmptyAlt) {
+TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithPrecedence_WithAlts_WithNoEmptyAlt) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .lpr_decl("d"_str)
+        .lpr_decl("x"_str)
+        .lpr_decl("y"_str)
+        .ppr_decl("f"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .lpr("d"_str)
+        .string("d"_str)
+        .close()
+        .lpr("x"_str)
+        .string("x"_str)
+        .close()
+        .lpr("y"_str)
+        .string("y"_str)
+        .close()
+        .ppr("f"_str, taul::precedence)
+        .name("a"_str) // base alt
+        .name("b"_str)
+        .alternative()
+        .name("c"_str) // base alt
+        .name("d"_str)
+        // these recurse alts should have no impact on result
+        .alternative()
+        .name("f"_str) // recurse alt
+        .name("x"_str)
+        .alternative()
+        .name("f"_str) // recurse alt
+        .name("y"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+        ASSERT_TRUE(gram->has_lpr("a"_str));
+        ASSERT_TRUE(gram->has_lpr("b"_str));
+        ASSERT_TRUE(gram->has_lpr("c"_str));
+        ASSERT_TRUE(gram->has_lpr("d"_str));
+        ASSERT_TRUE(gram->has_lpr("x"_str));
+        ASSERT_TRUE(gram->has_lpr("y"_str));
+        ASSERT_TRUE(gram->has_ppr("f"_str));
+        taul::ppr_ref f = gram->ppr("f"_str).value();
+
+        taul::token_set expected_first_set =
+            taul::token_set()
+            .add(gram->lpr("a"_str).value().index())
+            .add(gram->lpr("c"_str).value().index());
+
+        taul::token_set expected_follow_set =
+            taul::token_set()
+            .add_all()
+            .remove_epsilon()
+            .remove(gram->lpr("a"_str).value().index())
+            .remove(gram->lpr("c"_str).value().index());
+
+        taul::token_set expected_prefix_set =
+            expected_first_set;
+
+        EXPECT_EQ(f.first_set(), expected_first_set);
+        EXPECT_EQ(f.follow_set(), expected_follow_set);
+        EXPECT_EQ(f.prefix_set(), expected_prefix_set);
+    }
+    else ADD_FAILURE();
+}
+
+TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithNoPrecedence_WithAlts_WithEmptyAlt) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -2384,6 +2803,95 @@ TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithAlts_WithEmptyAlt) {
             .remove_epsilon()
             .remove(gram->lpr("a"_str).value().index())
             .remove(gram->lpr("c"_str).value().index());
+
+        taul::token_set expected_prefix_set =
+            expected_first_set + expected_follow_set;
+
+        EXPECT_EQ(f.first_set(), expected_first_set);
+        EXPECT_EQ(f.follow_set(), expected_follow_set);
+        EXPECT_EQ(f.prefix_set(), expected_prefix_set);
+    }
+    else ADD_FAILURE();
+}
+
+TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithPrecedence_WithAlts_WithEmptyAlt) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .lpr_decl("d"_str)
+        .lpr_decl("x"_str)
+        .lpr_decl("y"_str)
+        .ppr_decl("f"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .lpr("d"_str)
+        .string("d"_str)
+        .close()
+        .lpr("x"_str)
+        .string("x"_str)
+        .close()
+        .lpr("y"_str)
+        .string("y"_str)
+        .close()
+        .ppr("f"_str, taul::precedence)
+        .name("a"_str) // base alt
+        .name("b"_str)
+        .alternative()
+        .name("c"_str) // base alt
+        .name("d"_str)
+        .alternative()
+        // empty base alt
+        .alternative()
+        .name("f"_str) // recurse alt
+        .name("x"_str)
+        .alternative()
+        .name("f"_str) // recurse alt
+        .name("y"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+        ASSERT_TRUE(gram->has_lpr("a"_str));
+        ASSERT_TRUE(gram->has_lpr("b"_str));
+        ASSERT_TRUE(gram->has_lpr("c"_str));
+        ASSERT_TRUE(gram->has_lpr("d"_str));
+        ASSERT_TRUE(gram->has_lpr("x"_str));
+        ASSERT_TRUE(gram->has_lpr("y"_str));
+        ASSERT_TRUE(gram->has_ppr("f"_str));
+        taul::ppr_ref f = gram->ppr("f"_str).value();
+
+        taul::token_set expected_first_set =
+            taul::token_set()
+            .add(gram->lpr("a"_str).value().index())
+            .add(gram->lpr("c"_str).value().index())
+            .add(gram->lpr("x"_str).value().index()) // <- recurse alt visible when has empty base alt
+            .add(gram->lpr("y"_str).value().index()) // <- recurse alt visible when has empty base alt
+            .add_epsilon();
+
+        taul::token_set expected_follow_set =
+            taul::token_set()
+            .add_all()
+            .remove_epsilon()
+            .remove(gram->lpr("a"_str).value().index())
+            .remove(gram->lpr("c"_str).value().index())
+            .add(gram->lpr("x"_str).value().index()) // <- recurse alt visible when has empty base alt
+            .add(gram->lpr("y"_str).value().index()); // <- recurse alt visible when has empty base alt
 
         taul::token_set expected_prefix_set =
             expected_first_set + expected_follow_set;
@@ -4480,9 +4988,11 @@ TEST(LoadTests, ppr_decl_forErr_illegal_in_ppr_scope) {
 //      rule-never-declared
 //      illegal-in-lpr-scope
 //      illegal-in-ppr-scope
-//      illegal-ambiguity (not due to left-recursion)
-//      illegal-ambiguity (due to left-recursion)
-//      illegal-ambiguity (due to left-recursion w/ single alternative)
+//      illegal-qualifier (for precedence)
+//      illegal-ambiguity (no left-recursion)
+//      illegal-ambiguity (direct left-recursion)
+//      illegal-ambiguity (direct left-recursion w/ single alt)
+//      illegal-ambiguity (indirect left-recursion)
 
 TEST(LoadTests, lpr_forErr_scope_not_closed) {
     const auto lgr = taul::make_stderr_logger();
@@ -4560,7 +5070,25 @@ TEST(LoadTests, lpr_forErr_illegal_in_ppr_scope) {
     EXPECT_FALSE(gram);
 }
 
-TEST(LoadTests, lpr_forErr_illegal_ambiguity_notDueToLeftRecursion) {
+TEST(LoadTests, lpr_forErr_illegal_qualifier_forPrecedence) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0"_str)
+        .lpr("lpr0"_str, taul::qualifier::precedence)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_qualifier), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, lpr_forErr_illegal_ambiguity_noLeftRecursion) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -4585,21 +5113,17 @@ TEST(LoadTests, lpr_forErr_illegal_ambiguity_notDueToLeftRecursion) {
     EXPECT_FALSE(gram);
 }
 
-TEST(LoadTests, lpr_forErr_illegal_ambiguity_dueToLeftRecursion) {
+TEST(LoadTests, lpr_forErr_illegal_ambiguity_directLeftRecursion) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
     const auto s =
         taul::spec_writer()
         .lpr_decl("lpr0"_str)
-        .lpr_decl("lpr1"_str)
         .lpr("lpr0"_str)
         .charset("abc"_str)
         .alternative()
-        .name("lpr1"_str) // indirect self ref
-        .close()
-        .lpr("lpr1"_str)
-        .name("lpr0"_str)
+        .name("lpr0"_str) // direct self-ref
         .close()
         .done();
 
@@ -4610,7 +5134,7 @@ TEST(LoadTests, lpr_forErr_illegal_ambiguity_dueToLeftRecursion) {
     EXPECT_FALSE(gram);
 }
 
-TEST(LoadTests, lpr_forErr_illegal_ambiguity_dueToLeftRecursion_withSingleAlternative) {
+TEST(LoadTests, lpr_forErr_illegal_ambiguity_directLeftRecursion_withSingleAlt) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -4618,6 +5142,31 @@ TEST(LoadTests, lpr_forErr_illegal_ambiguity_dueToLeftRecursion_withSingleAltern
         taul::spec_writer()
         .lpr_decl("lpr0"_str)
         .lpr("lpr0"_str)
+        .name("lpr0"_str) // direct self-ref
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, lpr_forErr_illegal_ambiguity_indirectLeftRecursion) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0"_str)
+        .lpr_decl("lpr1"_str)
+        .lpr("lpr0"_str)
+        .charset("abc"_str)
+        .alternative()
+        .name("lpr1"_str) // indirect self-ref
+        .close()
+        .lpr("lpr1"_str)
         .name("lpr0"_str)
         .close()
         .done();
@@ -4634,11 +5183,16 @@ TEST(LoadTests, lpr_forErr_illegal_ambiguity_dueToLeftRecursion_withSingleAltern
 //      rule-never-declared
 //      illegal-in-lpr-scope
 //      illegal-in-ppr-scope
-//      illegal-qualifier (for skip)    <- PPRs may not have any qualifiers
-//      illegal-qualifier (for support) <- PPRs may not have any qualifiers
-//      illegal-ambiguity (not due to left-recursion)
-//      illegal-ambiguity (due to left-recursion)
-//      illegal-ambiguity (due to left-recursion w/ single alternative)
+//      illegal-qualifier (for skip)
+//      illegal-qualifier (for support)
+//      illegal-ambiguity (no left-recursion)
+//      illegal-ambiguity (direct left-recursion) (no precedence)
+//      illegal-ambiguity (direct left-recursion w/ single alt) (no precedence)
+//      illegal-ambiguity (indirect left-recursion) (no precedence)
+//      illegal-ambiguity (precedence PPR w/ only recurse alts)
+//      illegal-ambiguity (precedence PPR w/ ambiguous base alts)
+//      illegal-ambiguity (precedence PPR w/ ambiguous recurse alts)
+//      illegal-ambiguity (precedence PPR w/ indirectly left-recursive base alt)
 
 TEST(LoadTests, ppr_forErr_scope_not_closed) {
     const auto lgr = taul::make_stderr_logger();
@@ -4752,7 +5306,7 @@ TEST(LoadTests, ppr_forErr_illegal_qualifier_forSupport) {
     EXPECT_FALSE(gram);
 }
 
-TEST(LoadTests, ppr_forErr_illegal_ambiguity_notDueToLeftRecursion) {
+TEST(LoadTests, ppr_forErr_illegal_ambiguity_noLeftRecursion) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -4797,7 +5351,75 @@ TEST(LoadTests, ppr_forErr_illegal_ambiguity_notDueToLeftRecursion) {
     EXPECT_FALSE(gram);
 }
 
-TEST(LoadTests, ppr_forErr_illegal_ambiguity_dueToLeftRecursion) {
+TEST(LoadTests, ppr_forErr_illegal_ambiguity_directLeftRecursion_noPrecedence) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .ppr("ppr0"_str)
+        .name("a"_str)
+        .alternative()
+        .name("b"_str)
+        .alternative()
+        .name("c"_str)
+        .alternative()
+        .name("ppr0"_str) // direct self-ref
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, ppr_forErr_illegal_ambiguity_directLeftRecursion_withSingleAlt_noPrecedence) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .ppr("ppr0"_str)
+        .name("ppr0"_str) // direct self-ref
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, ppr_forErr_illegal_ambiguity_indirectLeftRecursion_noPrecedence) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -4824,7 +5446,7 @@ TEST(LoadTests, ppr_forErr_illegal_ambiguity_dueToLeftRecursion) {
         .alternative()
         .name("c"_str)
         .alternative()
-        .name("ppr1"_str) // indirect self ref
+        .name("ppr1"_str) // indirect self-ref
         .close()
         .ppr("ppr1"_str)
         .name("ppr0"_str)
@@ -4838,7 +5460,7 @@ TEST(LoadTests, ppr_forErr_illegal_ambiguity_dueToLeftRecursion) {
     EXPECT_FALSE(gram);
 }
 
-TEST(LoadTests, ppr_forErr_illegal_ambiguity_dueToLeftRecursion_withSingleAlternative) {
+TEST(LoadTests, ppr_forErr_illegal_ambiguity_precedencePPR_withOnlyRecurseAlts) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -4857,7 +5479,150 @@ TEST(LoadTests, ppr_forErr_illegal_ambiguity_dueToLeftRecursion_withSingleAltern
         .lpr("c"_str)
         .string("c"_str)
         .close()
-        .ppr("ppr0"_str)
+        .ppr("ppr0"_str, taul::precedence)
+        .name("ppr0"_str) // recurse alt
+        .name("a"_str)
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("b"_str)
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("c"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, ppr_forErr_illegal_ambiguity_precedencePPR_withAmbiguousBaseAlts) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .ppr("ppr0"_str, taul::precedence)
+        .name("a"_str) // base alt <- ambiguous
+        .alternative()
+        .name("b"_str) // base alt
+        .alternative()
+        .name("a"_str) // base alt <- ambiguous
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("a"_str)
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("b"_str)
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("c"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, ppr_forErr_illegal_ambiguity_precedencePPR_withAmbiguousRecurseAlts) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .ppr("ppr0"_str, taul::precedence)
+        .name("a"_str) // base alt
+        .alternative()
+        .name("b"_str) // base alt
+        .alternative()
+        .name("c"_str) // base alt
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("a"_str) // <- ambiguous
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("b"_str)
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("a"_str) // <- ambiguous
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, ppr_forErr_illegal_ambiguity_precedencePPR_withIndirectlyLeftRecursiveBaseAlt) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .ppr_decl("ppr1"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .ppr("ppr0"_str, taul::precedence)
+        .name("a"_str) // base alt
+        .alternative()
+        .name("b"_str) // base alt
+        .alternative()
+        .name("ppr1"_str) // base alt <- indirect self-ref
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("a"_str)
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("b"_str)
+        .alternative()
+        .name("ppr0"_str) // recurse alt
+        .name("c"_str)
+        .close()
+        .ppr("ppr1"_str)
         .name("ppr0"_str)
         .close()
         .done();
@@ -5329,12 +6094,17 @@ TEST(LoadTests, name_forErr_rule_may_not_be_ppr_forLPRs) {
 //      illegal-in-single-subexpr-scope (due to two subexpr alt) (for pprs)
 //      illegal-in-no-end-subexpr-scope (for lprs)
 //      illegal-in-no-end-subexpr-scope (for pprs)
-//      illegal-ambiguity (not due to left-recursion) (for lprs)
-//      illegal-ambiguity (due to left-recursion) (for lprs)
-//      illegal-ambiguity (due to left-recursion w/ single alternative) (for lprs)
-//      illegal-ambiguity (not due to left-recursion) (for pprs)
-//      illegal-ambiguity (due to left-recursion) (for pprs)
-//      illegal-ambiguity (due to left-recursion w/ single alternative) (for pprs)
+//      illegal-ambiguity (no left-recursion) (for lprs)
+//      illegal-ambiguity (direct left-recursion) (for lprs)
+//      illegal-ambiguity (direct left-recursion w/ single alt) (for lprs)
+//      illegal-ambiguity (indirect left-recursion) (for lprs)
+//      illegal-ambiguity (no left-recursion) (for pprs)
+//      illegal-ambiguity (direct left-recursion) (no precedence) (for pprs)
+//      illegal-ambiguity (direct left-recursion w/ single alt) (no precedence) (for pprs)
+//      illegal-ambiguity (indirect left-recursion) (no precedence) (for pprs)
+//      illegal-ambiguity (direct left-recursion) (precedence) (for pprs)
+//      illegal-ambiguity (direct left-recursion w/ single alt) (precedence) (for pprs)
+//      illegal-ambiguity (indirect left-recursion) (precedence) (for pprs)
 
 TEST(LoadTests, sequence_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -5905,7 +6675,7 @@ TEST(LoadTests, sequence_forErr_illegal_in_no_end_subexpr_scope_forPPRs) {
     EXPECT_FALSE(gram);
 }
 
-TEST(LoadTests, sequence_forErr_illegal_ambiguity_notDueToLeftRecursion_forLPRs) {
+TEST(LoadTests, sequence_forErr_illegal_ambiguity_noLeftRecursion_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -5932,7 +6702,51 @@ TEST(LoadTests, sequence_forErr_illegal_ambiguity_notDueToLeftRecursion_forLPRs)
     EXPECT_FALSE(gram);
 }
 
-TEST(LoadTests, sequence_forErr_illegal_ambiguity_dueToLeftRecursion_forLPRs) {
+TEST(LoadTests, sequence_forErr_illegal_ambiguity_directLeftRecursion_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0"_str)
+        .lpr("lpr0"_str)
+        .sequence()
+        .charset("abc"_str)
+        .alternative()
+        .name("lpr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, sequence_forErr_illegal_ambiguity_directLeftRecursion_withSingleAlt_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0"_str)
+        .lpr("lpr0"_str)
+        .sequence()
+        .name("lpr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, sequence_forErr_illegal_ambiguity_indirectLeftRecursion_forLPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -5944,7 +6758,7 @@ TEST(LoadTests, sequence_forErr_illegal_ambiguity_dueToLeftRecursion_forLPRs) {
         .sequence()
         .charset("abc"_str)
         .alternative()
-        .name("lpr1"_str) // indirect self ref
+        .name("lpr1"_str) // indirect self-ref
         .close()
         .close()
         .lpr("lpr1"_str)
@@ -5959,28 +6773,7 @@ TEST(LoadTests, sequence_forErr_illegal_ambiguity_dueToLeftRecursion_forLPRs) {
     EXPECT_FALSE(gram);
 }
 
-TEST(LoadTests, sequence_forErr_illegal_ambiguity_dueToLeftRecursion_withSingleAlternative_forLPRs) {
-    const auto lgr = taul::make_stderr_logger();
-    taul::spec_error_counter ec{};
-
-    const auto s =
-        taul::spec_writer()
-        .lpr_decl("lpr0"_str)
-        .lpr("lpr0"_str)
-        .sequence()
-        .name("lpr0"_str)
-        .close()
-        .close()
-        .done();
-
-    const auto gram = taul::load(s, ec, lgr);
-
-    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
-    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
-    EXPECT_FALSE(gram);
-}
-
-TEST(LoadTests, sequence_forErr_illegal_ambiguity_notDueToLeftRecursion_forPPRs) {
+TEST(LoadTests, sequence_forErr_illegal_ambiguity_noLeftRecursion_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -6029,7 +6822,79 @@ TEST(LoadTests, sequence_forErr_illegal_ambiguity_notDueToLeftRecursion_forPPRs)
     EXPECT_FALSE(gram);
 }
 
-TEST(LoadTests, sequence_forErr_illegal_ambiguity_dueToLeftRecursion_forPPRs) {
+TEST(LoadTests, sequence_forErr_illegal_ambiguity_directLeftRecursion_noPrecedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .ppr("ppr0"_str)
+        .sequence()
+        .name("a"_str)
+        .alternative()
+        .name("b"_str)
+        .alternative()
+        .name("c"_str)
+        .alternative()
+        .name("ppr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, sequence_forErr_illegal_ambiguity_directLeftRecursion_withSingleAlt_noPrecedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .ppr("ppr0"_str)
+        .sequence()
+        .name("ppr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, sequence_forErr_illegal_ambiguity_indirectLeftRecursion_noPrecedence_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -6057,7 +6922,7 @@ TEST(LoadTests, sequence_forErr_illegal_ambiguity_dueToLeftRecursion_forPPRs) {
         .alternative()
         .name("c"_str)
         .alternative()
-        .name("ppr1"_str) // indirect self ref
+        .name("ppr1"_str) // indirect self-ref
         .close()
         .close()
         .ppr("ppr1"_str)
@@ -6072,7 +6937,7 @@ TEST(LoadTests, sequence_forErr_illegal_ambiguity_dueToLeftRecursion_forPPRs) {
     EXPECT_FALSE(gram);
 }
 
-TEST(LoadTests, sequence_forErr_illegal_ambiguity_dueToLeftRecursion_withSingleAlternative_forPPRs) {
+TEST(LoadTests, sequence_forErr_illegal_ambiguity_directLeftRecursion_precedence_forPPRs) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -6091,10 +6956,92 @@ TEST(LoadTests, sequence_forErr_illegal_ambiguity_dueToLeftRecursion_withSingleA
         .lpr("c"_str)
         .string("c"_str)
         .close()
-        .ppr("ppr0"_str)
+        .ppr("ppr0"_str, taul::precedence)
         .sequence()
-        .name("ppr0"_str)
+        .name("a"_str)
+        .alternative()
+        .name("b"_str)
+        .alternative()
+        .name("c"_str)
+        .alternative()
+        .name("ppr0"_str) // direct self-ref
         .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, sequence_forErr_illegal_ambiguity_directLeftRecursion_withSingleAlt_precedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .ppr("ppr0"_str, taul::precedence)
+        .sequence()
+        .name("ppr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, sequence_forErr_illegal_ambiguity_indirectLeftRecursion_precedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .ppr_decl("ppr1"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .ppr("ppr0"_str, taul::precedence)
+        .sequence()
+        .name("a"_str)
+        .alternative()
+        .name("b"_str)
+        .alternative()
+        .name("c"_str)
+        .alternative()
+        .name("ppr1"_str) // indirect self-ref
+        .close()
+        .close()
+        .ppr("ppr1"_str)
+        .name("ppr0"_str)
         .close()
         .done();
 
@@ -7769,6 +8716,12 @@ TEST(LoadTests, not_forErr_illegal_in_no_end_subexpr_scope_forPPRs) {
 //      illegal-in-single-subexpr-scope (due to two subexpr alt) (for lprs)
 //      illegal-in-single-subexpr-scope (due to zero subexpr alt) (for pprs)
 //      illegal-in-single-subexpr-scope (due to two subexpr alt) (for pprs)
+//      illegal-ambiguity (direct left-recursion) (for lprs)
+//      illegal-ambiguity (indirect left-recursion) (for lprs)
+//      illegal-ambiguity (direct left-recursion) (no precedence) (for pprs)
+//      illegal-ambiguity (indirect left-recursion) (no precedence) (for pprs)
+//      illegal-ambiguity (direct left-recursion) (precedence) (for pprs)
+//      illegal-ambiguity (indirect left-recursion) (precedence) (for pprs)
 
 TEST(LoadTests, optional_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -7935,6 +8888,144 @@ TEST(LoadTests, optional_forErr_illegal_in_single_subexpr_scope_dueToTwoSubexprA
     EXPECT_FALSE(gram);
 }
 
+TEST(LoadTests, optional_forErr_illegal_ambiguity_directLeftRecursion_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0"_str)
+        .lpr("lpr0"_str)
+        .optional() // <- under test
+        .name("lpr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, optional_forErr_illegal_ambiguity_indirectLeftRecursion_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0"_str)
+        .lpr_decl("lpr1"_str)
+        .lpr("lpr0"_str)
+        .optional() // <- under test
+        .name("lpr1"_str) // indirect self-ref
+        .close()
+        .close()
+        .lpr("lpr1"_str)
+        .name("lpr0"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, optional_forErr_illegal_ambiguity_directLeftRecursion_noPrecedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr("ppr0"_str)
+        .optional() // <- under test
+        .name("ppr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, optional_forErr_illegal_ambiguity_indirectLeftRecursion_noPrecedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr_decl("ppr1"_str)
+        .ppr("ppr0"_str)
+        .optional() // <- under test
+        .name("ppr1"_str) // indirect self-ref
+        .close()
+        .close()
+        .ppr("ppr1"_str)
+        .name("ppr0"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, optional_forErr_illegal_ambiguity_directLeftRecursion_precedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr("ppr0"_str, taul::precedence)
+        .optional() // <- under test
+        .name("ppr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, optional_forErr_illegal_ambiguity_indirectLeftRecursion_precedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr_decl("ppr1"_str)
+        .ppr("ppr0"_str, taul::precedence)
+        .optional() // <- under test
+        .name("ppr1"_str) // indirect self-ref
+        .close()
+        .close()
+        .ppr("ppr1"_str)
+        .name("ppr0"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
 // kleene-star
 //      illegal-in-no-scope
 //      illegal-in-no-alternation-scope (for lprs)
@@ -7943,6 +9034,12 @@ TEST(LoadTests, optional_forErr_illegal_in_single_subexpr_scope_dueToTwoSubexprA
 //      illegal-in-single-subexpr-scope (due to two subexpr alt) (for lprs)
 //      illegal-in-single-subexpr-scope (due to zero subexpr alt) (for pprs)
 //      illegal-in-single-subexpr-scope (due to two subexpr alt) (for pprs)
+//      illegal-ambiguity (direct left-recursion) (for lprs)
+//      illegal-ambiguity (indirect left-recursion) (for lprs)
+//      illegal-ambiguity (direct left-recursion) (no precedence) (for pprs)
+//      illegal-ambiguity (indirect left-recursion) (no precedence) (for pprs)
+//      illegal-ambiguity (direct left-recursion) (precedence) (for pprs)
+//      illegal-ambiguity (indirect left-recursion) (precedence) (for pprs)
 
 TEST(LoadTests, kleene_star_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -8109,6 +9206,144 @@ TEST(LoadTests, kleene_star_forErr_illegal_in_single_subexpr_scope_dueToTwoSubex
     EXPECT_FALSE(gram);
 }
 
+TEST(LoadTests, kleene_star_forErr_illegal_ambiguity_directLeftRecursion_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0"_str)
+        .lpr("lpr0"_str)
+        .kleene_star() // <- under test
+        .name("lpr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, kleene_star_forErr_illegal_ambiguity_indirectLeftRecursion_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0"_str)
+        .lpr_decl("lpr1"_str)
+        .lpr("lpr0"_str)
+        .kleene_star() // <- under test
+        .name("lpr1"_str) // indirect self-ref
+        .close()
+        .close()
+        .lpr("lpr1"_str)
+        .name("lpr0"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, kleene_star_forErr_illegal_ambiguity_directLeftRecursion_noPrecedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr("ppr0"_str)
+        .kleene_star() // <- under test
+        .name("ppr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, kleene_star_forErr_illegal_ambiguity_indirectLeftRecursion_noPrecedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr_decl("ppr1"_str)
+        .ppr("ppr0"_str)
+        .kleene_star() // <- under test
+        .name("ppr1"_str) // indirect self-ref
+        .close()
+        .close()
+        .ppr("ppr1"_str)
+        .name("ppr0"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, kleene_star_forErr_illegal_ambiguity_directLeftRecursion_precedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr("ppr0"_str, taul::precedence)
+        .kleene_star() // <- under test
+        .name("ppr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, kleene_star_forErr_illegal_ambiguity_indirectLeftRecursion_precedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr_decl("ppr1"_str)
+        .ppr("ppr0"_str, taul::precedence)
+        .kleene_star() // <- under test
+        .name("ppr1"_str) // indirect self-ref
+        .close()
+        .close()
+        .ppr("ppr1"_str)
+        .name("ppr0"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
 // kleene-plus
 //      illegal-in-no-scope
 //      illegal-in-no-alternation-scope (for lprs)
@@ -8117,6 +9352,12 @@ TEST(LoadTests, kleene_star_forErr_illegal_in_single_subexpr_scope_dueToTwoSubex
 //      illegal-in-single-subexpr-scope (due to two subexpr alt) (for lprs)
 //      illegal-in-single-subexpr-scope (due to zero subexpr alt) (for pprs)
 //      illegal-in-single-subexpr-scope (due to two subexpr alt) (for pprs)
+//      illegal-ambiguity (direct left-recursion) (for lprs)
+//      illegal-ambiguity (indirect left-recursion) (for lprs)
+//      illegal-ambiguity (direct left-recursion) (no precedence) (for pprs)
+//      illegal-ambiguity (indirect left-recursion) (no precedence) (for pprs)
+//      illegal-ambiguity (direct left-recursion) (precedence) (for pprs)
+//      illegal-ambiguity (indirect left-recursion) (precedence) (for pprs)
 
 TEST(LoadTests, kleene_plus_forErr_illegal_in_no_scope) {
     const auto lgr = taul::make_stderr_logger();
@@ -8280,6 +9521,144 @@ TEST(LoadTests, kleene_plus_forErr_illegal_in_single_subexpr_scope_dueToTwoSubex
 
     EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
     EXPECT_EQ(ec.count(taul::spec_error::illegal_in_single_subexpr_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, kleene_plus_forErr_illegal_ambiguity_directLeftRecursion_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0"_str)
+        .lpr("lpr0"_str)
+        .kleene_plus() // <- under test
+        .name("lpr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, kleene_plus_forErr_illegal_ambiguity_indirectLeftRecursion_forLPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("lpr0"_str)
+        .lpr_decl("lpr1"_str)
+        .lpr("lpr0"_str)
+        .kleene_plus() // <- under test
+        .name("lpr1"_str) // indirect self-ref
+        .close()
+        .close()
+        .lpr("lpr1"_str)
+        .name("lpr0"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, kleene_plus_forErr_illegal_ambiguity_directLeftRecursion_noPrecedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr("ppr0"_str)
+        .kleene_plus() // <- under test
+        .name("ppr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, kleene_plus_forErr_illegal_ambiguity_indirectLeftRecursion_noPrecedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr_decl("ppr1"_str)
+        .ppr("ppr0"_str)
+        .kleene_plus() // <- under test
+        .name("ppr1"_str) // indirect self-ref
+        .close()
+        .close()
+        .ppr("ppr1"_str)
+        .name("ppr0"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, kleene_plus_forErr_illegal_ambiguity_directLeftRecursion_precedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr("ppr0"_str, taul::precedence)
+        .kleene_plus() // <- under test
+        .name("ppr0"_str) // direct self-ref
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, kleene_plus_forErr_illegal_ambiguity_indirectLeftRecursion_precedence_forPPRs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("ppr0"_str)
+        .ppr_decl("ppr1"_str)
+        .ppr("ppr0"_str, taul::precedence)
+        .kleene_plus() // <- under test
+        .name("ppr1"_str) // indirect self-ref
+        .close()
+        .close()
+        .ppr("ppr1"_str)
+        .name("ppr0"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
     EXPECT_FALSE(gram);
 }
 

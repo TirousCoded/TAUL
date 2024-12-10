@@ -4,3 +4,5 @@
 	skip LPR1		: any ;
 	support LPR2	: any any | any | | ;
 
+	precedence LPR3 : any ; # semantically illegal
+

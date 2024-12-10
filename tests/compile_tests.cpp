@@ -14,7 +14,7 @@ using namespace taul::string_literals;
 // originally I thought to test it by asserting the expected behaviour
 // of a grammar loaded by the generated spec, but I realized that doing
 // so would be in many ways equivalent to having to maintain two copies
-// of code testing taul::taul_spec, so I decided against it
+// of code testing taul::taul_gram, so I decided against it
 
 
 // like w/ our load tests, we'll just assert that the impl needs to raise
@@ -140,9 +140,13 @@ TEST_F(CompileTests, TopLevel) {
         .lpr_decl("LPR0"_str)
         .lpr_decl("LPR1"_str)
         .lpr_decl("LPR2"_str)
+        .lpr_decl("LPR3"_str)
         .ppr_decl("PPR0"_str)
         .ppr_decl("PPR1"_str)
         .ppr_decl("PPR2"_str)
+        .ppr_decl("PPR3"_str)
+        .ppr_decl("PPR4"_str)
+        .ppr_decl("PPR5"_str)
         .lpr("LPR0"_str)
         .close()
         .lpr("LPR1"_str, taul::skip)
@@ -156,6 +160,9 @@ TEST_F(CompileTests, TopLevel) {
         .alternative()
         .alternative()
         .close()
+        .lpr("LPR3"_str, taul::precedence)
+        .any()
+        .close()
         .ppr("PPR0"_str)
         .close()
         .ppr("PPR1"_str)
@@ -168,6 +175,15 @@ TEST_F(CompileTests, TopLevel) {
         .any()
         .alternative()
         .alternative()
+        .close()
+        .ppr("PPR3"_str, taul::precedence)
+        .any()
+        .close()
+        .ppr("PPR4"_str, taul::skip)
+        .any()
+        .close()
+        .ppr("PPR5"_str, taul::support)
+        .any()
         .close()
         .done();
 
@@ -204,6 +220,7 @@ TEST_F(CompileTests, TopLevel_ImplicitLexerSectionIfNoExplicitSectionIsDeclared)
         .lpr_decl("LPR0"_str)
         .lpr_decl("LPR1"_str)
         .lpr_decl("LPR2"_str)
+        .lpr_decl("LPR3"_str)
         .lpr("LPR0"_str)
         .close()
         .lpr("LPR1"_str, taul::skip)
@@ -216,6 +233,9 @@ TEST_F(CompileTests, TopLevel_ImplicitLexerSectionIfNoExplicitSectionIsDeclared)
         .any()
         .alternative()
         .alternative()
+        .close()
+        .lpr("LPR3"_str, taul::precedence)
+        .any()
         .close()
         .done();
 

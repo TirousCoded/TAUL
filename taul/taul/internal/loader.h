@@ -245,7 +245,7 @@ namespace taul::internal {
         void check_err_illegal_in_lpr_scope(spec_opcode opcode);
         void check_err_illegal_in_ppr_scope(spec_opcode opcode);
         void check_err_illegal_in_no_scope(spec_opcode opcode);
-        void check_err_illegal_qualifier(std::string_view name, taul::qualifier qualifier);
+        void check_err_illegal_qualifier(std::string_view name, taul::qualifier qualifier, bool lpr_not_ppr);
         void check_err_illegal_in_single_terminal_scope(spec_opcode opcode, std::string_view s = {});
         void check_err_illegal_in_single_terminal_scope(spec_opcode opcode, std::u32string_view s); // for string
         void check_err_illegal_in_no_alternation_scope(spec_opcode opcode);
