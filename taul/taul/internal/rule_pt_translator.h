@@ -262,17 +262,30 @@ namespace taul::internal {
         void next_terminal_set(const glyph_set& set, bool assertion = false);
         void next_terminal_set(std::u32string_view charset_str, bool assertion = false); // for charset strings
 
-        // this is used to add a new non-terminal ref, accounting for assertion/inversion
+        // IMPORTANT: the only next_nonterminal calls w/ a preced_val which isn't signal_preced_val are
+        //            in on_name, as name exprs are where precedence values get *imbued* onto symbols,
+        //            and all other next_nonterminal calls are for things within the bodies of subrules
+        //            which are transparent, and exist to *propagate* the precedence value down to where
+        //            it needs to go
+        //
+        //            the way we're gonna do this is have 'next_nonterminal_with_preced' be used inside
+        //            of on_name, and we're gonna use 'next_nonterminal' everywhere else, w/ the ladder
+        //            using signal_preced_val as a result
 
+        // these are used to add a new non-terminal ref, accounting for assertion/inversion
+
+        void next_nonterminal_with_preced(symbol_id nonterminal, preced_t preced_val);
         void next_nonterminal(symbol_id nonterminal);
+
+        void next_preced_pred(preced_t preced_max, preced_t preced_val);
+        void next_pylon();
 
 
         void on_startup();
         void on_shutdown();
 
-        static_assert(llspec_opcodes == 21);
+        static_assert(llspec_opcodes == 22);
 
-        void on_pos(source_pos);
         void on_close();
         void on_alternative();
         void on_lpr_decl(std::string_view name);
@@ -286,7 +299,7 @@ namespace taul::internal {
         void on_charset(std::u32string_view s);
         void on_token();
         void on_failure();
-        void on_name(std::string_view name);
+        void on_name(std::string_view name, preced_t preced_val);
         void on_sequence();
         void on_lookahead();
         void on_lookahead_not();
@@ -294,6 +307,9 @@ namespace taul::internal {
         void on_optional();
         void on_kleene_star();
         void on_kleene_plus();
+
+        void on_preced_pred(preced_t preced_max, preced_t preced_val);
+        void on_pylon();
     };
 }
 

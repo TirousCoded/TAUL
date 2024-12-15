@@ -15,10 +15,10 @@ namespace taul::internal {
 
 
     // this parsing_system class encapsulates the engine used to
-    // parse some input via use of a grammar
+    // parse input via use of a grammar
 
     // herein, 'parse' is generalized to refer both to the behaviour
-    // of the lexer, and the parser
+    // of the lexer and the parser
 
     // the policy object must define:
     //      using symbol_type = ...
@@ -126,7 +126,7 @@ namespace taul::internal {
 
         // for every unit of current depth removed during this process, we
         // report to the output that we've exited a non-terminal's scope, as
-        // this act of lower is the indicator that its scope has ended
+        // this act of lowering is the indicator that its scope has ended
 
         size_t _current_depth = 0;
 
@@ -147,12 +147,14 @@ namespace taul::internal {
         inline bool _try_apply_terminal(const pt_terminal<symbol_type>& terminal, symbol_type input);
         inline bool _try_apply_nonterminal(const pt_nonterminal& nonterminal, symbol_type input);
 
-        inline void _push_terms(size_t pt_index);
+        inline const pt_rule<symbol_type>& _fetch_rule(size_t pt_index);
+        inline void _push_terms(const pt_nonterminal& nonterminal, const pt_rule<symbol_type>& rule);
+        inline void _resolve_signal_preced_val(pt_term<symbol_type>& x, const pt_nonterminal& ctx);
 
         // these handle pushing/popping to/from parse stack
 
         inline void _push_terminal(symbol_id terminal, bool assertion = false);
-        inline void _push_nonterminal(symbol_id nonterminal);
+        inline void _push_nonterminal(symbol_id nonterminal, preced_t preced_val);
         inline void _push(pt_term<symbol_type>&& x);
         inline _item _pop();
 
@@ -169,6 +171,8 @@ namespace taul::internal {
 
         inline bool _match_terminal_with_eh(const pt_terminal<symbol_type>& terminal);
         inline bool _match_nonterminal_with_eh(const pt_nonterminal& nonterminal);
+        inline bool _match_preced_pred(const pt_preced_pred& preced_pred);
+        inline bool _match_pylon(const pt_pylon&);
         inline bool _match_term(const pt_term<symbol_type>& term);
 
         inline bool _parse(rule_ref_type start_rule);
@@ -232,7 +236,7 @@ namespace taul::internal {
     inline void parsing_system<Policy>::_setup(rule_ref_type start_rule) {
         _reinit(start_rule); // reinit state
         // prepare our parse stack
-        _push_nonterminal(start_rule.id());
+        _push_nonterminal(start_rule.id(), no_preced_val);
     }
 
     template<typename Policy>
@@ -278,20 +282,42 @@ namespace taul::internal {
     inline bool parsing_system<Policy>::_try_apply_nonterminal(const pt_nonterminal& nonterminal, symbol_type input) {
         const auto pt_index = _lookup_in_pt(nonterminal.id, input.id);
         if (pt_index) {
+            const auto& rule = _fetch_rule(pt_index.value());
             _output_nonterminal_begin(nonterminal.id);
-            _push_terms(pt_index.value());
+            _push_terms(nonterminal, rule);
         }
         return (bool)pt_index;
     }
-    
+
     template<typename Policy>
-    inline void parsing_system<Policy>::_push_terms(size_t pt_index) {
+    inline const pt_rule<typename parsing_system<Policy>::symbol_type>& parsing_system<Policy>::_fetch_rule(size_t pt_index) {
         const auto& rules = _policy.fetch_pt(_gram).rules;
         TAUL_ASSERT(pt_index < rules.size());
-        const auto& terms = rules[pt_index].terms;
-        // iterate backwards through terms to push them to parse stack
-        for (auto it = terms.crbegin(); it != terms.crend(); it++) {
-            _push(pt_term<symbol_type>(*it));
+        return rules[pt_index];
+    }
+
+    template<typename Policy>
+    inline void parsing_system<Policy>::_push_terms(const pt_nonterminal& nonterminal, const pt_rule<symbol_type>& rule) {
+        // iterate *backwards* through terms, pushing them to parse stack
+        for (auto it = rule.terms.crbegin(); it != rule.terms.crend(); it++) {
+            auto new_term = pt_term<symbol_type>(*it); // clone *it
+            _resolve_signal_preced_val(new_term, nonterminal); // propagate preced_val if signals to
+            _push(std::move(new_term)); // push the new non-terminal and move on
+        }
+    }
+
+    template<typename Policy>
+    inline void parsing_system<Policy>::_resolve_signal_preced_val(pt_term<symbol_type>& x, const pt_nonterminal& ctx) {
+        // TODO: maybe replace editing the term w/ adding a preced_val to the _item type?
+        
+        // if x is a non-terminal, and its preced_val == signal_preced_val, then
+        // we want to edit it to be ctx.preced_val, *propagating* ctx's value
+        if (x.is_nonterminal() && x.nonterminal().preced_val == signal_preced_val) {
+            x.nonterminal().preced_val = ctx.preced_val;
+        }
+        // we do likewise for if x is a precedence predicate
+        else if (x.is_preced_pred() && x.preced_pred().preced_val == signal_preced_val) {
+            x.preced_pred().preced_val = ctx.preced_val;
         }
     }
 
@@ -301,8 +327,8 @@ namespace taul::internal {
     }
 
     template<typename Policy>
-    inline void parsing_system<Policy>::_push_nonterminal(symbol_id nonterminal) {
-        _push(pt_term<symbol_type>::init_nonterminal(nonterminal));
+    inline void parsing_system<Policy>::_push_nonterminal(symbol_id nonterminal, preced_t preced_val) {
+        _push(pt_term<symbol_type>::init_nonterminal(nonterminal, preced_val));
     }
 
     template<typename Policy>
@@ -417,12 +443,32 @@ namespace taul::internal {
     }
 
     template<typename Policy>
+    inline bool parsing_system<Policy>::_match_preced_pred(const pt_preced_pred& preced_pred) {
+        const bool condition = preced_pred.preced_val <= preced_pred.preced_max; // the central comparison defining predicate
+        if (!condition) { // if condition wasn't met, consuming parse stack items until we reach pylon
+            while (true) {
+                if (const auto consumed = _consume_top()) {
+                    if (consumed.value().term.is_pylon()) break; // stop due to reached a pylon
+                }
+                else break; // stop due to empty parse stack
+            }
+        }
+        return true; // can't fail
+    }
+
+    template<typename Policy>
+    inline bool parsing_system<Policy>::_match_pylon(const pt_pylon&) {
+        return true; // can't fail
+    }
+
+    template<typename Policy>
     inline bool parsing_system<Policy>::_match_term(const pt_term<symbol_type>& term) {
-        TAUL_ASSERT(term.is_terminal() || term.is_nonterminal());
-        return
-            term.is_terminal()
-            ? _match_terminal_with_eh(term.terminal())
-            : _match_nonterminal_with_eh(term.nonterminal());
+        if (term.is_terminal())         return _match_terminal_with_eh(term.terminal());
+        else if (term.is_nonterminal()) return _match_nonterminal_with_eh(term.nonterminal());
+        else if (term.is_preced_pred()) return _match_preced_pred(term.preced_pred());
+        else if (term.is_pylon())       return _match_pylon(term.pylon());
+        else                            TAUL_DEADEND;
+        return {};
     }
 
     template<typename Policy>

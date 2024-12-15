@@ -18,15 +18,14 @@ namespace taul {
 
     enum class spec_opcode : uint8_t {
 
+        // TODO: scope non-propagation semantics have not really been unit tested yet
+
         // composite exprs may encapsulate the following special scopes:
         //      - single-terminal scope
         //      - no-alternation scope
         //      - single-subexpr scope
         //      - no-end-subexpr scope
-
-
-        // TODO: single-terminal, no-alternation and single-subexpr scope non-propagation 
-        //       has not really been unit tested yet
+        //      - precedence scope
 
         
         // within single-terminal scope, the exprs therein are required to describe
@@ -93,19 +92,13 @@ namespace taul {
         //      - not
 
 
-        // TODO: pos functionality has not really been unit tested, as I'm not
-        //       really sure how I'm to go about unit testing it
+        // within precedence scope, the semantics of precedence PPRs are enabled
 
-        // pos updates the current source code position
+        // precedence scope does not propagate down to composite subexprs
 
-        // when loading a spec, the loader will maintain a current source code
-        // position which instructions will be deemed to be *located at* in the
-        // original source code the spec was syntax compiled from
+        // the following composite exprs encapsulate precedence scope:
+        //      - ppr               <- if precedence qualified
 
-        // by default, this pos is 0, and does not change except when explicitly
-        // told to do so via a pos instruction
-
-        pos,            // not an expr
 
         // close indicates end of composite expr
 

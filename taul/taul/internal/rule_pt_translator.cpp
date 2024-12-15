@@ -297,18 +297,43 @@ void taul::internal::rule_pt_translator::next_terminal_set(std::u32string_view c
     next_terminal_set(set, assertion);
 }
 
+void taul::internal::rule_pt_translator::next_nonterminal_with_preced(symbol_id nonterminal, preced_t preced_val) {
+    assert_in_composite_expr();
+    assert_in_subrule();
+#if _DUMP_LOG
+    TAUL_LOG(make_stderr_logger(), "-> next_nonterminal_with_preced({}, {})", nonterminal, preced_val);
+#endif
+    if (is_in_lpr_not_ppr())    lexer_pt.add_nonterminal(subrule_stk.back().rule, nonterminal, preced_val);
+    else                        parser_pt.add_nonterminal(subrule_stk.back().rule, nonterminal, preced_val);
+}
+
 void taul::internal::rule_pt_translator::next_nonterminal(symbol_id nonterminal) {
     assert_in_composite_expr();
     assert_in_subrule();
 #if _DUMP_LOG
     TAUL_LOG(make_stderr_logger(), "-> next_nonterminal({})", nonterminal);
 #endif
-    if (is_in_lpr_not_ppr()) {
-        lexer_pt.add_nonterminal(subrule_stk.back().rule, nonterminal);
-    }
-    else {
-        parser_pt.add_nonterminal(subrule_stk.back().rule, nonterminal);
-    }
+    next_nonterminal_with_preced(nonterminal, signal_preced_val);
+}
+
+void taul::internal::rule_pt_translator::next_preced_pred(preced_t preced_max, preced_t preced_val) {
+    assert_in_composite_expr();
+    assert_in_subrule();
+#if _DUMP_LOG
+    TAUL_LOG(make_stderr_logger(), "-> next_preced_pred({}, {})", size_t(preced_max), size_t(preced_val));
+#endif
+    if (is_in_lpr_not_ppr())    lexer_pt.add_preced_pred(subrule_stk.back().rule, preced_max, preced_val);
+    else                        parser_pt.add_preced_pred(subrule_stk.back().rule, preced_max, preced_val);
+}
+
+void taul::internal::rule_pt_translator::next_pylon() {
+    assert_in_composite_expr();
+    assert_in_subrule();
+#if _DUMP_LOG
+    TAUL_LOG(make_stderr_logger(), "-> next_pylon");
+#endif
+    if (is_in_lpr_not_ppr())    lexer_pt.add_pylon(subrule_stk.back().rule);
+    else                        parser_pt.add_pylon(subrule_stk.back().rule);
 }
 
 void taul::internal::rule_pt_translator::on_startup() {
@@ -340,12 +365,6 @@ void taul::internal::rule_pt_translator::on_shutdown() {
     TAUL_LOG(make_stderr_logger(), "(for PPRs)");
     TAUL_LOG(make_stderr_logger(), "{}", parser_ptbd.fmt(parser_pt.grouper));
     TAUL_LOG(make_stderr_logger(), "{}", parser_pt.fmt());
-#endif
-}
-
-void taul::internal::rule_pt_translator::on_pos(source_pos) {
-#if _DUMP_LOG
-    TAUL_LOG(make_stderr_logger(), "-> on_pos");
 #endif
 }
 
@@ -485,7 +504,7 @@ void taul::internal::rule_pt_translator::on_failure() {
     next_terminal(failure_lpr_id);
 }
 
-void taul::internal::rule_pt_translator::on_name(std::string_view name) {
+void taul::internal::rule_pt_translator::on_name(std::string_view name, preced_t preced_val) {
     if (cancelled) return;
     assert_in_composite_expr();
     assert_in_subrule();
@@ -493,12 +512,13 @@ void taul::internal::rule_pt_translator::on_name(std::string_view name) {
     TAUL_LOG(make_stderr_logger(), "-> on_name");
 #endif
     if (is_in_lpr_not_ppr()) {
-        next_nonterminal(fetch_symbol_lxr(name));
+        TAUL_ASSERT(preced_val == no_preced_val);
+        next_nonterminal_with_preced(fetch_symbol_lxr(name), preced_val);
     }
     else {
         // name exprs in PPRs can ref both LPRs and PPRs
         if (is_lpr_name(name)) next_terminal(fetch_symbol_lxr(name)); // remember, gotta push this as terminal!
-        if (is_ppr_name(name)) next_nonterminal(fetch_symbol_psr(name));
+        if (is_ppr_name(name)) next_nonterminal_with_preced(fetch_symbol_psr(name), preced_val);
     }
 }
 
@@ -596,5 +616,25 @@ void taul::internal::rule_pt_translator::on_kleene_plus() {
     next_nonterminal(c);
     begin_subrule(b, mode::kleene_star);
     begin_subrule(c, mode::sequence);
+}
+
+void taul::internal::rule_pt_translator::on_preced_pred(preced_t preced_max, preced_t preced_val) {
+    if (cancelled) return;
+    assert_in_composite_expr();
+    assert_in_subrule();
+#if _DUMP_LOG
+    TAUL_LOG(make_stderr_logger(), "-> on_preced_pred({}, {})", size_t(preced_max), size_t(preced_val));
+#endif
+    next_preced_pred(preced_max, preced_val);
+}
+
+void taul::internal::rule_pt_translator::on_pylon() {
+    if (cancelled) return;
+    assert_in_composite_expr();
+    assert_in_subrule();
+#if _DUMP_LOG
+    TAUL_LOG(make_stderr_logger(), "-> on_pylon");
+#endif
+    next_pylon();
 }
 

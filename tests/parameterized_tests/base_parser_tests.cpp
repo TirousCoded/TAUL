@@ -772,15 +772,9 @@ TEST_P(BaseParserTests, AllowAnyPPRToBeTheStartRule) {
 
     auto result0 = psr->parse(gram->ppr("abc1"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("abc2"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -858,9 +852,6 @@ TEST_P(BaseParserTests, Parse_AllowMultipleRoundsOfParsingUsingSameStreamOfInput
     auto result0 = psr->parse(gram->ppr("f"_str).value());
     auto result1 = psr->parse(gram->ppr("f"_str).value());
     auto result2 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expectedA{};
     expectedA.on_startup();
@@ -950,9 +941,6 @@ TEST_P(BaseParserTests, ParseNoTree_AllowMultipleRoundsOfParsingUsingSameStreamO
     psr->parse_notree(gram->ppr("f"_str).value());
     psr->parse_notree(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     test_listener expectedA{};
     expectedA.on_startup();
     expectedA.on_syntactic(gram->ppr("f"_str).value(), 0);
@@ -983,7 +971,7 @@ TEST_P(BaseParserTests, ParseNoTree_AllowMultipleRoundsOfParsingUsingSameStreamO
 // these tests are for expected TAUL semantics
 
 
-static_assert(taul::spec_opcodes == 21);
+static_assert(taul::spec_opcodes == 20);
 
 
 // for composite exprs, these tests will largely assume that so long
@@ -1025,16 +1013,10 @@ TEST_P(BaseParserTests, PPR_Empty) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("a"_str);
     psr->reset();
     
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -1283,32 +1265,20 @@ TEST_P(BaseParserTests, PPR_NonEmpty_WithAlts_WithEmptyAlts) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input(""_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input("ab"_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -1398,32 +1368,20 @@ TEST_P(BaseParserTests, PPR_Nesting) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("abca"_str);
     psr->reset();
     
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input("ab"_str);
     psr->reset();
     
     auto result2 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input(""_str);
     psr->reset();
     
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -1478,6 +1436,10 @@ static std::optional<taul::grammar> make_grammar_2f(std::shared_ptr<taul::logger
         .lpr_decl("PLUS"_str)
         .lpr_decl("MULTIPLY"_str)
         .lpr_decl("NUMBER"_str)
+        .lpr_decl("L_ROUND"_str)
+        .lpr_decl("R_ROUND"_str)
+        .lpr_decl("QUESTION"_str)
+        .lpr_decl("COLON"_str)
         .ppr_decl("Expr"_str)
         .lpr("PLUS"_str)
         .string("+"_str)
@@ -1488,17 +1450,39 @@ static std::optional<taul::grammar> make_grammar_2f(std::shared_ptr<taul::logger
         .lpr("NUMBER"_str)
         .string("a"_str)
         .close()
+        .lpr("L_ROUND"_str)
+        .string("("_str)
+        .close()
+        .lpr("R_ROUND"_str)
+        .string(")"_str)
+        .close()
+        .lpr("QUESTION"_str)
+        .string("?"_str)
+        .close()
+        .lpr("COLON"_str)
+        .string(":"_str)
+        .close()
         .ppr("Expr"_str, taul::precedence)
         // goes from least to greatest precedence
+        .name("Expr"_str) // recurse alt
+        .name("QUESTION"_str)
+        .name("Expr"_str) // <- should have precedence 0
+        .name("COLON"_str)
         .name("Expr"_str)
+        .alternative()
+        .name("Expr"_str) // recurse alt
         .name("PLUS"_str)
         .name("Expr"_str)
         .alternative()
-        .name("Expr"_str)
+        .name("Expr"_str) // recurse alt
         .name("MULTIPLY"_str)
         .name("Expr"_str)
         .alternative()
-        .name("NUMBER"_str)
+        .name("L_ROUND"_str) // base alt
+        .name("Expr"_str) // <- precedence value should be *reset* for this one
+        .name("R_ROUND"_str)
+        .alternative()
+        .name("NUMBER"_str) // base alt
         .close()
         .done();
     return taul::load(spec, lgr);
@@ -1511,6 +1495,10 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithNoEmptyAlt)
     ASSERT_TRUE(gram->has_lpr("PLUS"_str));
     ASSERT_TRUE(gram->has_lpr("MULTIPLY"_str));
     ASSERT_TRUE(gram->has_lpr("NUMBER"_str));
+    ASSERT_TRUE(gram->has_lpr("L_ROUND"_str));
+    ASSERT_TRUE(gram->has_lpr("R_ROUND"_str));
+    ASSERT_TRUE(gram->has_lpr("QUESTION"_str));
+    ASSERT_TRUE(gram->has_lpr("COLON"_str));
     ASSERT_TRUE(gram->has_ppr("Expr"_str));
 
     auto psr = GetParam().factory(gram.value(), lgr);
@@ -1525,20 +1513,11 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithNoEmptyAlt)
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
 
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
-
-        //  Expr (
-        //      ** abort **
-        //  )
+        //  ** abort **
 
         test_listener expected{};
         expected.on_startup();
-        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
-        {
-            expected.on_abort();
-        }
-        expected.on_close();
+        expected.on_abort();
         expected.on_shutdown();
 
         test_listener actual{};
@@ -1554,9 +1533,6 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithNoEmptyAlt)
         psr->reset();
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
-
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
 
         //  Expr (
         //      NUMBER
@@ -1584,9 +1560,6 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithNoEmptyAlt)
         psr->reset();
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
-
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
 
         //  Expr (
         //      NUMBER
@@ -1635,9 +1608,6 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithNoEmptyAlt)
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
 
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
-
         //  Expr (
         //      NUMBER
         //      MULTIPLY
@@ -1684,9 +1654,6 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithNoEmptyAlt)
         psr->reset();
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
-
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
 
         //  Expr (
         //      NUMBER
@@ -1745,9 +1712,6 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithNoEmptyAlt)
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
 
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
-
         //  Expr (
         //      NUMBER
         //      PLUS
@@ -1797,7 +1761,7 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithNoEmptyAlt)
         EXPECT_EQ(expected.output, actual.output);
     }
     {
-        taul::source_reader input("a+*a+++a"_str);
+        taul::source_reader input("a*(a+a)*a"_str);
         taul::lexer lxr(gram.value());
         lxr.bind_source(&input);
         psr->bind_source(&lxr);
@@ -1805,14 +1769,106 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithNoEmptyAlt)
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
 
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
+        //  Expr (
+        //      NUMBER
+        //      MULTIPLY
+        //      Expr (
+        //          L_ROUND
+        //          Expr (
+        //              NUMBER
+        //              PLUS
+        //              Expr (
+        //                  NUMBER
+        //              )
+        //          )
+        //          R_ROUND
+        //      )
+        //      MULTIPLY
+        //      Expr (
+        //          NUMBER
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "L_ROUND"_str, 2, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 3);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 3, 1));
+                    expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 4, 1));
+                    expected.on_syntactic(gram->ppr("Expr"_str).value(), 5);
+                    {
+                        expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 5, 1));
+                    }
+                    expected.on_close();
+                }
+                expected.on_close();
+                expected.on_lexical(taul::token::normal(gram.value(), "R_ROUND"_str, 6, 1));
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 7, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 8);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 8, 1));
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a+a?a+a?a+a:a+a:a+a"_str); // nested ternary operator tests that precedence for middle is 0
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
 
         //  Expr (
         //      NUMBER
         //      PLUS
         //      Expr (
-        //          ** abort **
+        //          NUMBER
+        //      )
+        //      QUESTION
+        //      Expr (
+        //          NUMBER
+        //          PLUS
+        //          Expr (
+        //              NUMBER
+        //          )
+        //          QUESTION
+        //          Expr (
+        //              NUMBER
+        //              PLUS
+        //              Expr (
+        //                  NUMBER
+        //              )
+        //          )
+        //          COLON
+        //          NUMBER
+        //          PLUS
+        //          Expr (
+        //              NUMBER
+        //          )
+        //      )
+        //      COLON
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
         //      )
         //  )
 
@@ -1824,11 +1880,90 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithNoEmptyAlt)
             expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
             expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
             {
-                expected.on_abort();
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "QUESTION"_str, 3, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 5, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 6, 1));
+                }
+                expected.on_close();
+                expected.on_lexical(taul::token::normal(gram.value(), "QUESTION"_str, 7, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 8);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 8, 1));
+                    expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 9, 1));
+                    expected.on_syntactic(gram->ppr("Expr"_str).value(), 10);
+                    {
+                        expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 10, 1));
+                    }
+                    expected.on_close();
+                }
+                expected.on_close();
+                expected.on_lexical(taul::token::normal(gram.value(), "COLON"_str, 11, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 12);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 12, 1));
+                    expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 13, 1));
+                    expected.on_syntactic(gram->ppr("Expr"_str).value(), 14);
+                    {
+                        expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 14, 1));
+                    }
+                    expected.on_close();
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "COLON"_str, 15, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 16);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 16, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 17, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 18);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 18, 1));
+                }
+                expected.on_close();
             }
             expected.on_close();
         }
         expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a+*a+++a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      ** abort **
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+        }
+        expected.on_close();
+        expected.on_abort();
         expected.on_shutdown();
 
         test_listener actual{};
@@ -1844,6 +1979,10 @@ static std::optional<taul::grammar> make_grammar_2g(std::shared_ptr<taul::logger
         .lpr_decl("PLUS"_str)
         .lpr_decl("MULTIPLY"_str)
         .lpr_decl("NUMBER"_str)
+        .lpr_decl("L_ROUND"_str)
+        .lpr_decl("R_ROUND"_str)
+        .lpr_decl("QUESTION"_str)
+        .lpr_decl("COLON"_str)
         .ppr_decl("Expr"_str)
         .lpr("PLUS"_str)
         .string("+"_str)
@@ -1854,19 +1993,41 @@ static std::optional<taul::grammar> make_grammar_2g(std::shared_ptr<taul::logger
         .lpr("NUMBER"_str)
         .string("a"_str)
         .close()
+        .lpr("L_ROUND"_str)
+        .string("("_str)
+        .close()
+        .lpr("R_ROUND"_str)
+        .string(")"_str)
+        .close()
+        .lpr("QUESTION"_str)
+        .string("?"_str)
+        .close()
+        .lpr("COLON"_str)
+        .string(":"_str)
+        .close()
         .ppr("Expr"_str, taul::precedence)
         // goes from least to greatest precedence
+        .name("Expr"_str) // recurse alt
+        .name("QUESTION"_str)
+        .name("Expr"_str) // <- should have precedence 0
+        .name("COLON"_str)
         .name("Expr"_str)
+        .alternative()
+        .name("Expr"_str) // recurse alt
         .name("PLUS"_str)
         .name("Expr"_str)
         .alternative()
-        .name("Expr"_str)
+        .name("Expr"_str) // recurse alt
         .name("MULTIPLY"_str)
         .name("Expr"_str)
         .alternative()
-        .name("NUMBER"_str)
+        .name("L_ROUND"_str) // base alt
+        .name("Expr"_str) // <- precedence value should be *reset* for this one
+        .name("R_ROUND"_str)
         .alternative()
-        // empty alt
+        .name("NUMBER"_str) // base alt
+        .alternative()
+        // empty base alt
         .close()
         .done();
     return taul::load(spec, lgr);
@@ -1879,6 +2040,10 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithEmptyAlt) {
     ASSERT_TRUE(gram->has_lpr("PLUS"_str));
     ASSERT_TRUE(gram->has_lpr("MULTIPLY"_str));
     ASSERT_TRUE(gram->has_lpr("NUMBER"_str));
+    ASSERT_TRUE(gram->has_lpr("L_ROUND"_str));
+    ASSERT_TRUE(gram->has_lpr("R_ROUND"_str));
+    ASSERT_TRUE(gram->has_lpr("QUESTION"_str));
+    ASSERT_TRUE(gram->has_lpr("COLON"_str));
     ASSERT_TRUE(gram->has_ppr("Expr"_str));
 
     auto psr = GetParam().factory(gram.value(), lgr);
@@ -1892,9 +2057,6 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithEmptyAlt) {
         psr->reset();
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
-
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
 
         //  Expr (
         //  )
@@ -1922,9 +2084,6 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithEmptyAlt) {
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
 
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
-
         //  Expr (
         //      NUMBER
         //  )
@@ -1951,9 +2110,6 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithEmptyAlt) {
         psr->reset();
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
-
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
 
         //  Expr (
         //      NUMBER
@@ -2002,9 +2158,6 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithEmptyAlt) {
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
 
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
-
         //  Expr (
         //      NUMBER
         //      MULTIPLY
@@ -2051,9 +2204,6 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithEmptyAlt) {
         psr->reset();
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
-
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
 
         //  Expr (
         //      NUMBER
@@ -2112,9 +2262,6 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithEmptyAlt) {
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
 
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
-
         //  Expr (
         //      NUMBER
         //      PLUS
@@ -2164,7 +2311,7 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithEmptyAlt) {
         EXPECT_EQ(expected.output, actual.output);
     }
     {
-        taul::source_reader input("a+*a+++a"_str);
+        taul::source_reader input("a*(a+a)*a"_str);
         taul::lexer lxr(gram.value());
         lxr.bind_source(&input);
         psr->bind_source(&lxr);
@@ -2172,8 +2319,185 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithEmptyAlt) {
 
         auto result = psr->parse(gram->ppr("Expr"_str).value());
 
-        //EXPECT_TRUE(input.done());
-        //EXPECT_TRUE(lxr.done());
+        //  Expr (
+        //      NUMBER
+        //      MULTIPLY
+        //      Expr (
+        //          L_ROUND
+        //          Expr (
+        //              NUMBER
+        //              PLUS
+        //              Expr (
+        //                  NUMBER
+        //              )
+        //          )
+        //          R_ROUND
+        //      )
+        //      MULTIPLY
+        //      Expr (
+        //          NUMBER
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "L_ROUND"_str, 2, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 3);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 3, 1));
+                    expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 4, 1));
+                    expected.on_syntactic(gram->ppr("Expr"_str).value(), 5);
+                    {
+                        expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 5, 1));
+                    }
+                    expected.on_close();
+                }
+                expected.on_close();
+                expected.on_lexical(taul::token::normal(gram.value(), "R_ROUND"_str, 6, 1));
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 7, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 8);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 8, 1));
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a+a?a+a?a+a:a+a:a+a"_str); // nested ternary operator tests that precedence for middle is 0
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //      )
+        //      QUESTION
+        //      Expr (
+        //          NUMBER
+        //          PLUS
+        //          Expr (
+        //              NUMBER
+        //          )
+        //          QUESTION
+        //          Expr (
+        //              NUMBER
+        //              PLUS
+        //              Expr (
+        //                  NUMBER
+        //              )
+        //          )
+        //          COLON
+        //          NUMBER
+        //          PLUS
+        //          Expr (
+        //              NUMBER
+        //          )
+        //      )
+        //      COLON
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "QUESTION"_str, 3, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 5, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 6, 1));
+                }
+                expected.on_close();
+                expected.on_lexical(taul::token::normal(gram.value(), "QUESTION"_str, 7, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 8);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 8, 1));
+                    expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 9, 1));
+                    expected.on_syntactic(gram->ppr("Expr"_str).value(), 10);
+                    {
+                        expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 10, 1));
+                    }
+                    expected.on_close();
+                }
+                expected.on_close();
+                expected.on_lexical(taul::token::normal(gram.value(), "COLON"_str, 11, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 12);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 12, 1));
+                    expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 13, 1));
+                    expected.on_syntactic(gram->ppr("Expr"_str).value(), 14);
+                    {
+                        expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 14, 1));
+                    }
+                    expected.on_close();
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+            expected.on_lexical(taul::token::normal(gram.value(), "COLON"_str, 15, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 16);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 16, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 17, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 18);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 18, 1));
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a+*a+++a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
 
         //  Expr (
         //      NUMBER
@@ -2241,6 +2565,581 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAndRecurseAlts_WithEmptyAlt) {
     }
 }
 
+static std::optional<taul::grammar> make_grammar_2h(std::shared_ptr<taul::logger> lgr) {
+    auto spec =
+        taul::spec_writer()
+        .lpr_decl("A"_str)
+        .ppr_decl("Expr"_str)
+        .lpr("A"_str)
+        .string("a"_str)
+        .close()
+        .ppr("Expr"_str, taul::precedence)
+        .name("A"_str) // base alt
+        .alternative()
+        .name("Expr"_str) // recurse alt w/ only a prefix-ref (and thus will be ignored)
+        .close()
+        .done();
+    return taul::load(spec, lgr);
+}
+
+TEST_P(BaseParserTests, PPR_PrecedencePPR_WithBaseAlt_AndRecurseAltWithOnlyAPrefixRef_RecurseAltWillBeIgnored) {
+    auto gram = make_grammar_2h(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("A"_str));
+    ASSERT_TRUE(gram->has_ppr("Expr"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    {
+        taul::source_reader input(""_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  ** abort **
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_abort();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("b"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  ** abort **
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_abort();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  Expr (
+        //      A
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 0, 1));
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("aa"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  Expr (
+        //      A
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 0, 1));
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+    {
+        taul::source_reader input("ab"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  Expr (
+        //      A
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "A"_str, 0, 1));
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+}
+
+static std::optional<taul::grammar> make_grammar_2i(std::shared_ptr<taul::logger> lgr) {
+    auto spec =
+        taul::spec_writer()
+        .lpr_decl("PLUS"_str)
+        .lpr_decl("MULTIPLY"_str)
+        .lpr_decl("NUMBER"_str)
+        .ppr_decl("Expr"_str)
+        .lpr("PLUS"_str)
+        .string("+"_str)
+        .close()
+        .lpr("MULTIPLY"_str)
+        .string("*"_str)
+        .close()
+        .lpr("NUMBER"_str)
+        .string("a"_str)
+        .close()
+        .ppr("Expr"_str, taul::precedence)
+        // goes from least to greatest precedence
+        .name("Expr"_str) // recurse alt
+        .name("PLUS"_str)
+        .name("Expr"_str)
+        .alternative()
+        .name("Expr"_str) // recurse alt
+        .name("MULTIPLY"_str)
+        .sequence() // <- wrapping suffix-ref in this should reset its precedence
+        .name("Expr"_str)
+        .close()
+        .alternative()
+        .name("NUMBER"_str) // base alt
+        .close()
+        .done();
+    return taul::load(spec, lgr);
+}
+
+TEST_P(BaseParserTests, PPR_PrecedencePPR_SelfRefDoesNotFormSuffixRefIfWrappedInCompositeExpr_Sequence) {
+    auto gram = make_grammar_2i(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("PLUS"_str));
+    ASSERT_TRUE(gram->has_lpr("MULTIPLY"_str));
+    ASSERT_TRUE(gram->has_lpr("NUMBER"_str));
+    ASSERT_TRUE(gram->has_ppr("Expr"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    {
+        taul::source_reader input("a+a*a+a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //          MULTIPLY
+        //          Expr (
+        //              NUMBER
+        //              PLUS
+        //              Expr (
+        //                  NUMBER
+        //              )
+        //          )
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 3, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+                    expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 5, 1));
+                    expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+                    {
+                        expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 6, 1));
+                    }
+                    expected.on_close();
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+}
+
+static std::optional<taul::grammar> make_grammar_2j(std::shared_ptr<taul::logger> lgr) {
+    auto spec =
+        taul::spec_writer()
+        .lpr_decl("PLUS"_str)
+        .lpr_decl("MULTIPLY"_str)
+        .lpr_decl("NUMBER"_str)
+        .ppr_decl("Expr"_str)
+        .lpr("PLUS"_str)
+        .string("+"_str)
+        .close()
+        .lpr("MULTIPLY"_str)
+        .string("*"_str)
+        .close()
+        .lpr("NUMBER"_str)
+        .string("a"_str)
+        .close()
+        .ppr("Expr"_str, taul::precedence)
+        // goes from least to greatest precedence
+        .name("Expr"_str) // recurse alt
+        .name("PLUS"_str)
+        .name("Expr"_str)
+        .alternative()
+        .name("Expr"_str) // recurse alt
+        .name("MULTIPLY"_str)
+        // we're not here to test optionalness/repetition, just precedence change of wrapped self-ref
+        .optional() // <- wrapping suffix-ref in this should reset its precedence
+        .name("Expr"_str)
+        .close()
+        .alternative()
+        .name("NUMBER"_str) // base alt
+        .close()
+        .done();
+    return taul::load(spec, lgr);
+}
+
+TEST_P(BaseParserTests, PPR_PrecedencePPR_SelfRefDoesNotFormSuffixRefIfWrappedInCompositeExpr_Optional) {
+    auto gram = make_grammar_2j(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("PLUS"_str));
+    ASSERT_TRUE(gram->has_lpr("MULTIPLY"_str));
+    ASSERT_TRUE(gram->has_lpr("NUMBER"_str));
+    ASSERT_TRUE(gram->has_ppr("Expr"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    {
+        taul::source_reader input("a+a*a+a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //          MULTIPLY
+        //          Expr (
+        //              NUMBER
+        //              PLUS
+        //              Expr (
+        //                  NUMBER
+        //              )
+        //          )
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 3, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+                    expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 5, 1));
+                    expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+                    {
+                        expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 6, 1));
+                    }
+                    expected.on_close();
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+}
+
+static std::optional<taul::grammar> make_grammar_2k(std::shared_ptr<taul::logger> lgr) {
+    auto spec =
+        taul::spec_writer()
+        .lpr_decl("PLUS"_str)
+        .lpr_decl("MULTIPLY"_str)
+        .lpr_decl("NUMBER"_str)
+        .ppr_decl("Expr"_str)
+        .lpr("PLUS"_str)
+        .string("+"_str)
+        .close()
+        .lpr("MULTIPLY"_str)
+        .string("*"_str)
+        .close()
+        .lpr("NUMBER"_str)
+        .string("a"_str)
+        .close()
+        .ppr("Expr"_str, taul::precedence)
+        // goes from least to greatest precedence
+        .name("Expr"_str) // recurse alt
+        .name("PLUS"_str)
+        .name("Expr"_str)
+        .alternative()
+        .name("Expr"_str) // recurse alt
+        .name("MULTIPLY"_str)
+        // we're not here to test optionalness/repetition, just precedence change of wrapped self-ref
+        .kleene_star() // <- wrapping suffix-ref in this should reset its precedence
+        .name("Expr"_str)
+        .close()
+        .alternative()
+        .name("NUMBER"_str) // base alt
+        .close()
+        .done();
+    return taul::load(spec, lgr);
+}
+
+TEST_P(BaseParserTests, PPR_PrecedencePPR_SelfRefDoesNotFormSuffixRefIfWrappedInCompositeExpr_KleeneStar) {
+    auto gram = make_grammar_2k(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("PLUS"_str));
+    ASSERT_TRUE(gram->has_lpr("MULTIPLY"_str));
+    ASSERT_TRUE(gram->has_lpr("NUMBER"_str));
+    ASSERT_TRUE(gram->has_ppr("Expr"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    {
+        taul::source_reader input("a+a*a+a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //          MULTIPLY
+        //          Expr (
+        //              NUMBER
+        //              PLUS
+        //              Expr (
+        //                  NUMBER
+        //              )
+        //          )
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 3, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+                    expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 5, 1));
+                    expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+                    {
+                        expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 6, 1));
+                    }
+                    expected.on_close();
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+}
+
+static std::optional<taul::grammar> make_grammar_2l(std::shared_ptr<taul::logger> lgr) {
+    auto spec =
+        taul::spec_writer()
+        .lpr_decl("PLUS"_str)
+        .lpr_decl("MULTIPLY"_str)
+        .lpr_decl("NUMBER"_str)
+        .ppr_decl("Expr"_str)
+        .lpr("PLUS"_str)
+        .string("+"_str)
+        .close()
+        .lpr("MULTIPLY"_str)
+        .string("*"_str)
+        .close()
+        .lpr("NUMBER"_str)
+        .string("a"_str)
+        .close()
+        .ppr("Expr"_str, taul::precedence)
+        // goes from least to greatest precedence
+        .name("Expr"_str) // recurse alt
+        .name("PLUS"_str)
+        .name("Expr"_str)
+        .alternative()
+        .name("Expr"_str) // recurse alt
+        .name("MULTIPLY"_str)
+        // we're not here to test optionalness/repetition, just precedence change of wrapped self-ref
+        .kleene_plus() // <- wrapping suffix-ref in this should reset its precedence
+        .name("Expr"_str)
+        .close()
+        .alternative()
+        .name("NUMBER"_str) // base alt
+        .close()
+        .done();
+    return taul::load(spec, lgr);
+}
+
+TEST_P(BaseParserTests, PPR_PrecedencePPR_SelfRefDoesNotFormSuffixRefIfWrappedInCompositeExpr_KleenePlus) {
+    auto gram = make_grammar_2l(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("PLUS"_str));
+    ASSERT_TRUE(gram->has_lpr("MULTIPLY"_str));
+    ASSERT_TRUE(gram->has_lpr("NUMBER"_str));
+    ASSERT_TRUE(gram->has_ppr("Expr"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    {
+        taul::source_reader input("a+a*a+a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //          MULTIPLY
+        //          Expr (
+        //              NUMBER
+        //              PLUS
+        //              Expr (
+        //                  NUMBER
+        //              )
+        //          )
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 3, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+                    expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 5, 1));
+                    expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+                    {
+                        expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 6, 1));
+                    }
+                    expected.on_close();
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+}
+
 
 // end
 
@@ -2291,16 +3190,10 @@ TEST_P(BaseParserTests, End) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("abca"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -2437,48 +3330,30 @@ TEST_P(BaseParserTests, Any) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input("aa"_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input(""_str);
     psr->reset();
 
     auto result5 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -2590,48 +3465,30 @@ TEST_P(BaseParserTests, Token) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("aa"_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result5 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -2741,48 +3598,30 @@ TEST_P(BaseParserTests, Failure) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("da"_str); // <- test w/ failure followed by another token
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result5 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -2878,32 +3717,20 @@ TEST_P(BaseParserTests, Name_RefToLPR) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str); // <- test w/ failure token
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("aa"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -2984,32 +3811,20 @@ TEST_P(BaseParserTests, Name_RefToPPR) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str); // <- test w/ failure token
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("aa"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -3097,48 +3912,30 @@ TEST_P(BaseParserTests, Name_RefToPPR_Recursion) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("a"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("aa"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("aaa"_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("aaab"_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input("b"_str);
     psr->reset();
 
     auto result5 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -3262,16 +4059,10 @@ TEST_P(BaseParserTests, Sequence_Empty) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("a"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -3334,32 +4125,20 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithNoAlts) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input(""_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("aa"_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -3442,32 +4221,20 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithAlts_WithNoEmptyAlt) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input(""_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ab"_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -3554,32 +4321,20 @@ TEST_P(BaseParserTests, Sequence_NonEmpty_WithAlts_WithEmptyAlt) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input(""_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ab"_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -3673,32 +4428,20 @@ TEST_P(BaseParserTests, Sequence_Nesting) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("abca"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("ab"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -3798,40 +4541,25 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithNoAlts) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input(""_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -3926,40 +4654,25 @@ TEST_P(BaseParserTests, LookAhead_NonEmpty_WithAlts) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -4055,40 +4768,25 @@ TEST_P(BaseParserTests, LookAhead_WithFailureAlt) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -4186,40 +4884,25 @@ TEST_P(BaseParserTests, LookAhead_Nesting) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -4317,40 +5000,25 @@ TEST_P(BaseParserTests, LookAheadNot_NonEmpty_WithNoAlts) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -4778,40 +5446,25 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithNoAlts) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -4911,40 +5564,25 @@ TEST_P(BaseParserTests, Not_NonEmpty_WithAlts) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -5042,40 +5680,25 @@ TEST_P(BaseParserTests, Not_WithFailureAlt) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -5175,40 +5798,25 @@ TEST_P(BaseParserTests, Not_Nesting) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("b"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("c"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input(""_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -5308,64 +5916,40 @@ TEST_P(BaseParserTests, Optional) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("a"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("aa"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input("aaa"_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input("b"_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ab"_str);
     psr->reset();
 
     auto result5 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result6 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
     
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
     auto result7 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -5496,64 +6080,40 @@ TEST_P(BaseParserTests, Optional_Nesting) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("a"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("aa"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("aaa"_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("b"_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ab"_str);
     psr->reset();
 
     auto result5 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result6 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
     auto result7 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -5686,64 +6246,40 @@ TEST_P(BaseParserTests, KleeneStar) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("a"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("aa"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("aaa"_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("b"_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ab"_str);
     psr->reset();
 
     auto result5 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result6 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
     auto result7 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -5877,64 +6413,40 @@ TEST_P(BaseParserTests, KleeneStar_Nesting) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("a"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("aa"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("aaa"_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("b"_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ab"_str);
     psr->reset();
 
     auto result5 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result6 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
     auto result7 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -6070,64 +6582,40 @@ TEST_P(BaseParserTests, KleenePlus) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("a"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("aa"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("aaa"_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("b"_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ab"_str);
     psr->reset();
 
     auto result5 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result6 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
     auto result7 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();
@@ -6258,64 +6746,40 @@ TEST_P(BaseParserTests, KleenePlus_Nesting) {
 
     auto result0 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("a"_str);
     psr->reset();
 
     auto result1 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("aa"_str);
     psr->reset();
 
     auto result2 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("aaa"_str);
     psr->reset();
 
     auto result3 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("b"_str);
     psr->reset();
 
     auto result4 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ab"_str);
     psr->reset();
 
     auto result5 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     input.change_input("d"_str); // <- test w/ failure token
     psr->reset();
 
     auto result6 = psr->parse(gram->ppr("f"_str).value());
 
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
-
     input.change_input("ad"_str); // <- test w/ failure token
     psr->reset();
 
     auto result7 = psr->parse(gram->ppr("f"_str).value());
-
-    //EXPECT_TRUE(input.done());
-    //EXPECT_TRUE(lxr.done());
 
     test_listener expected0{};
     expected0.on_startup();

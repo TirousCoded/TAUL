@@ -77,13 +77,12 @@ TEST(SpecTests, Core) {
 
     // test done w/ main usage
 
-    static_assert(taul::spec_opcodes == 21);
+    static_assert(taul::spec_opcodes == 20);
 
     // note that, as I've added/changed stuff, the below has become more-and-more
     // non-semantic, but again that doesn't matter here, so whatever
 
     const auto spec1 = sw
-        .pos(10)
         .alternative()
         .lpr_decl("test_none_qualifier")
         .lpr_decl("test_skip_qualifier")
@@ -193,7 +192,6 @@ TEST(SpecTests, Core) {
     tsi.interpret(spec1);
 
     expected = "startup\n";
-    expected += "pos 10\n";
     expected += "alternative\n";
     expected += "lpr-decl \"test_none_qualifier\"\n";
     expected += "lpr-decl \"test_skip_qualifier\"\n";

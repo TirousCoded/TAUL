@@ -252,7 +252,7 @@ TEST(LoadTests, success_empty_multipleLPRsAndPPRs) {
 // conditions, w/ things like nesting being assumed to work if these
 // basic usages, and error usages, behaviour as expected
 
-static_assert(taul::spec_opcodes == 21); // we only care about expr instructions
+static_assert(taul::spec_opcodes == 20); // we only care about expr instructions
 
 // end
 
@@ -2033,7 +2033,7 @@ TEST(LoadTests, success_misc_precedencePPR_withBaseAndRecurseAlts) {
         .lpr("c"_str)
         .string("c")
         .close()
-        .ppr("ppr0"_str)
+        .ppr("ppr0"_str, taul::precedence)
         .name("a"_str) // base alt
         .alternative()
         .name("ppr0"_str) // recurse alt
@@ -2091,7 +2091,7 @@ TEST(LoadTests, success_misc_precedencePPR_withOnlyBaseAlts) {
         .lpr("c"_str)
         .string("c")
         .close()
-        .ppr("ppr0"_str)
+        .ppr("ppr0"_str, taul::precedence)
         .name("a"_str) // base alt
         .alternative()
         .name("b"_str) // base alt
@@ -2119,10 +2119,10 @@ TEST(LoadTests, success_misc_precedencePPR_withOnlyBaseAlts) {
     else ADD_FAILURE();
 }
 
-// test precedence PPRs w/ recurse alt w/ only self-ref (which is
-// legal, but will semantically be ignored)
+// test precedence PPRs w/ base alt, and recurse alt w/ only a prefix-ref
+// (which is legal, but will semantically be ignored)
 
-TEST(LoadTests, success_misc_precedencePPR_withRecurseAltWithOnlySelfRef_altWillBeIgnored) {
+TEST(LoadTests, success_misc_precedencePPR_withBaseAlt_andRecurseAltWithOnlyAPrefixRef_altWillBeIgnored) {
     const auto lgr = taul::make_stderr_logger();
     taul::spec_error_counter ec{};
 
@@ -2141,7 +2141,7 @@ TEST(LoadTests, success_misc_precedencePPR_withRecurseAltWithOnlySelfRef_altWill
         .lpr("c"_str)
         .string("c")
         .close()
-        .ppr("ppr0"_str)
+        .ppr("ppr0"_str, taul::precedence)
         .name("a"_str) // base alt
         .alternative()
         .name("ppr0"_str) // recurse alt
@@ -2188,7 +2188,7 @@ TEST(LoadTests, success_misc_precedencePPR_withAnEmptyBaseAlt) {
         .lpr("c"_str)
         .string("c")
         .close()
-        .ppr("ppr0"_str)
+        .ppr("ppr0"_str, taul::precedence)
         .name("a"_str) // base alt
         .alternative()
         .name("ppr0"_str) // recurse alt
@@ -2231,7 +2231,7 @@ TEST(LoadTests, success_misc_precedencePPR_withAnEmptyBaseAlt) {
 // tests testing that the expected FIRST/FOLLOW/prefix sets are generated
 // for LPRs/PPRs for each type of expr
 
-static_assert(taul::spec_opcodes == 21); // we only care about expr instructions
+static_assert(taul::spec_opcodes == 20); // we only care about expr instructions
 
 // top-level
 
@@ -2890,8 +2890,8 @@ TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithPrecedence_WithAlts_WithEm
             .remove_epsilon()
             .remove(gram->lpr("a"_str).value().index())
             .remove(gram->lpr("c"_str).value().index())
-            .add(gram->lpr("x"_str).value().index()) // <- recurse alt visible when has empty base alt
-            .add(gram->lpr("y"_str).value().index()); // <- recurse alt visible when has empty base alt
+            .remove(gram->lpr("x"_str).value().index()) // <- recurse alt visible when has empty base alt
+            .remove(gram->lpr("y"_str).value().index()); // <- recurse alt visible when has empty base alt
 
         taul::token_set expected_prefix_set =
             expected_first_set + expected_follow_set;
@@ -2899,6 +2899,11 @@ TEST(LoadTests, HasExpectedPrefixes_PPRs_TopLevel_WithPrecedence_WithAlts_WithEm
         EXPECT_EQ(f.first_set(), expected_first_set);
         EXPECT_EQ(f.follow_set(), expected_follow_set);
         EXPECT_EQ(f.prefix_set(), expected_prefix_set);
+
+        std::cerr << std::format("             actual == expected\n");
+        std::cerr << std::format("FIRST sets : {} == {}\n", f.first_set(), expected_first_set);
+        std::cerr << std::format("FOLLOW sets: {} == {}\n", f.follow_set(), expected_follow_set);
+        std::cerr << std::format("prefix sets: {} == {}\n", f.prefix_set(), expected_prefix_set);
     }
     else ADD_FAILURE();
 }
@@ -4646,7 +4651,7 @@ TEST(LoadTests, HasExpectedPrefixes_PPRs_KleenePlus) {
 // the below detail what errors each instruction can raise, and thus which must
 // be unit tested, and being specified *in order*
 
-static_assert(taul::spec_opcodes == 21);
+static_assert(taul::spec_opcodes == 20);
 static_assert(taul::spec_errors == 24);
 
 // notice that a lot of errors actually arise on the close instruction, however, most
@@ -5190,6 +5195,7 @@ TEST(LoadTests, lpr_forErr_illegal_ambiguity_indirectLeftRecursion) {
 //      illegal-ambiguity (direct left-recursion w/ single alt) (no precedence)
 //      illegal-ambiguity (indirect left-recursion) (no precedence)
 //      illegal-ambiguity (precedence PPR w/ only recurse alts)
+//      illegal-ambiguity (precedence PPR w/ only recurse alts) (w/ only one alt, w/ only a prefix-ref)
 //      illegal-ambiguity (precedence PPR w/ ambiguous base alts)
 //      illegal-ambiguity (precedence PPR w/ ambiguous recurse alts)
 //      illegal-ambiguity (precedence PPR w/ indirectly left-recursive base alt)
@@ -5488,6 +5494,38 @@ TEST(LoadTests, ppr_forErr_illegal_ambiguity_precedencePPR_withOnlyRecurseAlts) 
         .alternative()
         .name("ppr0"_str) // recurse alt
         .name("c"_str)
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_GE(ec.count(taul::spec_error::illegal_ambiguity), 1); // we'll just allow multiple, and not care how many
+    EXPECT_FALSE(gram);
+}
+
+
+TEST(LoadTests, ppr_forErr_illegal_ambiguity_precedencePPR_withOnlyRecurseAlts_withOnlyOneAlt_withOnlyAPrefixRef) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a"_str)
+        .close()
+        .lpr("b"_str)
+        .string("b"_str)
+        .close()
+        .lpr("c"_str)
+        .string("c"_str)
+        .close()
+        .ppr("ppr0"_str, taul::precedence)
+        .name("ppr0"_str) // recurse alt    <- unique type w/ only a prefix-ref
         .close()
         .done();
 

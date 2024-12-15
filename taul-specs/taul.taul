@@ -152,25 +152,47 @@ parser section:
     #
     #       - in these PPRs, non-left-recursive alts are called 'base' alts
     #       - in these PPRs, left-recursive alts are called 'recurse' alts
-    #       - in these PPRs, the name expr marking an alt as a recurse alt is called the 'self-ref'
+    #       - in these PPRs, the name expr marking an alt as a recurse alt is called the 'prefix-ref'
+    #       - in these PPRs, an (optional) right-recursive self-ref name expr may be placed
+    #         at the end of a base/recurse alt, w/ this being called its 'suffix-ref'
     #
     #       - being left-recursive changes the eval semantics of the PPR in a manner
     #         modelled off of ANTLR (TODO: better explain this in good copy ref material)
+    #           * we'll write *.md file explaining the concepts herein w/ 'precedence values'
+    #             and 'precedence predicates'
+    #           * be sure to explain how precedence in precedence PPRs goes from *lowest to highest*
     #
-    #       - recurse alts w/ only the self-ref name expr (ie. nothing after it) are ignored
+    #       - recurse alts w/ only the prefix-ref name expr (ie. nothing after it) are ignored
     #
     #       - only enabled on PPRs qualified w/ 'precedence'
     #       - only PPRs may be qualified w/ 'precedence'
     #
-    #       - the left-recursion must be direct, never indirect (ie. must have self-ref name expr
+    #       - the left-recursion must be direct, never indirect (ie. must have prefix-ref name expr
     #         at start of recurse alt)
     #
-    #       - the left-recursive self-ref MUST appear only in alts of the top-level of the PPR,
+    #       - the left-recursive prefix-ref MUST appear only in alts of the top-level of the PPR,
     #         and not be nested in sequence, optional, kleene-star, or kleene-plus exprs
     #
-    #       - recurse alts of a PPR must not be ambiguous (ie. w/ their self-refs removed)
+    #       - the right-recursive suffix-ref MUST, if it appears at all, appear only in alts of
+    #         the top-level of the PPR, and not be nested in sequence, optional, kleene-star, or
+    #         kleene-plus exprs
+    #           * if the expr is nested in this way, it's demoted to a regular self-ref, even
+    #             though the expr is still right-recursive in its positioning
+    #
+    #       - self-ref name exprs which don't qualify as prefix/suffix-refs are imbued w/ a
+    #         *precedence value* of 0
+    #
+    #       - recurse alts (w/ their prefix-refs removed) of a PPR must not be ambiguous
     #
     #       - illegal to have PPR w/ only recurse alts
+
+    # TODO: alongside the above, make a todos.txt entry for adding a 'right_assoc' keyword which
+    #       can be used w/ precedence PPR alts to make them *right-associative* (as oppose to the
+    #       default *left-associativity*)
+    #
+    #       the actual practical affect this has on the alt is making it so that the suffix-ref
+    #       name expr is imbued w/ a precedence level EQUAL to that of the alt itself, rather
+    #       than the default of being ONE GREATER THAN IT
 
     Rule                            : Rule_Qualifiers Rule_Name OP_COLON Rule_Alts OP_SEMICOLON ;
     Rule_Qualifiers                 : Qualifiers ;

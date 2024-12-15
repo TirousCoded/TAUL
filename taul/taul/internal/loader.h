@@ -79,6 +79,7 @@ namespace taul::internal {
         inline void raise_at(source_pos pos, spec_error err, std::format_string<Args...> fmt, Args&&... args) {
             raise_error(lgr, ec, src.get(), pos, err, fmt, std::forward<Args&&>(args)...);
             if (success) {
+                sl.cancel(); // <- needed by spec_stage
                 gb.cancel(); // <- needed by llspec_stage
                 success = false;
             }
@@ -103,14 +104,19 @@ namespace taul::internal {
         std::optional<llspec> result();
 
 
+        void update_pos();
+
+
         // the 'expr scope stack' (ess) defines the current expr
 
         // this is for composite exprs only, w/ non-composite exprs never pushing to ess
 
         struct ess_frame final {
             spec_opcode         opcode;
-            std::size_t         alts = 0;
-            std::size_t         subexprs = 0; // subexprs of the *current alt*
+            source_pos          pos;
+            size_t              alts = 1; // composite exprs start w/ one (initially) empty alt
+            size_t              recurse_alts = 0;
+            size_t              subexprs = 0; // subexprs of the *current alt*
             // if the ess frame is *marked*, it will auto-pop from dss
             bool                pop_dss = false;
             // for our special *non-propagating* scopes, we'll use flags instead of stacks
@@ -118,6 +124,7 @@ namespace taul::internal {
             bool                no_alternation_scope = false;
             bool                single_subexpr_scope = false;
             bool                no_end_subexpr_scope = false;
+            bool                precedence_scope = false;
         };
 
         std::vector<ess_frame> ess;
@@ -163,6 +170,10 @@ namespace taul::internal {
             TAUL_ASSERT(!ess.empty());
             ess.back().no_end_subexpr_scope = true;
         }
+        inline void mark_precedence_scope() {
+            TAUL_ASSERT(!ess.empty());
+            ess.back().precedence_scope = true;
+        }
 
         inline void pop_ess() noexcept {
             if (ess.empty()) return;
@@ -171,8 +182,19 @@ namespace taul::internal {
         }
         inline void pop_dss() noexcept { if (!dss.empty()) dss.pop_back(); }
 
+        inline void detect_prefix_ref(std::string_view name) {
+            if (ess.empty()) return;
+            if (dss.empty()) return;
+            if (!ess.back().precedence_scope) return;
+            if (ess.back().subexprs >= 2) return; // call this method after count_subexpr_for_top_ess
+            if (dss.back().name != name) return;
+            ess.back().recurse_alts++;
+            owner().sl.detect_prefix_ref();
+        }
+
         inline void count_subexpr_for_top_ess() noexcept {
-            if (!ess.empty()) ess.back().subexprs++;
+            if (ess.empty()) return;
+            ess.back().subexprs++;
         }
 
         inline void next_alternative_for_top_ess() noexcept {
@@ -229,6 +251,7 @@ namespace taul::internal {
         inline bool in_no_alternation_scope() const noexcept { return !ess.empty() && ess.back().no_alternation_scope; }
         inline bool in_single_subexpr_scope() const noexcept { return !ess.empty() && ess.back().single_subexpr_scope; }
         inline bool in_no_end_subexpr_scope() const noexcept { return !ess.empty() && ess.back().no_end_subexpr_scope; }
+        inline bool in_precedence_scope() const noexcept { return !ess.empty() && ess.back().precedence_scope; }
 
 
         static_assert(spec_errors == 24);
@@ -255,6 +278,7 @@ namespace taul::internal {
         void check_err_illegal_string_literal_due_to_nonvisible_ascii(std::string_view unparsed_literal);
         void check_err_illegal_charset_literal_due_to_illegal_codepoints(std::u32string_view s);
         void check_err_illegal_charset_literal_due_to_nonvisible_ascii(std::string_view unparsed_literal);
+        void check_err_illegal_ambiguity_due_to_only_having_recurse_alts(spec_opcode opcode);
 
 
     protected:
@@ -262,9 +286,8 @@ namespace taul::internal {
         void on_startup() override final;
         void on_shutdown() override final;
 
-        static_assert(spec_opcodes == 21);
+        static_assert(spec_opcodes == 20);
 
-        void on_pos(source_pos new_pos) override final;
         void on_close() override final;
         void on_alternative() override final;
         void on_lpr_decl(std::string_view name) override final;
@@ -302,6 +325,9 @@ namespace taul::internal {
         std::optional<grammar> result();
 
 
+        void update_pos();
+
+
         static_assert(spec_errors == 24);
 
         void check_err_illegal_ambiguity();
@@ -315,9 +341,8 @@ namespace taul::internal {
         void on_startup() override final;
         void on_shutdown() override final;
 
-        static_assert(llspec_opcodes == 21);
+        static_assert(llspec_opcodes == 22);
 
-        void on_pos(source_pos new_pos) override final;
         void on_close() override final;
         void on_alternative() override final;
         void on_lpr_decl(std::string_view name) override final;
@@ -331,7 +356,7 @@ namespace taul::internal {
         void on_charset(std::string_view s) override final;
         void on_token() override final;
         void on_failure() override final;
-        void on_name(std::string_view name) override final;
+        void on_name(std::string_view name, preced_t preced_val) override final;
         void on_sequence() override final;
         void on_lookahead() override final;
         void on_lookahead_not() override final;
@@ -339,6 +364,9 @@ namespace taul::internal {
         void on_optional() override final;
         void on_kleene_star() override final;
         void on_kleene_plus() override final;
+
+        void on_preced_pred(preced_t preced_max, preced_t preced_val) override final;
+        void on_pylon() override final;
     };
 }
 

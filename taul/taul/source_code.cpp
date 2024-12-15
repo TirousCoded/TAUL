@@ -18,8 +18,11 @@ std::string taul::fmt_pos_and_len(source_pos pos, source_len len) {
     return std::format("[pos {}, len {}]", pos, len);
 }
 
-std::string taul::source_location::fmt() const {
-    return std::format("[ln {}, ch {}; \"{}\"]", line, chr, origin);
+std::string taul::source_location::fmt(bool include_origin) const {
+    return
+        include_origin
+        ? std::format("[ln {}, ch {}; \"{}\"]", line, chr, origin)
+        : std::format("[ln {}, ch {}]", line, chr);
 }
 
 taul::source_code::source_code(source_code&& x) noexcept {

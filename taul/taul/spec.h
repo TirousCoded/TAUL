@@ -68,7 +68,20 @@ namespace taul {
         spec_writer& operator=(spec_writer&&) noexcept = default;
 
 
-        static_assert(spec_opcodes == 21);
+        // TODO: pos has not been unit tested
+
+        // every instr in a spec has associated w/ it a 'pos' value, describing
+        // a source_pos offset into the source code which got compiled into this
+        // spec, if any, where that instr is located
+
+        // by default, the pos value given to instrs is 0
+
+        // the 'pos' method changes this pos value, affecting instr writes thereafter
+
+        spec_writer& pos(source_pos new_pos);
+
+
+        static_assert(spec_opcodes == 20);
 
         // TODO: the StringLike overloads have not been unit tested
 
@@ -80,7 +93,6 @@ namespace taul {
         // taul::str into std::string_view could otherwise result in a the
         // ladder becoming dangling
 
-        spec_writer& pos(source_pos new_pos);
         spec_writer& close();
         spec_writer& alternative();
 
@@ -140,11 +152,11 @@ namespace taul {
         spec_writer& kleene_star();
         spec_writer& kleene_plus();
 
+        // TODO: write_spec hasn't been unit tested
+
         // write_spec writes the entirety of x to the spec being written
 
         // write_spec behaviour is undefined if &x == this
-
-        // TODO: write_spec hasn't been unit tested
 
         spec_writer& write_spec(const spec& x);
         spec_writer& write_spec(const spec_writer& x);
@@ -159,6 +171,7 @@ namespace taul {
     private:
 
         spec _temp = spec{};
+        source_pos _pos = 0;
 
 
         class write_spec_method_spec_interpreter;
@@ -181,15 +194,25 @@ namespace taul {
         spec_interpreter& operator=(spec_interpreter&&) noexcept = delete;
 
 
-        // TODO: lookahead has not been unit tested
+        // TODO: pos has not been unit tested
 
-        // lookahead returns the spec_opcode, if any, of the opcode of the
+        // pos returns the source_pos corresponding to the current instr
+
+        // behaviour is undefined if used outside of a on_### method, except for
+        // on_startup and on_shutdown, where behaviour is still undefined
+
+        source_pos pos() const noexcept;
+
+
+        // TODO: peek has not been unit tested
+
+        // peek returns the spec_opcode, if any, of the opcode of the
         // next instruction in the interpretation after the current one
 
         // behaviour is undefined if used outside the context of the on_###
         // methods of a spec_interpreter impl
 
-        std::optional<spec_opcode> lookahead() const noexcept;
+        std::optional<spec_opcode> peek() const noexcept;
 
 
         void interpret(const spec& x);
@@ -200,9 +223,8 @@ namespace taul {
         virtual void on_startup() {}
         virtual void on_shutdown() {}
 
-        static_assert(spec_opcodes == 21);
+        static_assert(spec_opcodes == 20);
 
-        virtual void on_pos(source_pos new_pos) {}
         virtual void on_close() {}
         virtual void on_alternative() {}
         virtual void on_lpr_decl(std::string_view name) {}
@@ -228,7 +250,8 @@ namespace taul {
 
     private:
 
-        std::optional<spec_opcode> _lookahead;
+        source_pos _pos = 0;
+        std::optional<spec_opcode> _peek;
 
 
         size_t _step(const spec& s, size_t offset);
@@ -248,29 +271,28 @@ namespace taul {
 
     protected:
 
-        static_assert(spec_opcodes == 21);
+        static_assert(spec_opcodes == 20);
 
-        void on_pos(source_pos new_pos) override final { TAUL_DEREF_SAFE(client) client->pos(new_pos); }
-        void on_close() override final { TAUL_DEREF_SAFE(client) client->close(); }
-        void on_alternative() override final { TAUL_DEREF_SAFE(client) client->alternative(); }
-        void on_lpr_decl(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->lpr_decl(name); }
-        void on_ppr_decl(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->ppr_decl(name); }
-        void on_lpr(std::string_view name, qualifier qualifier) override final { TAUL_DEREF_SAFE(client) client->lpr(name, qualifier); }
-        void on_ppr(std::string_view name, qualifier qualifier) override final { TAUL_DEREF_SAFE(client) client->ppr(name, qualifier); }
-        void on_end() override final { TAUL_DEREF_SAFE(client) client->end(); }
-        void on_any() override final { TAUL_DEREF_SAFE(client) client->any(); }
-        void on_string(std::string_view s) override final { TAUL_DEREF_SAFE(client) client->string(s); }
-        void on_charset(std::string_view s) override final { TAUL_DEREF_SAFE(client) client->charset(s); }
-        void on_token() override final { TAUL_DEREF_SAFE(client) client->token(); }
-        void on_failure() override final { TAUL_DEREF_SAFE(client) client->failure(); }
-        void on_name(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->name(name); }
-        void on_sequence() override final { TAUL_DEREF_SAFE(client) client->sequence(); }
-        void on_lookahead() override final { TAUL_DEREF_SAFE(client) client->lookahead(); }
-        void on_lookahead_not() override final { TAUL_DEREF_SAFE(client) client->lookahead_not(); }
-        void on_not() override final { TAUL_DEREF_SAFE(client) client->not0(); }
-        void on_optional() override final { TAUL_DEREF_SAFE(client) client->optional(); }
-        void on_kleene_star() override final { TAUL_DEREF_SAFE(client) client->kleene_star(); }
-        void on_kleene_plus() override final { TAUL_DEREF_SAFE(client) client->kleene_plus(); }
+        void on_close() override final { deref_assert(client).pos(pos()).close(); }
+        void on_alternative() override final { deref_assert(client).pos(pos()).alternative(); }
+        void on_lpr_decl(std::string_view name) override final { deref_assert(client).pos(pos()).lpr_decl(name); }
+        void on_ppr_decl(std::string_view name) override final { deref_assert(client).pos(pos()).ppr_decl(name); }
+        void on_lpr(std::string_view name, qualifier qualifier) override final { deref_assert(client).pos(pos()).lpr(name, qualifier); }
+        void on_ppr(std::string_view name, qualifier qualifier) override final { deref_assert(client).pos(pos()).ppr(name, qualifier); }
+        void on_end() override final { deref_assert(client).pos(pos()).end(); }
+        void on_any() override final { deref_assert(client).pos(pos()).any(); }
+        void on_string(std::string_view s) override final { deref_assert(client).pos(pos()).string(s); }
+        void on_charset(std::string_view s) override final { deref_assert(client).pos(pos()).charset(s); }
+        void on_token() override final { deref_assert(client).pos(pos()).token(); }
+        void on_failure() override final { deref_assert(client).pos(pos()).failure(); }
+        void on_name(std::string_view name) override final { deref_assert(client).pos(pos()).name(name); }
+        void on_sequence() override final { deref_assert(client).pos(pos()).sequence(); }
+        void on_lookahead() override final { deref_assert(client).pos(pos()).lookahead(); }
+        void on_lookahead_not() override final { deref_assert(client).pos(pos()).lookahead_not(); }
+        void on_not() override final { deref_assert(client).pos(pos()).not0(); }
+        void on_optional() override final { deref_assert(client).pos(pos()).optional(); }
+        void on_kleene_star() override final { deref_assert(client).pos(pos()).kleene_star(); }
+        void on_kleene_plus() override final { deref_assert(client).pos(pos()).kleene_plus(); }
     };
 }
 

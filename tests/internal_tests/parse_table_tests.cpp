@@ -18,6 +18,11 @@ namespace ns = taul::internal;
 // w/ it working being somewhat tested, but largely assumed, and w/ the tests
 // being written such that the exact behaviour of the ID grouper is transparent
 
+// IMPORTANT:
+//      'precedence values' where added to the impl long after these internal
+//      tests were written, so I just quickly added ns::no_preced_val everywhere,
+//      w/ these tests not covering precedence value stuff either
+
 
 TEST(ParseTableTests, Glyph_EmptyNonTerminals) {
     ns::parse_table_build_details<taul::glyph> details{};
@@ -54,14 +59,14 @@ TEST(ParseTableTests, Glyph_NonEmptyNonTerminals) {
         ns::parse_table<taul::glyph>()
         .add_rule(taul::lpr_id(0)) // starts w/ terminal
         .add_terminal(0, U'a', U'c')
-        .add_nonterminal(0, taul::lpr_id(0))
+        .add_nonterminal(0, taul::lpr_id(0), ns::no_preced_val)
         .add_terminal(0, U'A', U'C')
         .add_rule(taul::lpr_id(1)) // starts w/ (assertion-marked) terminal
         .add_terminal(1, U'd', U'f', true)
         .add_terminal(1, U'C', U'E')
-        .add_nonterminal(1, taul::lpr_id(2))
+        .add_nonterminal(1, taul::lpr_id(2), ns::no_preced_val)
         .add_rule(taul::lpr_id(2)) // starts w/ non-terminal
-        .add_nonterminal(2, taul::lpr_id(0))
+        .add_nonterminal(2, taul::lpr_id(0), ns::no_preced_val)
         .add_terminal(2, U'A', U'C')
         .build_mappings(details);
 
@@ -122,7 +127,7 @@ TEST(ParseTableTests, Glyph_Alternation) {
         .add_rule(taul::lpr_id(0)) // starts w/ (assertion-marked) terminal
         .add_terminal(1, U'd', U'f', true)
         .add_rule(taul::lpr_id(0)) // starts w/ non-terminal
-        .add_nonterminal(2, taul::lpr_id(1))
+        .add_nonterminal(2, taul::lpr_id(1), ns::no_preced_val)
         .add_rule(taul::lpr_id(1)) // helper
         .add_terminal(3, U'A', U'C')
         .build_mappings(details);
@@ -298,12 +303,12 @@ TEST(ParseTableTests, Glyph_LeftRecursion) {
     const ns::parse_table<taul::glyph> table =
         ns::parse_table<taul::glyph>()
         .add_rule(taul::lpr_id(0))
-        .add_nonterminal(0, taul::lpr_id(1))
+        .add_nonterminal(0, taul::lpr_id(1), ns::no_preced_val)
         .add_terminal(0, U'd', U'f', true)
         .add_rule(taul::lpr_id(0))
         .add_terminal(1, U'a', U'c', true)
         .add_rule(taul::lpr_id(1))
-        .add_nonterminal(2, taul::lpr_id(0))
+        .add_nonterminal(2, taul::lpr_id(0), ns::no_preced_val)
         .build_mappings(details);
 
     TAUL_LOG(taul::make_stderr_logger(), "{}\n{}", table.fmt(), details.fmt(table.grouper));
@@ -349,14 +354,14 @@ TEST(ParseTableTests, Token_NonEmptyNonTerminals) {
         ns::parse_table<taul::token>()
         .add_rule(taul::ppr_id(0)) // starts w/ terminal
         .add_terminal(0, 0, 2)
-        .add_nonterminal(0, taul::ppr_id(0))
+        .add_nonterminal(0, taul::ppr_id(0), ns::no_preced_val)
         .add_terminal(0, 10, 12)
         .add_rule(taul::ppr_id(1)) // starts w/ (assertion-marked) terminal
         .add_terminal(1, 3, 5, true)
         .add_terminal(1, 12, 14)
-        .add_nonterminal(1, taul::ppr_id(2))
+        .add_nonterminal(1, taul::ppr_id(2), ns::no_preced_val)
         .add_rule(taul::ppr_id(2)) // starts w/ non-terminal
-        .add_nonterminal(2, taul::ppr_id(0))
+        .add_nonterminal(2, taul::ppr_id(0), ns::no_preced_val)
         .add_terminal(2, 10, 12)
         .build_mappings(details);
 
@@ -417,7 +422,7 @@ TEST(ParseTableTests, Token_Alternation) {
         .add_rule(taul::ppr_id(0)) // starts w/ (assertion-marked) terminal
         .add_terminal(1, 3, 5, true)
         .add_rule(taul::ppr_id(0)) // starts w/ non-terminal
-        .add_nonterminal(2, taul::ppr_id(1))
+        .add_nonterminal(2, taul::ppr_id(1), ns::no_preced_val)
         .add_rule(taul::ppr_id(1)) // helper
         .add_terminal(3, 10, 12)
         .build_mappings(details);
@@ -593,12 +598,12 @@ TEST(ParseTableTests, Token_LeftRecursion) {
     const ns::parse_table<taul::token> table =
         ns::parse_table<taul::token>()
         .add_rule(taul::ppr_id(0))
-        .add_nonterminal(0, taul::ppr_id(1))
+        .add_nonterminal(0, taul::ppr_id(1), ns::no_preced_val)
         .add_terminal(0, 0, 2, true)
         .add_rule(taul::ppr_id(0))
         .add_terminal(1, 3, 5, true)
         .add_rule(taul::ppr_id(1))
-        .add_nonterminal(2, taul::ppr_id(0))
+        .add_nonterminal(2, taul::ppr_id(0), ns::no_preced_val)
         .build_mappings(details);
 
     TAUL_LOG(taul::make_stderr_logger(), "{}\n{}", table.fmt(), details.fmt(table.grouper));

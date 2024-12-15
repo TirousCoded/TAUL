@@ -2,6 +2,7 @@
 
 #include "export_fetcher.h"
 
+#include "asserts.h"
 #include "hex.h"
 
 
@@ -104,70 +105,87 @@ namespace {
             tab(tab) {}
 
 
-        static_assert(taul::spec_opcodes == 21);
+        static_assert(taul::spec_opcodes == 20);
 
-        void on_pos(taul::source_pos new_pos) override final {
-            TAUL_DEREF_SAFE(src) *src += std::format("{0}sw.pos({1});\n", tab, size_t(new_pos));
-        }
         void on_close() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.close();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.close();\n", tab);
         }
         void on_alternative() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.alternative();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.alternative();\n", tab);
         }
         void on_lpr_decl(std::string_view name) override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.lpr_decl({1});\n", tab, _fmt_string(name));
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.lpr_decl({1});\n", tab, _fmt_string(name));
         }
         void on_ppr_decl(std::string_view name) override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.ppr_decl({1});\n", tab, _fmt_string(name));
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.ppr_decl({1});\n", tab, _fmt_string(name));
         }
         void on_lpr(std::string_view name, taul::qualifier qualifier) override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.lpr({1}, {2});\n", tab, _fmt_string(name), _fmt_qualifier(qualifier));
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.lpr({1}, {2});\n", tab, _fmt_string(name), _fmt_qualifier(qualifier));
         }
         void on_ppr(std::string_view name, taul::qualifier qualifier) override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.ppr({1}, {2});\n", tab, _fmt_string(name), _fmt_qualifier(qualifier));
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.ppr({1}, {2});\n", tab, _fmt_string(name), _fmt_qualifier(qualifier));
         }
         void on_end() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.end();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.end();\n", tab);
         }
         void on_any() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.any();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.any();\n", tab);
         }
         void on_string(std::string_view s) override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.string({1});\n", tab, _fmt_string(s));
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.string({1});\n", tab, _fmt_string(s));
         }
         void on_charset(std::string_view s) override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.charset({1});\n", tab, _fmt_string(s));
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.charset({1});\n", tab, _fmt_string(s));
         }
         void on_token() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.token();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.token();\n", tab);
         }
         void on_failure() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.failure();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.failure();\n", tab);
         }
         void on_name(std::string_view name) override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.name({1});\n", tab, _fmt_string(name));
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.name({1});\n", tab, _fmt_string(name));
         }
         void on_sequence() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.sequence();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.sequence();\n", tab);
         }
         void on_lookahead() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.lookahead();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.lookahead();\n", tab);
         }
         void on_lookahead_not() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.lookahead_not();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.lookahead_not();\n", tab);
         }
         void on_not() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.not0();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.not0();\n", tab);
         }
         void on_optional() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.optional();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.optional();\n", tab);
         }
         void on_kleene_star() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.kleene_star();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.kleene_star();\n", tab);
         }
         void on_kleene_plus() override final {
-            TAUL_DEREF_SAFE(src) (*src) += std::format("{0}sw.kleene_plus();\n", tab);
+            taul::deref_assert(src) += std::format("{0}sw.pos({1});\n", tab, size_t(pos()));
+            taul::deref_assert(src) += std::format("{0}sw.kleene_plus();\n", tab);
         }
     };
 }

@@ -14,6 +14,8 @@
 namespace taul::internal {
 
 
+    // compiler_backend is a taul::listener which translates TAUL source code into a spec
+
     class compiler_backend final : public listener {
     public:
 

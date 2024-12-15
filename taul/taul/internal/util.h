@@ -14,6 +14,15 @@
 namespace taul::internal {
 
 
+    template<typename T>
+    concept enum_type = std::is_enum_v<T>;
+
+    template<enum_type T>
+    inline auto to_underlying(T e) noexcept {
+        return std::underlying_type_t<T>(e);
+    }
+
+
     struct for_internal_use_tag final {};
 
 

@@ -5,19 +5,30 @@
 #include "../string_and_charset.h"
 
 
+#define _DUMP_LOWERED_LLSPEC 0
+
+
+#if _DUMP_LOWERED_LLSPEC
+#include "../disassemble_spec.h"
+#endif
+
+
 taul::internal::loader::loader(std::shared_ptr<source_code> src, spec_error_counter& ec, std::shared_ptr<logger> lgr)
     : src(src),
     ec(&ec),
     lgr(lgr),
     rule_pt_trans(pos),
     gb(rule_pt_trans),
-    sl() {}
+    sl(pos) {}
 
 std::optional<taul::grammar> taul::internal::loader::load(const spec& s) {
     spec_stage stage1(*this);
     stage1.interpret(s);
     const auto result1 = stage1.result();
     if (!result1) return std::nullopt;
+#if _DUMP_LOWERED_LLSPEC
+    TAUL_LOG(make_stderr_logger(), "dumping llspec...\n{}", disassemble_llspec(result1.value()));
+#endif
     llspec_stage stage2(*this);
     stage2.interpret(result1.value());
     return stage2.result();
@@ -32,6 +43,10 @@ std::optional<taul::internal::llspec> taul::internal::loader::spec_stage::result
         owner().success
         ? std::make_optional(owner().sl.output.done())
         : std::nullopt;
+}
+
+void taul::internal::loader::spec_stage::update_pos() {
+    owner().pos = pos();
 }
 
 void taul::internal::loader::spec_stage::check_err_scope_not_closed() {
@@ -363,6 +378,18 @@ void taul::internal::loader::spec_stage::check_err_illegal_charset_literal_due_t
     }
 }
 
+void taul::internal::loader::spec_stage::check_err_illegal_ambiguity_due_to_only_having_recurse_alts(spec_opcode opcode) {
+    if (in_precedence_scope()) {
+        TAUL_ASSERT(ess.back().alts >= ess.back().recurse_alts);
+        const auto base_alts = ess.back().alts - ess.back().recurse_alts;
+        if (base_alts >= 1) return;
+        owner().raise(
+            spec_error::illegal_ambiguity,
+            "{} contains only recurse alts!",
+            opcode);
+    }
+}
+
 void taul::internal::loader::spec_stage::on_startup() {
     TAUL_ASSERT(owner().ec);
     owner().success = true; // <- deem eval successful until proven otherwise
@@ -376,20 +403,19 @@ void taul::internal::loader::spec_stage::on_shutdown() {
     owner().sl.on_shutdown();
 }
 
-void taul::internal::loader::spec_stage::on_pos(source_pos new_pos) {
-    owner().pos = new_pos;
-}
-
 void taul::internal::loader::spec_stage::on_close() {
+    update_pos();
     check_err_stray_close();
     if (in_composite_expr()) {
         check_err_illegal_in_single_subexpr_scope(ess.back().opcode);
+        check_err_illegal_ambiguity_due_to_only_having_recurse_alts(ess.back().opcode);
         pop_ess();
     }
     owner().sl.on_close();
 }
 
 void taul::internal::loader::spec_stage::on_alternative() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::alternative);
     if (in_composite_expr()) {
         check_err_illegal_in_single_subexpr_scope(ess.back().opcode);
@@ -400,6 +426,7 @@ void taul::internal::loader::spec_stage::on_alternative() {
 }
 
 void taul::internal::loader::spec_stage::on_lpr_decl(std::string_view name) {
+    update_pos();
     check_err_rule_name_conflict(name);
     check_err_illegal_rule_declare(spec_opcode::lpr_decl);
     check_err_illegal_in_lpr_scope(spec_opcode::lpr_decl);
@@ -410,6 +437,7 @@ void taul::internal::loader::spec_stage::on_lpr_decl(std::string_view name) {
 }
 
 void taul::internal::loader::spec_stage::on_ppr_decl(std::string_view name) {
+    update_pos();
     check_err_rule_name_conflict(name);
     check_err_illegal_rule_declare(spec_opcode::ppr_decl);
     check_err_illegal_in_lpr_scope(spec_opcode::ppr_decl);
@@ -420,6 +448,7 @@ void taul::internal::loader::spec_stage::on_ppr_decl(std::string_view name) {
 }
 
 void taul::internal::loader::spec_stage::on_lpr(std::string_view name, qualifier qualifier) {
+    update_pos();
     check_err_rule_never_declared(name, true);
     check_err_rule_already_defined(name, true);
     check_err_illegal_in_lpr_scope(spec_opcode::lpr);
@@ -427,12 +456,13 @@ void taul::internal::loader::spec_stage::on_lpr(std::string_view name, qualifier
     check_err_illegal_qualifier(name, qualifier, true);
     count_subexpr_for_top_ess();
     add_lpr_def(name);
-    push_ess(ess_frame{ spec_opcode::lpr });
+    push_ess(ess_frame{ spec_opcode::lpr, owner().pos });
     push_dss(dss_frame{ name, true });
     owner().sl.on_lpr(name, qualifier);
 }
 
 void taul::internal::loader::spec_stage::on_ppr(std::string_view name, qualifier qualifier) {
+    update_pos();
     check_err_rule_never_declared(name, false);
     check_err_rule_already_defined(name, false);
     check_err_illegal_in_lpr_scope(spec_opcode::ppr);
@@ -440,12 +470,14 @@ void taul::internal::loader::spec_stage::on_ppr(std::string_view name, qualifier
     check_err_illegal_qualifier(name, qualifier, false);
     count_subexpr_for_top_ess();
     add_ppr_def(name);
-    push_ess(ess_frame{ spec_opcode::ppr });
+    push_ess(ess_frame{ spec_opcode::ppr, owner().pos });
     push_dss(dss_frame{ name, false });
+    if (qualifier == precedence) mark_precedence_scope();
     owner().sl.on_ppr(name, qualifier);
 }
 
 void taul::internal::loader::spec_stage::on_end() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::end);
     check_err_illegal_in_no_end_subexpr_scope(spec_opcode::end);
     count_subexpr_for_top_ess();
@@ -453,12 +485,14 @@ void taul::internal::loader::spec_stage::on_end() {
 }
 
 void taul::internal::loader::spec_stage::on_any() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::any);
     count_subexpr_for_top_ess();
     owner().sl.on_any();
 }
 
 void taul::internal::loader::spec_stage::on_string(std::string_view s) {
+    update_pos();
     const auto ss = parse_taul_string(s);
     check_err_illegal_in_no_scope(spec_opcode::string);
     check_err_illegal_in_ppr_scope(spec_opcode::string);
@@ -480,6 +514,7 @@ void taul::internal::loader::spec_stage::on_charset(std::string_view s) {
 }
 
 void taul::internal::loader::spec_stage::on_token() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::token);
     check_err_illegal_in_lpr_scope(spec_opcode::token);
     count_subexpr_for_top_ess();
@@ -487,6 +522,7 @@ void taul::internal::loader::spec_stage::on_token() {
 }
 
 void taul::internal::loader::spec_stage::on_failure() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::failure);
     check_err_illegal_in_lpr_scope(spec_opcode::failure);
     count_subexpr_for_top_ess();
@@ -494,6 +530,7 @@ void taul::internal::loader::spec_stage::on_failure() {
 }
 
 void taul::internal::loader::spec_stage::on_name(std::string_view name) {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::name);
     if (in_lpr()) {
         check_err_rule_may_not_be_ppr(name);
@@ -501,77 +538,85 @@ void taul::internal::loader::spec_stage::on_name(std::string_view name) {
     check_err_rule_not_found(name);
     check_err_illegal_in_single_terminal_scope(spec_opcode::name, name);
     count_subexpr_for_top_ess();
-    owner().sl.on_name(name);
+    detect_prefix_ref(name);
+    owner().sl.on_name(name, peek());
 }
 
 void taul::internal::loader::spec_stage::on_sequence() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::sequence);
     //check_err_illegal_in_single_terminal_scope(spec_opcode::sequence);
     count_subexpr_for_top_ess();
     // query scopes before ess push
     const bool single_terminal_scope = in_single_terminal_scope();
     const bool no_end_subexpr_scope = in_no_end_subexpr_scope();
-    push_ess(ess_frame{ spec_opcode::sequence });
+    push_ess(ess_frame{ spec_opcode::sequence, owner().pos });
     if (single_terminal_scope) mark_single_terminal_scope();
     if (no_end_subexpr_scope) mark_no_end_subexpr_scope();
     owner().sl.on_sequence();
 }
 
 void taul::internal::loader::spec_stage::on_lookahead() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::lookahead);
     check_err_illegal_in_single_terminal_scope(spec_opcode::lookahead);
     count_subexpr_for_top_ess();
-    push_ess(ess_frame{ spec_opcode::lookahead });
+    push_ess(ess_frame{ spec_opcode::lookahead, owner().pos });
     mark_single_terminal_scope();
     mark_no_end_subexpr_scope();
     owner().sl.on_lookahead();
 }
 
 void taul::internal::loader::spec_stage::on_lookahead_not() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::lookahead_not);
     check_err_illegal_in_single_terminal_scope(spec_opcode::lookahead_not);
     count_subexpr_for_top_ess();
-    push_ess(ess_frame{ spec_opcode::lookahead_not });
+    push_ess(ess_frame{ spec_opcode::lookahead_not, owner().pos });
     mark_single_terminal_scope();
     mark_no_end_subexpr_scope();
     owner().sl.on_lookahead_not();
 }
 
 void taul::internal::loader::spec_stage::on_not() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::not0);
     check_err_illegal_in_single_terminal_scope(spec_opcode::not0);
     count_subexpr_for_top_ess();
-    push_ess(ess_frame{ spec_opcode::not0 });
+    push_ess(ess_frame{ spec_opcode::not0, owner().pos });
     mark_single_terminal_scope();
     mark_no_end_subexpr_scope();
     owner().sl.on_not();
 }
 
 void taul::internal::loader::spec_stage::on_optional() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::optional);
     check_err_illegal_in_single_terminal_scope(spec_opcode::optional);
     count_subexpr_for_top_ess();
-    push_ess(ess_frame{ spec_opcode::optional });
+    push_ess(ess_frame{ spec_opcode::optional, owner().pos });
     mark_no_alternation_scope();
     mark_single_subexpr_scope();
     owner().sl.on_optional();
 }
 
 void taul::internal::loader::spec_stage::on_kleene_star() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::kleene_star);
     check_err_illegal_in_single_terminal_scope(spec_opcode::kleene_star);
     count_subexpr_for_top_ess();
-    push_ess(ess_frame{ spec_opcode::kleene_star });
+    push_ess(ess_frame{ spec_opcode::kleene_star, owner().pos });
     mark_no_alternation_scope();
     mark_single_subexpr_scope();
     owner().sl.on_kleene_star();
 }
 
 void taul::internal::loader::spec_stage::on_kleene_plus() {
+    update_pos();
     check_err_illegal_in_no_scope(spec_opcode::kleene_plus);
     check_err_illegal_in_single_terminal_scope(spec_opcode::kleene_plus);
     count_subexpr_for_top_ess();
-    push_ess(ess_frame{ spec_opcode::kleene_plus });
+    push_ess(ess_frame{ spec_opcode::kleene_plus, owner().pos });
     mark_no_alternation_scope();
     mark_single_subexpr_scope();
     owner().sl.on_kleene_plus();
@@ -583,6 +628,10 @@ taul::internal::loader::llspec_stage::llspec_stage(loader& owner)
 
 std::optional<taul::grammar> taul::internal::loader::llspec_stage::result() {
     return owner().gb.get_result();
+}
+
+void taul::internal::loader::llspec_stage::update_pos() {
+    owner().pos = pos();
 }
 
 void taul::internal::loader::llspec_stage::check_err_illegal_ambiguity() {
@@ -678,93 +727,119 @@ void taul::internal::loader::llspec_stage::on_shutdown() {
     check_for_internal_errors();
 }
 
-void taul::internal::loader::llspec_stage::on_pos(source_pos new_pos) {
-    owner().pos = new_pos;
-}
-
 void taul::internal::loader::llspec_stage::on_close() {
+    update_pos();
     owner().rule_pt_trans.on_close();
 }
 
 void taul::internal::loader::llspec_stage::on_alternative() {
+    update_pos();
     owner().rule_pt_trans.on_alternative();
 }
 
 void taul::internal::loader::llspec_stage::on_lpr_decl(std::string_view name) {
+    update_pos();
     owner().rule_pt_trans.on_lpr_decl(name);
     owner().gb.add_lpr_decl(str(name));
 }
 
 void taul::internal::loader::llspec_stage::on_ppr_decl(std::string_view name) {
+    update_pos();
     owner().rule_pt_trans.on_ppr_decl(name);
     owner().gb.add_ppr_decl(str(name));
 }
 
 void taul::internal::loader::llspec_stage::on_lpr(std::string_view name, qualifier qualifier) {
+    update_pos();
     owner().rule_pt_trans.on_lpr(name, qualifier);
     owner().gb.add_lpr(str(name), qualifier);
 }
 
 void taul::internal::loader::llspec_stage::on_ppr(std::string_view name, qualifier qualifier) {
+    update_pos();
     owner().rule_pt_trans.on_ppr(name, qualifier);
     owner().gb.add_ppr(str(name), qualifier);
 }
 
 void taul::internal::loader::llspec_stage::on_end() {
+    update_pos();
     owner().rule_pt_trans.on_end();
 }
 
 void taul::internal::loader::llspec_stage::on_any() {
+    update_pos();
     owner().rule_pt_trans.on_any();
 }
 
 void taul::internal::loader::llspec_stage::on_string(std::string_view s) {
+    update_pos();
     const auto ss = parse_taul_string(s);
     owner().rule_pt_trans.on_string(ss);
 }
 
 void taul::internal::loader::llspec_stage::on_charset(std::string_view s) {
+    update_pos();
     const auto ss = parse_taul_charset(s);
     owner().rule_pt_trans.on_charset(ss);
 }
 
 void taul::internal::loader::llspec_stage::on_token() {
+    update_pos();
     owner().rule_pt_trans.on_token();
 }
 
 void taul::internal::loader::llspec_stage::on_failure() {
+    update_pos();
     owner().rule_pt_trans.on_failure();
 }
 
-void taul::internal::loader::llspec_stage::on_name(std::string_view name) {
-    owner().rule_pt_trans.on_name(name);
+void taul::internal::loader::llspec_stage::on_name(std::string_view name, preced_t preced_val) {
+    update_pos();
+    owner().rule_pt_trans.on_name(name, preced_val);
 }
 
 void taul::internal::loader::llspec_stage::on_sequence() {
+    update_pos();
     owner().rule_pt_trans.on_sequence();
 }
 
 void taul::internal::loader::llspec_stage::on_lookahead() {
+    update_pos();
     owner().rule_pt_trans.on_lookahead();
 }
 
 void taul::internal::loader::llspec_stage::on_lookahead_not() {
+    update_pos();
     owner().rule_pt_trans.on_lookahead_not();
 }
 
 void taul::internal::loader::llspec_stage::on_not() {
+    update_pos();
     owner().rule_pt_trans.on_not();
 }
 
 void taul::internal::loader::llspec_stage::on_optional() {
+    update_pos();
     owner().rule_pt_trans.on_optional();
 }
 
 void taul::internal::loader::llspec_stage::on_kleene_star() {
+    update_pos();
     owner().rule_pt_trans.on_kleene_star();
 }
 
 void taul::internal::loader::llspec_stage::on_kleene_plus() {
+    update_pos();
     owner().rule_pt_trans.on_kleene_plus();
+}
+
+void taul::internal::loader::llspec_stage::on_preced_pred(preced_t preced_max, preced_t preced_val) {
+    update_pos();
+    owner().rule_pt_trans.on_preced_pred(preced_max, preced_val);
+}
+
+void taul::internal::loader::llspec_stage::on_pylon() {
+    update_pos();
+    owner().rule_pt_trans.on_pylon();
 }
 

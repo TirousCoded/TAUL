@@ -182,6 +182,71 @@ namespace taul::internal {
     // [ extra ] is all the extra, unused, non-terminal IDs
 
 
+    // (precedence values & maximums)
+
+    // in order to impl the left-recursion allowed on PPRs qualified
+    // w/ the 'precedence' keyword, parse tables impl a notion of
+    // 'precedence values' and 'precedence max(imums)'
+
+    // when a non-terminal symbol is on the parse stack, it has associated
+    // w/ it a 'precedence value', w/ rule terms likewise specifying
+    // what this value should be for symbols arising from them
+
+    // precedence values exist to allow non-terminals to have multiple
+    // different precedence level *modes* they can be executed in, w/ this
+    // being required as precedence PPRs need this semantically
+
+    // the precedence value of the start rule is 0, and this is likewise
+    // the value used for ANY AND ALL non-terminals which do not need
+    // to differentiate between precedence levels, w/ the constant
+    // no_preced_val being used in these cases
+
+    // IMPORTANT:
+    //      an additional semantic it turns out the system needed is a way for
+    //      transparent helper rules to be signalled to take on the precedence
+    //      value of the non-terminal which they're nested within, so as to be
+    //      able to propagate precedence values down to where they're needed
+    //
+    //      to do this, the constant value signal_preced_val is used for terms
+    //      intended to propagate the upstream precedence value downstream
+
+    // TODO: above/below doesn't explain it well, but precedence predicates
+    //       also have a precedence value, just like non-terminals
+
+    // alongside precedence values, there are special terms call 'precedence
+    // predicates'
+
+    // precedence predicates are placed at the start of rules, and they
+    // have a 'precedence max(imum)' associated w/ them, and when processed,
+    // compare the precedence value of the symbol against this precedence max
+    //      * to be clear, the processed predicate and the 'symbol' here refer
+    //        to the same parse stack item, w/ the precedence value thereof
+    //        likely having propagated down to it via signal_preced_val
+
+    // the comparison is 'x <= y', where x is the precedence value of the
+    // symbol, and y is the precedence max of the predicate
+
+    // if this check succeeds, the term is consumed and nothing else happens,
+    // and the parser just carries on as normal
+
+    // if this check fails, however, then the term is consumed, but the
+    // system also keeps consuming terms from the parse stack until it
+    // reaches a 'pylon' term, at which point it consumes it too, but then
+    // stops, and then resumes parsing as normal
+    //      * the system will also stop if it runs out of things to consume
+
+    // pylons are inert terms which exist for use w/ these predicates, and
+    // which don't do anything when processed
+
+    // these precedence predicates are used to impl precedence PPRs
+    
+
+    using preced_t = uint32_t;
+
+    constexpr preced_t no_preced_val = 0;
+    constexpr preced_t signal_preced_val = std::numeric_limits<preced_t>::max();
+
+
     // seperated this out so we can properly give it a std::hash impl
 
     struct pt_key final {
@@ -209,7 +274,7 @@ namespace taul::internal {
 namespace std {
     template<>
     struct std::hash<taul::internal::pt_key> {
-        inline std::size_t operator()(const taul::internal::pt_key& k) const noexcept {
+        inline size_t operator()(const taul::internal::pt_key& k) const noexcept {
             return taul::hash_combine(taul::hash(k.nonterminal), taul::hash(k.terminal_group));
         }
     };
@@ -237,30 +302,71 @@ namespace taul::internal {
 
     struct pt_nonterminal final {
         symbol_id id; // the ID of the non-terminal symbol
+        preced_t preced_val; // non-terminal symbol's precedence value, if any
 
 
         inline std::string fmt() const {
-            return std::format("{}", id);
+            return
+                preced_val != signal_preced_val
+                ? std::format("{}/{}", id, preced_val)
+                : std::format("{}/*signal*", id);
+        }
+    };
+
+    struct pt_preced_pred final {
+        preced_t preced_max;
+        preced_t preced_val;
+
+
+        inline std::string fmt() const {
+            return std::format("{{ {}<={} }}", preced_val, preced_max);
+        }
+    };
+
+    struct pt_pylon final {
+        inline std::string fmt() const {
+            return "*pylon*";
         }
     };
 
     template<typename Symbol>
     struct pt_term final {
-        std::variant<pt_terminal<Symbol>, pt_nonterminal> u;
+        std::variant<
+            pt_terminal<Symbol>,
+            pt_nonterminal,
+            pt_preced_pred,
+            pt_pylon
+        > u;
 
 
         inline bool is_terminal() const noexcept { return u.index() == 0; }
         inline bool is_nonterminal() const noexcept { return u.index() == 1; }
+        inline bool is_preced_pred() const noexcept { return u.index() == 2; }
+        inline bool is_pylon() const noexcept { return u.index() == 3; }
 
+        inline pt_terminal<Symbol>& terminal() noexcept { TAUL_ASSERT(is_terminal()); return std::get<0>(u); }
         inline const pt_terminal<Symbol>& terminal() const noexcept { TAUL_ASSERT(is_terminal()); return std::get<0>(u); }
+
+        inline pt_nonterminal& nonterminal() noexcept { TAUL_ASSERT(is_nonterminal()); return std::get<1>(u); }
         inline const pt_nonterminal& nonterminal() const noexcept { TAUL_ASSERT(is_nonterminal()); return std::get<1>(u); }
+
+        inline pt_preced_pred& preced_pred() noexcept { TAUL_ASSERT(is_preced_pred()); return std::get<2>(u); }
+        inline const pt_preced_pred& preced_pred() const noexcept { TAUL_ASSERT(is_preced_pred()); return std::get<2>(u); }
+
+        inline pt_pylon& pylon() noexcept { TAUL_ASSERT(is_pylon()); return std::get<3>(u); }
+        inline const pt_pylon& pylon() const noexcept { TAUL_ASSERT(is_pylon()); return std::get<3>(u); }
 
 
         inline std::string fmt() const {
-            return
-                is_terminal()
-                ? terminal().fmt()
-                : nonterminal().fmt();
+            std::string result{};
+            switch (u.index()) {
+            case 0:     result = terminal().fmt();      break;
+            case 1:     result = nonterminal().fmt();   break;
+            case 2:     result = preced_pred().fmt();   break;
+            case 3:     result = pylon().fmt();         break;
+            default:    TAUL_DEADEND;                   break;
+            }
+            return result;
         }
 
 
@@ -273,9 +379,19 @@ namespace taul::internal {
         inline static pt_term<Symbol> init_terminal(const U& low, const U& high, bool assertion = false) {
             return init_terminal(symbol_range<Symbol>::create(low, high), assertion);
         }
-        inline static pt_term<Symbol> init_nonterminal(symbol_id id) {
+        inline static pt_term<Symbol> init_nonterminal(symbol_id id, preced_t preced_val) {
             return pt_term<Symbol>{
-                decltype(u)(std::in_place_index_t<1>{}, std::move(id)),
+                decltype(u)(std::in_place_index_t<1>{}, std::move(id), preced_val),
+            };
+        }
+        inline static pt_term<Symbol> init_preced_pred(preced_t preced_max, preced_t preced_val) {
+            return pt_term<Symbol>{
+                decltype(u)(std::in_place_index_t<2>{}, preced_max, preced_val),
+            };
+        }
+        inline static pt_term<Symbol> init_pylon() {
+            return pt_term<Symbol>{
+                decltype(u)(std::in_place_index_t<3>{}),
             };
         }
     };
@@ -395,7 +511,7 @@ namespace taul::internal {
         }
         result += "\nFIRST sets (Fi(w)):";
         {
-            std::size_t i = 0;
+            size_t i = 0;
             for (const auto& I : first_sets_w) {
                 result += std::format(
                     "\n{}(rule {}) -> {}",
@@ -417,7 +533,7 @@ namespace taul::internal {
         }
         result += "\nprefix sets (Pfx(w)):";
         {
-            std::size_t i = 0;
+            size_t i = 0;
             for (const auto& I : prefix_sets_w) {
                 result += std::format(
                     "\n{}(rule {}) -> {}",
@@ -444,7 +560,7 @@ namespace taul::internal {
     struct parse_table final {
         std::vector<pt_rule<Symbol>> rules = {}; // vector of parse table rules
         id_grouper<Symbol> grouper = {}; // ID grouper used to help define terminals
-        std::unordered_map<pt_key, std::size_t> mappings = {}; // maps keys to rule indices
+        std::unordered_map<pt_key, size_t> mappings = {}; // maps keys to rule indices
 
         // these are for giving our LPRs/PPRs their FIRST/FOLLOW/prefix sets, w/ these
         // being moved from parse_table_build_details during the final step in building
@@ -463,10 +579,14 @@ namespace taul::internal {
 
         // behaviour is undefined if index is out-of-bounds
 
-        inline parse_table<Symbol>& add_terminal(std::size_t index, symbol_id low, symbol_id high, bool assertion = false);
-        inline parse_table<Symbol>& add_terminal(std::size_t index, const typename symbol_traits<Symbol>::preferred_type& low, const typename symbol_traits<Symbol>::preferred_type& high, bool assertion = false);
+        inline parse_table<Symbol>& add_terminal(size_t index, symbol_id low, symbol_id high, bool assertion = false);
+        inline parse_table<Symbol>& add_terminal(size_t index, const typename symbol_traits<Symbol>::preferred_type& low, const typename symbol_traits<Symbol>::preferred_type& high, bool assertion = false);
 
-        inline parse_table<Symbol>& add_nonterminal(std::size_t index, symbol_id id);
+        inline parse_table<Symbol>& add_nonterminal(size_t index, symbol_id id, preced_t preced_val);
+
+        inline parse_table<Symbol>& add_preced_pred(size_t index, preced_t preced_max, preced_t preced_val);
+
+        inline parse_table<Symbol>& add_pylon(size_t index);
 
         // build_mappings performs generation of parse table mappings
 
@@ -500,8 +620,8 @@ namespace taul::internal {
 
         // lookup behaviour is undefined prior to build_mappings being called
 
-        inline std::optional<std::size_t> lookup(const pt_key& k) const noexcept;
-        inline std::optional<std::size_t> lookup(symbol_id nonterminal, group_id terminal_group) const noexcept;
+        inline std::optional<size_t> lookup(const pt_key& k) const noexcept;
+        inline std::optional<size_t> lookup(symbol_id nonterminal, group_id terminal_group) const noexcept;
 
 
         inline std::string fmt(const char* tab = "    ") const;
@@ -514,21 +634,35 @@ namespace taul::internal {
     }
 
     template<typename Symbol>
-    inline parse_table<Symbol>& taul::internal::parse_table<Symbol>::add_terminal(std::size_t index, symbol_id low, symbol_id high, bool assertion) {
+    inline parse_table<Symbol>& taul::internal::parse_table<Symbol>::add_terminal(size_t index, symbol_id low, symbol_id high, bool assertion) {
         TAUL_ASSERT(index < rules.size());
         rules[index].terms.push_back(pt_term<Symbol>::init_terminal(symbol_range<Symbol>::create(low, high), assertion));
         return *this;
     }
 
     template<typename Symbol>
-    inline parse_table<Symbol>& taul::internal::parse_table<Symbol>::add_terminal(std::size_t index, const typename symbol_traits<Symbol>::preferred_type& low, const typename symbol_traits<Symbol>::preferred_type& high, bool assertion) {
+    inline parse_table<Symbol>& taul::internal::parse_table<Symbol>::add_terminal(size_t index, const typename symbol_traits<Symbol>::preferred_type& low, const typename symbol_traits<Symbol>::preferred_type& high, bool assertion) {
         return add_terminal(index, symbol_traits<Symbol>::id(low), symbol_traits<Symbol>::id(high), assertion);
     }
 
     template<typename Symbol>
-    inline parse_table<Symbol>& taul::internal::parse_table<Symbol>::add_nonterminal(std::size_t index, symbol_id id) {
+    inline parse_table<Symbol>& taul::internal::parse_table<Symbol>::add_nonterminal(size_t index, symbol_id id, preced_t preced_val) {
         TAUL_ASSERT(index < rules.size());
-        rules[index].terms.push_back(pt_term<Symbol>::init_nonterminal(id));
+        rules[index].terms.push_back(pt_term<Symbol>::init_nonterminal(id, preced_val));
+        return *this;
+    }
+
+    template<typename Symbol>
+    inline parse_table<Symbol>& parse_table<Symbol>::add_preced_pred(size_t index, preced_t preced_max, preced_t preced_val) {
+        TAUL_ASSERT(index < rules.size());
+        rules[index].terms.push_back(pt_term<Symbol>::init_preced_pred(preced_max, preced_val));
+        return *this;
+    }
+
+    template<typename Symbol>
+    inline parse_table<Symbol>& parse_table<Symbol>::add_pylon(size_t index) {
+        TAUL_ASSERT(index < rules.size());
+        rules[index].terms.push_back(pt_term<Symbol>::init_pylon());
         return *this;
     }
 
@@ -572,7 +706,7 @@ namespace taul::internal {
     inline void taul::internal::parse_table<Symbol>::_check_for_refs_to_terminal_ids_not_in_legal_range(parse_table_build_details<Symbol>& details) {
         for (const auto& I : rules) {
             for (const auto& J : I.terms) {
-                if (J.is_nonterminal()) continue;
+                if (!J.is_terminal()) continue;
                 const bool a = symbol_traits<Symbol>::legal_id(J.terminal().ids.low);
                 const bool b = symbol_traits<Symbol>::legal_id(J.terminal().ids.high);
                 if (a && b) continue;
@@ -586,7 +720,7 @@ namespace taul::internal {
     inline void taul::internal::parse_table<Symbol>::_check_for_refs_to_nonterminal_not_in_rules_vector(parse_table_build_details<Symbol>& details) {
         for (const auto& I : rules) {
             for (const auto& J : I.terms) {
-                if (J.is_terminal()) continue;
+                if (!J.is_nonterminal()) continue;
                 if (details.defined_nonterminals.contains(J.nonterminal().id)) continue;
 #if 0
                 TAUL_LOG(make_stderr_logger(), 
@@ -615,7 +749,7 @@ namespace taul::internal {
             TAUL_LOG(make_stderr_logger(), "*** cycle ***");
 #endif
             bool changed = false;
-            for (std::size_t i = 0; i < rules.size(); i++) {
+            for (size_t i = 0; i < rules.size(); i++) {
 #if _DUMP_FIRST_SET_BUILD_PROCESS_LOG
                 TAUL_LOG(make_stderr_logger(), "> rule {}", i);
 #endif
@@ -711,6 +845,8 @@ namespace taul::internal {
 
         // TODO: this is our old FOLLOW set populating code, which impls traditional LL(1) semantics,
         //       w/ me holding out on deleting this in case we may need it due to our design breaking
+        //
+        //       this code may be a bit *rotten*, so maybe delete it at some point
 #if 0
         // populate FOLLOW sets
         if constexpr (std::is_same_v<Symbol, token>) {
@@ -719,13 +855,13 @@ namespace taul::internal {
 #endif
             while (true) {
                 bool changed = false;
-                for (std::size_t i = 0; i < rules.size(); i++) {
+                for (size_t i = 0; i < rules.size(); i++) {
 #if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
                     TAUL_LOG(make_stderr_logger(), "> rule {}", i);
 #endif
                     const auto& I = rules[i];
                     // loop across all terms and update corresponding FOLLOW sets of any non-terminals
-                    for (std::size_t j = 0; j < I.terms.size(); j++) {
+                    for (size_t j = 0; j < I.terms.size(); j++) {
                         const auto& J = I.terms[j];
 #if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
                         TAUL_LOG(make_stderr_logger(), "> term (index {}) {}", i, J.fmt());
@@ -794,7 +930,7 @@ namespace taul::internal {
             TAUL_ASSERT(details.follow_sets_A.contains(I.first));
             I.second.add_set(details.follow_sets_A.at(I.first));
         }
-        for (std::size_t i = 0; i < rules.size(); i++) {
+        for (size_t i = 0; i < rules.size(); i++) {
             const auto& I = rules[i];
             
             auto& set_w = details.prefix_sets_w[i];
@@ -836,7 +972,7 @@ namespace taul::internal {
     
     template<typename Symbol>
     inline void taul::internal::parse_table<Symbol>::_populate_parse_table_and_check_for_collisions(parse_table_build_details<Symbol>& details) {
-        for (std::size_t i = 0; i < rules.size(); i++) {
+        for (size_t i = 0; i < rules.size(); i++) {
             const auto& I = rules[i];
 
             const auto& prefix_set_w = details.prefix_sets_w[i];
@@ -878,7 +1014,7 @@ namespace taul::internal {
     }
 
     template<typename Symbol>
-    inline std::optional<std::size_t> taul::internal::parse_table<Symbol>::lookup(const pt_key& k) const noexcept {
+    inline std::optional<size_t> taul::internal::parse_table<Symbol>::lookup(const pt_key& k) const noexcept {
         const auto it = mappings.find(k);
         return
             it != mappings.end()
@@ -887,7 +1023,7 @@ namespace taul::internal {
     }
 
     template<typename Symbol>
-    inline std::optional<std::size_t> taul::internal::parse_table<Symbol>::lookup(symbol_id nonterminal, group_id terminal_group) const noexcept {
+    inline std::optional<size_t> taul::internal::parse_table<Symbol>::lookup(symbol_id nonterminal, group_id terminal_group) const noexcept {
         return lookup(pt_key{ nonterminal, terminal_group });
     }
 
@@ -898,7 +1034,7 @@ namespace taul::internal {
         result += "(parse_table)";
         result += "\nrules:";
         if (rules.size() <= 100) {
-            std::size_t i = 0;
+            size_t i = 0;
             for (const auto& I : rules) {
                 result += std::format(
                     "\n{}(rule {}) {}",

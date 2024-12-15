@@ -10,6 +10,7 @@
 #include <format>
 
 #include "../spec.h"
+#include "parse_table.h" // for preced_t
 
 
 namespace taul::internal {
@@ -30,13 +31,12 @@ namespace taul::internal {
     // are made at the llspec level
 
 
-    static_assert(spec_opcodes == 21); // update llspec_opcode whenever we add to spec_opcode
+    static_assert(spec_opcodes == 20); // update llspec_opcode whenever we add to spec_opcode
 
     enum class llspec_opcode : uint8_t {
 
         // these function identically to their spec_opcode counterparts
 
-        pos,
         close,
         alternative,
         lpr_decl,
@@ -49,7 +49,7 @@ namespace taul::internal {
         charset,
         token,
         failure,
-        name,
+        name, // the llspec version of name expr also carries a 'precedence value'
         sequence,
         lookahead,
         lookahead_not,
@@ -59,6 +59,9 @@ namespace taul::internal {
         kleene_plus,
 
         _end_of_spec_mirror = kleene_plus, // marks end of portion mirrored from spec_opcode
+
+        preced_pred, // puts precedence predicate term
+        pylon, // puts pylon term
 
         num, // this is not a valid llspec opcode
     };
@@ -110,9 +113,11 @@ namespace taul::internal {
         llspec_writer& operator=(llspec_writer&&) noexcept = default;
 
 
-        static_assert(llspec_opcodes == 21);
-
         llspec_writer& pos(source_pos new_pos);
+
+
+        static_assert(llspec_opcodes == 22);
+
         llspec_writer& close();
         llspec_writer& alternative();
 
@@ -158,10 +163,10 @@ namespace taul::internal {
         llspec_writer& token();
         llspec_writer& failure();
 
-        llspec_writer& name(std::string_view name);
+        llspec_writer& name(std::string_view name, preced_t preced_val);
         template<typename StringLike>
-        inline llspec_writer& name(const StringLike& name) {
-            return this->name(std::string_view(name));
+        inline llspec_writer& name(const StringLike& name, preced_t preced_val) {
+            return this->name(std::string_view(name), preced_val);
         }
 
         llspec_writer& sequence();
@@ -171,6 +176,9 @@ namespace taul::internal {
         llspec_writer& optional();
         llspec_writer& kleene_star();
         llspec_writer& kleene_plus();
+
+        llspec_writer& preced_pred(preced_t preced_max, preced_t preced_val);
+        llspec_writer& pylon();
 
         llspec_writer& write_spec(const llspec& x);
         llspec_writer& write_spec(const llspec_writer& x);
@@ -182,6 +190,7 @@ namespace taul::internal {
     private:
 
         llspec _temp = llspec{};
+        source_pos _pos = 0;
 
 
         class write_spec_method_llspec_interpreter;
@@ -201,7 +210,8 @@ namespace taul::internal {
         llspec_interpreter& operator=(llspec_interpreter&&) noexcept = delete;
 
 
-        std::optional<llspec_opcode> lookahead() const noexcept;
+        source_pos pos() const noexcept;
+        std::optional<llspec_opcode> peek() const noexcept;
         void interpret(const llspec& x);
 
 
@@ -210,9 +220,8 @@ namespace taul::internal {
         virtual void on_startup() {}
         virtual void on_shutdown() {}
 
-        static_assert(llspec_opcodes == 21);
+        static_assert(llspec_opcodes == 22);
 
-        virtual void on_pos(source_pos new_pos) {}
         virtual void on_close() {}
         virtual void on_alternative() {}
         virtual void on_lpr_decl(std::string_view name) {}
@@ -226,7 +235,7 @@ namespace taul::internal {
         virtual void on_charset(std::string_view s) {}
         virtual void on_token() {}
         virtual void on_failure() {}
-        virtual void on_name(std::string_view name) {}
+        virtual void on_name(std::string_view name, preced_t preced_val) {}
         virtual void on_sequence() {}
         virtual void on_lookahead() {}
         virtual void on_lookahead_not() {}
@@ -235,10 +244,14 @@ namespace taul::internal {
         virtual void on_kleene_star() {}
         virtual void on_kleene_plus() {}
 
+        virtual void on_preced_pred(preced_t preced_max, preced_t preced_val) {}
+        virtual void on_pylon() {}
+
 
     private:
 
-        std::optional<llspec_opcode> _lookahead;
+        source_pos _pos = 0;
+        std::optional<llspec_opcode> _peek;
 
 
         size_t _step(const llspec& s, size_t offset);
@@ -258,29 +271,30 @@ namespace taul::internal {
 
     protected:
 
-        static_assert(llspec_opcodes == 21);
+        static_assert(llspec_opcodes == 22);
 
-        void on_pos(source_pos new_pos) override final { TAUL_DEREF_SAFE(client) client->pos(new_pos); }
-        void on_close() override final { TAUL_DEREF_SAFE(client) client->close(); }
-        void on_alternative() override final { TAUL_DEREF_SAFE(client) client->alternative(); }
-        void on_lpr_decl(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->lpr_decl(name); }
-        void on_ppr_decl(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->ppr_decl(name); }
-        void on_lpr(std::string_view name, qualifier qualifier) override final { TAUL_DEREF_SAFE(client) client->lpr(name, qualifier); }
-        void on_ppr(std::string_view name, qualifier qualifier) override final { TAUL_DEREF_SAFE(client) client->ppr(name, qualifier); }
-        void on_end() override final { TAUL_DEREF_SAFE(client) client->end(); }
-        void on_any() override final { TAUL_DEREF_SAFE(client) client->any(); }
-        void on_string(std::string_view s) override final { TAUL_DEREF_SAFE(client) client->string(s); }
-        void on_charset(std::string_view s) override final { TAUL_DEREF_SAFE(client) client->charset(s); }
-        void on_token() override final { TAUL_DEREF_SAFE(client) client->token(); }
-        void on_failure() override final { TAUL_DEREF_SAFE(client) client->failure(); }
-        void on_name(std::string_view name) override final { TAUL_DEREF_SAFE(client) client->name(name); }
-        void on_sequence() override final { TAUL_DEREF_SAFE(client) client->sequence(); }
-        void on_lookahead() override final { TAUL_DEREF_SAFE(client) client->lookahead(); }
-        void on_lookahead_not() override final { TAUL_DEREF_SAFE(client) client->lookahead_not(); }
-        void on_not() override final { TAUL_DEREF_SAFE(client) client->not0(); }
-        void on_optional() override final { TAUL_DEREF_SAFE(client) client->optional(); }
-        void on_kleene_star() override final { TAUL_DEREF_SAFE(client) client->kleene_star(); }
-        void on_kleene_plus() override final { TAUL_DEREF_SAFE(client) client->kleene_plus(); }
+        void on_close() override final { deref_assert(client).pos(pos()).close(); }
+        void on_alternative() override final { deref_assert(client).pos(pos()).alternative(); }
+        void on_lpr_decl(std::string_view name) override final { deref_assert(client).pos(pos()).lpr_decl(name); }
+        void on_ppr_decl(std::string_view name) override final { deref_assert(client).pos(pos()).ppr_decl(name); }
+        void on_lpr(std::string_view name, qualifier qualifier) override final { deref_assert(client).pos(pos()).lpr(name, qualifier); }
+        void on_ppr(std::string_view name, qualifier qualifier) override final { deref_assert(client).pos(pos()).ppr(name, qualifier); }
+        void on_end() override final { deref_assert(client).pos(pos()).end(); }
+        void on_any() override final { deref_assert(client).pos(pos()).any(); }
+        void on_string(std::string_view s) override final { deref_assert(client).pos(pos()).string(s); }
+        void on_charset(std::string_view s) override final { deref_assert(client).pos(pos()).charset(s); }
+        void on_token() override final { deref_assert(client).pos(pos()).token(); }
+        void on_failure() override final { deref_assert(client).pos(pos()).failure(); }
+        void on_name(std::string_view name, preced_t preced_val) override final { deref_assert(client).pos(pos()).name(name, preced_val); }
+        void on_sequence() override final { deref_assert(client).pos(pos()).sequence(); }
+        void on_lookahead() override final { deref_assert(client).pos(pos()).lookahead(); }
+        void on_lookahead_not() override final { deref_assert(client).pos(pos()).lookahead_not(); }
+        void on_not() override final { deref_assert(client).pos(pos()).not0(); }
+        void on_optional() override final { deref_assert(client).pos(pos()).optional(); }
+        void on_kleene_star() override final { deref_assert(client).pos(pos()).kleene_star(); }
+        void on_kleene_plus() override final { deref_assert(client).pos(pos()).kleene_plus(); }
+        void on_preced_pred(preced_t preced_max, preced_t preced_val) override final { deref_assert(client).pos(pos()).preced_pred(preced_max, preced_val); }
+        void on_pylon() override final { deref_assert(client).pos(pos()).pylon(); }
     };
 }
 

@@ -76,7 +76,7 @@ namespace taul {
         size_t          line    = 1;
 
 
-        std::string fmt() const;
+        std::string fmt(bool include_origin = true) const;
     };
 }
 
