@@ -5,8 +5,14 @@
 
 #include <bit>
 
+#include "general.h"
+#include "asserts.h"
+
 
 namespace taul {
+
+
+    // TODO: this code has not been unit tested yet
 
 
     constexpr bool is_native_endian(std::endian x) noexcept {
@@ -20,55 +26,49 @@ namespace taul {
 
     constexpr std::endian opposite_endian(std::endian x) noexcept {
         return 
-            x == std::endian::big 
-            ? std::endian::little 
+            x == std::endian::big
+            ? std::endian::little
             : std::endian::big;
     }
 
 
-    // TODO: below functions have not yet been unit tested
-    
-    template<typename T>
+    template<trivially_copyable_type T>
     inline T flip_bytes(T x) noexcept {
-        static_assert(std::is_trivially_copyable_v<T>);
-        if (sizeof(T) == 1) {
-            return x;
+        if constexpr (sizeof(T) == 1) return x;
+        auto ptr = (uint8_t*)&x;
+        for (size_t i = 0; i < sizeof(T) / 2; i++) {
+            auto& low = deref_assert(ptr + i);
+            auto& high = deref_assert(ptr + (sizeof(T) - 1 - i));
+            std::swap(low, high);
         }
-        auto ptr = (std::uint8_t*)&x;
-        if (ptr) {
-            for (std::size_t i = 0; i < sizeof(T) / 2; i++) {
-                std::swap(ptr[i], ptr[sizeof(T) - 1 - i]);
-            }
-        }
-        else TAUL_DEADEND;
         return x;
     }
 
-    template<typename T>
-    inline T ensure_big_endian(T x) noexcept {
-        static_assert(std::is_trivially_copyable_v<T>);
-        return
-            is_big_endian
-            ? x
-            : flip_bytes(x);
+    // NOTE: while I'm gonna have them be seperate for readability, I find it really
+    //       interesting how the to_### and from_### fns below are *literally identical*
+
+    // given some x using native endianness, these return the value
+    // in the desired endianness
+
+    template<trivially_copyable_type T>
+    inline T to_big_endian(T x) noexcept { return is_big_endian ? x : flip_bytes(x); }
+    template<trivially_copyable_type T>
+    inline T to_little_endian(T x) noexcept { return is_little_endian ? x : flip_bytes(x); }
+    template<trivially_copyable_type T>
+    inline T to_endian(std::endian e, T x) noexcept {
+        return e == std::endian::big ? to_big_endian(x) : to_little_endian(x);
     }
 
-    template<typename T>
-    inline T ensure_little_endian(T x) noexcept {
-        static_assert(std::is_trivially_copyable_v<T>);
-        return
-            is_little_endian
-            ? x
-            : flip_bytes(x);
-    }
+    // given some x using the specified endianness, these return the
+    // value in native endianness
 
-    template<typename T>
-    inline T ensure_endian(std::endian e, T x) noexcept {
-        static_assert(std::is_trivially_copyable_v<T>);
-        return
-            e == std::endian::big
-            ? ensure_big_endian(x)
-            : ensure_little_endian(x);
+    template<trivially_copyable_type T>
+    inline T from_big_endian(T x) noexcept { return is_big_endian ? x : flip_bytes(x); }
+    template<trivially_copyable_type T>
+    inline T from_little_endian(T x) noexcept { return is_little_endian ? x : flip_bytes(x); }
+    template<trivially_copyable_type T>
+    inline T from_endian(std::endian e, T x) noexcept {
+        return e == std::endian::big ? from_big_endian(x) : from_little_endian(x);
     }
 }
 

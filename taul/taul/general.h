@@ -3,13 +3,18 @@
 #pragma once
 
 
+#include <type_traits>
+
+
 namespace taul {
 
 
-    // this header file documents details regarding things like API version
-    // and other such information about the TAUL repo
+    // IMPORTANT: don't forget to keep this up-to-date, lol
 
+    constexpr auto api_version = "version 0.1 (beta)"; // TAUL's *official* version
 
-    constexpr auto api_version = "version 0.1 (beta)";
+    
+    template<typename T>
+    concept trivially_copyable_type = std::is_trivially_copyable_v<T>;
 }
 

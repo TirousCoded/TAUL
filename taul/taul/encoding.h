@@ -992,15 +992,15 @@ namespace taul {
         inline void encode_utf16_onto(const internal::encode_args& args) {
             TAUL_ASSERT(args.target);
             if (args.units == 1) {
-                const char16_t chr = ensure_endian(explicit_endian(args.e), char16_t(args.x));
+                const char16_t chr = to_endian(explicit_endian(args.e), char16_t(args.x));
                 std::memcpy((void*)(args.target + 0), (const void*)&chr, sizeof(decltype(chr)));
             }
             else if (args.units == 2) {
                 unicode_t u = args.x - 0x10000;
                 unicode_t w1 = 0xd800 + ((u >> 10) & 0x03ff);
                 unicode_t w2 = 0xdc00 + (u & 0x03ff);
-                const char16_t high = ensure_endian(explicit_endian(args.e), char16_t(w1));
-                const char16_t low = ensure_endian(explicit_endian(args.e), char16_t(w2));
+                const char16_t high = to_endian(explicit_endian(args.e), char16_t(w1));
+                const char16_t low = to_endian(explicit_endian(args.e), char16_t(w2));
                 std::memcpy((void*)(args.target + 0), (const void*)&high, sizeof(decltype(high)));
                 std::memcpy((void*)(args.target + 2), (const void*)&low, sizeof(decltype(low)));
             }
@@ -1011,7 +1011,7 @@ namespace taul {
             TAUL_ASSERT(args.target);
             TAUL_ASSERT(args.units == 1);
             const char32_t chr_v = char32_t(args.x);
-            const char32_t chr = ensure_endian(explicit_endian(args.e), chr_v);
+            const char32_t chr = to_endian(explicit_endian(args.e), chr_v);
             std::memcpy((void*)(args.target + 0), (const void*)&chr, sizeof(decltype(chr)));
         }
 
@@ -1164,7 +1164,7 @@ namespace taul {
 
         inline std::uint16_t load_utf16_unit(const char* x, std::endian bo) noexcept {
             TAUL_ASSERT(x);
-            return ensure_endian(bo, *(const std::uint16_t*)x);
+            return to_endian(bo, *(const std::uint16_t*)x);
         }
 
         constexpr utf16_unit_type get_utf16_unit_type(std::uint16_t unit) noexcept {
@@ -1219,7 +1219,7 @@ namespace taul {
 
         inline std::uint32_t load_utf32_unit(const char* x, std::endian bo) noexcept {
             TAUL_ASSERT(x);
-            return ensure_endian(bo, *(const std::uint32_t*)x);
+            return to_endian(bo, *(const std::uint32_t*)x);
         }
 
         constexpr unicode_t extract_utf32_unit_value(std::uint32_t unit) noexcept {

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <fstream>
 
 #include <taul/all.h>
 
