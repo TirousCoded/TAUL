@@ -14,16 +14,25 @@ using namespace taul::string_literals;
 
 
 int32_t main(int32_t argc, const char** argv) {
-    const auto gram = taul::taul_gram();
-    std::cerr << std::format("{}\n", gram.fmt_internals());
+    auto lgr = taul::make_stderr_logger();
+    if (const auto loaded = taul::load(std::filesystem::current_path() / "abc.taul", lgr)) {
+        taul::export_fetcher(*loaded, "abc").to_file(std::filesystem::current_path() / "abc_fetcher.h");
+    }
+    return EXIT_SUCCESS;
 }
 
 int32_t main_disabled2(int32_t argc, const char** argv) {
+    const auto gram = taul::taul_gram();
+    std::cerr << std::format("{}\n", gram.fmt_internals());
+    return EXIT_SUCCESS;
+}
+
+int32_t main_disabled1(int32_t argc, const char** argv) {
     auto lgr = taul::make_stderr_logger();
-    auto loaded = taul::load(std::filesystem::current_path() / "abc.taul", lgr);
-    if (!loaded) return EXIT_FAILURE;
-    taul::grammar gram = loaded.value();
-    //taul::grammar gram = taul::fetchers::abc();
+    //auto loaded = taul::load(std::filesystem::current_path() / "abc.taul", lgr);
+    //if (!loaded) return EXIT_FAILURE;
+    //taul::grammar gram = loaded.value();
+    taul::grammar gram = taul::fetchers::abc();
     while (true) {
         std::string input{};
         std::cin >> input;
@@ -42,22 +51,6 @@ int32_t main_disabled2(int32_t argc, const char** argv) {
         TAUL_LOG(lgr, "{}", result);
         if (result.is_aborted()) TAUL_LOG(lgr, "aborted!");
     }
-    return EXIT_SUCCESS;
-}
-
-int32_t main_disabled1(int32_t argc, const char** argv) {
-    /*auto spec =
-        taul::spec_writer()
-        .lpr_decl("a魂"_str)
-        .lpr_decl(taul::str(taul::convert_encoding<char>(taul::utf8, taul::utf8, u8"a\r\n魂").value()))
-        .lpr(taul::str(taul::convert_encoding<char>(taul::utf8, taul::utf8, u8"a\r\n元気ですか").value()))
-        .pos(105)
-        .close()
-        .done();*/
-    auto lgr = taul::make_stderr_logger();
-    auto compiled = taul::compile(std::filesystem::current_path() / "abc.taul", lgr);
-    if (!compiled) return EXIT_FAILURE;
-    taul::export_fetcher(compiled.value(), "abc").to_file(std::filesystem::current_path() / "abc_fetcher.h");
     return EXIT_SUCCESS;
 }
 

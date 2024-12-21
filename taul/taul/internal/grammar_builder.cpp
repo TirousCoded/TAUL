@@ -43,10 +43,11 @@ void taul::internal::grammar_builder::add_lpr(str name, qualifier q) {
     data._lprs[lpr_index_map.at(name)].qualifier = q;
 }
 
-void taul::internal::grammar_builder::add_ppr(str name, qualifier) {
+void taul::internal::grammar_builder::add_ppr(str name, qualifier q) {
     if (cancelled) return;
     TAUL_ASSERT(ppr_index_map.contains(name));
     TAUL_ASSERT(data._pprs.size() > ppr_index_map.at(name));
+    data._pprs[ppr_index_map.at(name)].qualifier = q;
 }
 
 const taul::internal::parse_table_build_details<taul::glyph>& taul::internal::grammar_builder::get_lpr_diagnostics() const noexcept {

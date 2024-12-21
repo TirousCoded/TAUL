@@ -9,8 +9,8 @@
 
 taul::spec taul::spec::concat(const spec& a, const spec& b) {
     spec result{};
-    result.bin = internal::buff_concat(a.bin, b.bin);
-    result.associate(a.src);
+    result._bin = internal::buff::concat(a._bin, b._bin);
+    result.associate(a._src);
     return result;
 }
 
@@ -20,102 +20,102 @@ taul::spec_writer& taul::spec_writer::pos(source_pos new_pos) {
 }
 
 taul::spec_writer& taul::spec_writer::close() {
-    internal::buff_write(_temp.bin, spec_opcode::close, _pos);
+    _temp._bin.write(spec_opcode::close, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::alternative() {
-    internal::buff_write(_temp.bin, spec_opcode::alternative, _pos);
+    _temp._bin.write(spec_opcode::alternative, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::lpr_decl(std::string_view name) {
-    internal::buff_write(_temp.bin, spec_opcode::lpr_decl, _pos, name);
+    _temp._bin.write(spec_opcode::lpr_decl, _pos, name);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::ppr_decl(std::string_view name) {
-    internal::buff_write(_temp.bin, spec_opcode::ppr_decl, _pos, name);
+    _temp._bin.write(spec_opcode::ppr_decl, _pos, name);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::lpr(std::string_view name, qualifier qualifier) {
-    internal::buff_write(_temp.bin, spec_opcode::lpr, _pos, name, qualifier);
+    _temp._bin.write(spec_opcode::lpr, _pos, name, qualifier);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::ppr(std::string_view name, qualifier qualifier) {
-    internal::buff_write(_temp.bin, spec_opcode::ppr, _pos, name, qualifier);
+    _temp._bin.write(spec_opcode::ppr, _pos, name, qualifier);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::end() {
-    internal::buff_write(_temp.bin, spec_opcode::end, _pos);
+    _temp._bin.write(spec_opcode::end, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::any() {
-    internal::buff_write(_temp.bin, spec_opcode::any, _pos);
+    _temp._bin.write(spec_opcode::any, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::string(std::string_view s) {
-    internal::buff_write(_temp.bin, spec_opcode::string, _pos, s);
+    _temp._bin.write(spec_opcode::string, _pos, s);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::charset(std::string_view s) {
-    internal::buff_write(_temp.bin, spec_opcode::charset, _pos, s);
+    _temp._bin.write(spec_opcode::charset, _pos, s);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::token() {
-    internal::buff_write(_temp.bin, spec_opcode::token, _pos);
+    _temp._bin.write(spec_opcode::token, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::failure() {
-    internal::buff_write(_temp.bin, spec_opcode::failure, _pos);
+    _temp._bin.write(spec_opcode::failure, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::name(std::string_view name) {
-    internal::buff_write(_temp.bin, spec_opcode::name, _pos, name);
+    _temp._bin.write(spec_opcode::name, _pos, name);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::sequence() {
-    internal::buff_write(_temp.bin, spec_opcode::sequence, _pos);
+    _temp._bin.write(spec_opcode::sequence, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::lookahead() {
-    internal::buff_write(_temp.bin, spec_opcode::lookahead, _pos);
+    _temp._bin.write(spec_opcode::lookahead, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::lookahead_not() {
-    internal::buff_write(_temp.bin, spec_opcode::lookahead_not, _pos);
+    _temp._bin.write(spec_opcode::lookahead_not, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::not0() {
-    internal::buff_write(_temp.bin, spec_opcode::not0, _pos);
+    _temp._bin.write(spec_opcode::not0, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::optional() {
-    internal::buff_write(_temp.bin, spec_opcode::optional, _pos);
+    _temp._bin.write(spec_opcode::optional, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::kleene_star() {
-    internal::buff_write(_temp.bin, spec_opcode::kleene_star, _pos);
+    _temp._bin.write(spec_opcode::kleene_star, _pos);
     return *this;
 }
 
 taul::spec_writer& taul::spec_writer::kleene_plus() {
-    internal::buff_write(_temp.bin, spec_opcode::kleene_plus, _pos);
+    _temp._bin.write(spec_opcode::kleene_plus, _pos);
     return *this;
 }
 
@@ -146,32 +146,22 @@ std::optional<taul::spec_opcode> taul::spec_interpreter::peek() const noexcept {
 }
 
 void taul::spec_interpreter::interpret(const spec& x) {
-    size_t offset = 0;
-    on_startup();
+    auto rdr = internal::buff_reader(x._bin);
     _peek.reset();
-    // keep iterating while we either have more things to decode, or while _peek
-    // isn't std::nullopt (to account for edge case where at end of spec offset will
-    // equal x.bin.size(), but we still have one more cycle to do)
-    while (offset < x.bin.size() || (bool)_peek) {
-        offset += _step(x, offset);
-    }
+    on_startup();
+    while (_step(rdr)) {}
     on_shutdown();
 }
 
-size_t taul::spec_interpreter::_step(const spec& s, size_t offset) {
+bool taul::spec_interpreter::_step(internal::buff_reader& rdr) {
     static_assert(spec_opcodes == 20);
-    size_t len = 0;
-    auto [opcode, new_pos] = internal::buff_read<spec_opcode, source_pos>(s.bin, offset, len);
+    auto header = rdr.read<spec_opcode, source_pos>();
+    if (!header) return false;
+    auto [opcode, new_pos] = deref_assert(header);
     _pos = new_pos;
-    // this needs to be called below between usage of internal::buff_read and the
+    // this needs to be called below between usage of rdr.read and the
     // on_### method call itself to setup _peek properly
-    auto setup_peek =
-        [&] {
-        _peek =
-            offset + len < s.bin.size()
-            ? std::make_optional(internal::buff_peek_one<spec_opcode>(s.bin, offset + len))
-            : std::nullopt;
-        };
+    auto setup_peek = [&] { _peek = rdr.peek_one<spec_opcode>(); };
     switch (opcode) {
     case spec_opcode::close:
     {
@@ -187,28 +177,28 @@ size_t taul::spec_interpreter::_step(const spec& s, size_t offset) {
     break;
     case spec_opcode::lpr_decl:
     {
-        auto [name] = internal::buff_read<std::string_view>(s.bin, offset + len, len);
+        auto [name] = rdr.read<std::string_view>().value();
         setup_peek();
         on_lpr_decl(name);
     }
     break;
     case spec_opcode::ppr_decl:
     {
-        auto [name] = internal::buff_read<std::string_view>(s.bin, offset + len, len);
+        auto [name] = rdr.read<std::string_view>().value();
         setup_peek();
         on_ppr_decl(name);
     }
     break;
     case spec_opcode::lpr:
     {
-        auto [name, qualifier] = internal::buff_read<std::string_view, taul::qualifier>(s.bin, offset + len, len);
+        auto [name, qualifier] = rdr.read<std::string_view, taul::qualifier>().value();
         setup_peek();
         on_lpr(name, qualifier);
     }
     break;
     case spec_opcode::ppr:
     {
-        auto [name, qualifier] = internal::buff_read<std::string_view, taul::qualifier>(s.bin, offset + len, len);
+        auto [name, qualifier] = rdr.read<std::string_view, taul::qualifier>().value();
         setup_peek();
         on_ppr(name, qualifier);
     }
@@ -227,14 +217,14 @@ size_t taul::spec_interpreter::_step(const spec& s, size_t offset) {
     break;
     case spec_opcode::string:
     {
-        auto [s0] = internal::buff_read<std::string_view>(s.bin, offset + len, len);
+        auto [s0] = rdr.read<std::string_view>().value();
         setup_peek();
         on_string(s0);
     }
     break;
     case spec_opcode::charset:
     {
-        auto [s0] = internal::buff_read<std::string_view>(s.bin, offset + len, len);
+        auto [s0] = rdr.read<std::string_view>().value();
         setup_peek();
         on_charset(s0);
     }
@@ -253,7 +243,7 @@ size_t taul::spec_interpreter::_step(const spec& s, size_t offset) {
     break;
     case spec_opcode::name:
     {
-        auto [name] = internal::buff_read<std::string_view>(s.bin, offset + len, len);
+        auto [name] = rdr.read<std::string_view>().value();
         setup_peek();
         on_name(name);
     }
@@ -302,6 +292,6 @@ size_t taul::spec_interpreter::_step(const spec& s, size_t offset) {
     break;
     default: TAUL_DEADEND; break;
     }
-    return len;
+    return true;
 }
 

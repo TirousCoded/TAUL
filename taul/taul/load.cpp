@@ -20,7 +20,7 @@ std::optional<taul::grammar> taul::load(
     const taul::spec& s, 
     taul::spec_error_counter& ec, 
     const std::shared_ptr<logger>& lgr) {
-    internal::loader ldr(s.src, ec, lgr);
+    internal::loader ldr(s.src(), ec, lgr);
     return ldr.load(s);
 }
 

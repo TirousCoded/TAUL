@@ -10,6 +10,8 @@
 #include <format>
 
 #include "../spec.h"
+
+#include "buff.h"
 #include "parse_table.h" // for preced_t
 
 
@@ -89,14 +91,33 @@ namespace std {
 namespace taul::internal {
 
 
-    struct llspec final {
-        std::vector<uint8_t>            bin;                // the llspec binary itself
-        std::shared_ptr<source_code>    src = nullptr;      // the source_code the llspec will be associated with, if any
+    class llspec final {
+    public:
+
+        llspec() = default;
+        llspec(const llspec&) = default;
+        llspec(llspec&&) noexcept = default;
+
+        ~llspec() noexcept = default;
+
+        llspec& operator=(const llspec&) = default;
+        llspec& operator=(llspec&&) noexcept = default;
 
 
-        inline void associate(const std::shared_ptr<source_code>& x) noexcept { src = x; }
-        inline bool associated(const std::shared_ptr<source_code>& x) const noexcept { return src == x; }
+        inline size_t size() const noexcept { return _bin.size(); }
+        inline std::shared_ptr<source_code> src() const noexcept { return _src; }
+        inline void associate(const std::shared_ptr<source_code>& x) noexcept { _src = x; }
+        inline bool associated(const std::shared_ptr<source_code>& x) const noexcept { return _src == x; }
         static llspec concat(const llspec& a, const llspec& b);
+
+
+    private:
+        internal::buff _bin;
+        std::shared_ptr<source_code> _src = nullptr;
+
+
+        friend class llspec_writer;
+        friend class llspec_interpreter;
     };
 
 
@@ -188,7 +209,6 @@ namespace taul::internal {
 
 
     private:
-
         llspec _temp = llspec{};
         source_pos _pos = 0;
 
@@ -249,12 +269,11 @@ namespace taul::internal {
 
 
     private:
-
         source_pos _pos = 0;
         std::optional<llspec_opcode> _peek;
 
 
-        size_t _step(const llspec& s, size_t offset);
+        bool _step(buff_reader& rdr);
     };
 
 

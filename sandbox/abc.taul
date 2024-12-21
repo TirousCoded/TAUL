@@ -14,7 +14,3 @@ parser section:
 
     ABC		: A ( B | D ) C ;
 
-    Number	        : A ;
-    precedence Expr	: Number
-                    | Expr? B Expr ;
-

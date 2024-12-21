@@ -14,6 +14,8 @@
 #include "qualifier.h"
 #include "spec_opcode.h"
 
+#include "internal/buff.h"
+
 
 namespace taul {
 
@@ -26,9 +28,20 @@ namespace taul {
 
     // usage of invalid spec will result in undefined behaviour
 
-    struct spec final {
-        std::vector<uint8_t>            bin;                // the spec binary itself
-        std::shared_ptr<source_code>    src = nullptr;      // the source_code the spec will be associated with, if any
+    class spec final {
+    public:
+
+        spec() = default;
+        spec(const spec&) = default;
+        spec(spec&&) noexcept = default;
+
+        ~spec() noexcept = default;
+
+        spec& operator=(const spec&) = default;
+        spec& operator=(spec&&) noexcept = default;
+
+
+        inline size_t size() const noexcept { return _bin.size(); }
 
 
         // associate binds a source_code to the spec, associating it w/ it, such
@@ -37,9 +50,9 @@ namespace taul {
         // if x == nullptr, the spec will be imbued will be disassociated from
         // any current source_code association it may have
 
-        inline void associate(const std::shared_ptr<source_code>& x) noexcept { src = x; }
-
-        inline bool associated(const std::shared_ptr<source_code>& x) const noexcept { return src == x; }
+        inline std::shared_ptr<source_code> src() const noexcept { return _src; }
+        inline void associate(const std::shared_ptr<source_code>& x) noexcept { _src = x; }
+        inline bool associated(const std::shared_ptr<source_code>& x) const noexcept { return _src == x; }
 
 
         // concat concatenates two specs together, producing a new specification
@@ -48,6 +61,15 @@ namespace taul {
         // the spec resulting from the concatenation
 
         static spec concat(const spec& a, const spec& b);
+
+
+    private:
+        internal::buff _bin;
+        std::shared_ptr<source_code> _src = nullptr;
+
+
+        friend class spec_writer;
+        friend class spec_interpreter;
     };
 
 
@@ -169,7 +191,6 @@ namespace taul {
 
 
     private:
-
         spec _temp = spec{};
         source_pos _pos = 0;
 
@@ -249,12 +270,11 @@ namespace taul {
 
 
     private:
-
         source_pos _pos = 0;
         std::optional<spec_opcode> _peek;
 
 
-        size_t _step(const spec& s, size_t offset);
+        bool _step(internal::buff_reader& rdr);
     };
 
 

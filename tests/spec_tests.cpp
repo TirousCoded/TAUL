@@ -72,7 +72,7 @@ TEST(SpecTests, Core) {
     const auto spec0 = sw
         .done();
 
-    ASSERT_TRUE(spec0.bin.empty());
+    ASSERT_EQ(spec0.size(), 0);
 
 
     // test done w/ main usage
@@ -159,7 +159,7 @@ TEST(SpecTests, Core) {
         .close()
         .done();
 
-    ASSERT_FALSE(spec1.bin.empty());
+    ASSERT_GT(spec1.size(), 0);
 
 
     // test done w/ post-main usage state
@@ -167,7 +167,7 @@ TEST(SpecTests, Core) {
     const auto spec2 = sw
         .done();
 
-    ASSERT_TRUE(spec2.bin.empty());
+    ASSERT_EQ(spec2.size(), 0);
 
 
     test_spec_interpreter tsi{};
@@ -320,8 +320,8 @@ TEST(SpecTests, Concat) {
         .close()
         .done();
 
-    ASSERT_FALSE(spec0.bin.empty());
-    ASSERT_FALSE(spec1.bin.empty());
+    ASSERT_GT(spec0.size(), 0);
+    ASSERT_GT(spec1.size(), 0);
 
 
     // imbue spec0 and spec1 w/ source_code associations to test how
@@ -341,7 +341,7 @@ TEST(SpecTests, Concat) {
 
     const auto spec2 = taul::spec::concat(spec0, spec1);
 
-    ASSERT_FALSE(spec2.bin.empty());
+    ASSERT_GT(spec2.size(), 0);
 
 
     // assert expected source_code association

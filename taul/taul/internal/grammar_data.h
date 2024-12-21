@@ -11,6 +11,7 @@
 
 #include "nonterminal_id_alloc.h"
 #include "parse_table.h"
+#include "buff.h"
 
 
 namespace taul::internal {
@@ -18,19 +19,30 @@ namespace taul::internal {
 
     struct lexer_rule final {
         str             name;
-        std::size_t     index       = -1;
+        size_t          index       = -1;
         taul::qualifier qualifier   = taul::qualifier::none;
 
 
         std::string fmt() const;
+
+
+        void serialize(buff& b) const;
+
+        static std::optional<lexer_rule> deserialize(buff_reader& b);
     };
 
     struct parser_rule final {
         str             name;
-        std::size_t     index       = -1;
+        size_t          index       = -1;
+        taul::qualifier qualifier   = taul::qualifier::none;
 
 
         std::string fmt() const;
+
+
+        void serialize(buff& b) const;
+
+        static std::optional<parser_rule> deserialize(buff_reader& b);
     };
 
 
@@ -52,6 +64,11 @@ namespace taul::internal {
 
 
         void build_lookup();
+
+
+        void serialize(buff& b) const;
+
+        static std::optional<grammar_data> deserialize(buff_reader& b);
     };
 }
 

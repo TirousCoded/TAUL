@@ -25,20 +25,14 @@ namespace taul {
 
 
     namespace internal {
-
-
         struct lexer_rule;
         struct parser_rule;
-
         struct grammar_data;
     }
 
 
-    struct spec;
+    class spec;
 
-
-    //class lpr_association_error;
-    //class ppr_association_error;
 
     class lpr_ref;
     class ppr_ref;
@@ -67,23 +61,20 @@ namespace taul {
         friend class grammar;
 
 
-        lpr_ref();
-        lpr_ref(const lpr_ref& other);
-        lpr_ref(lpr_ref&& other) noexcept;
+        lpr_ref() = default;
+        lpr_ref(const lpr_ref&) = default;
+        lpr_ref(lpr_ref&&) noexcept = default;
 
         ~lpr_ref() noexcept = default;
 
-        lpr_ref& operator=(const lpr_ref& rhs);
-        lpr_ref& operator=(lpr_ref&& rhs) noexcept;
+        lpr_ref& operator=(const lpr_ref&) = default;
+        lpr_ref& operator=(lpr_ref&&) noexcept = default;
 
 
-        str name() const;
-        std::size_t index() const;
-        qualifier qualifier() const;
-
-        // TODO: id has not been unit tested
-
+        str name() const noexcept;
+        size_t index() const noexcept;
         symbol_id id() const noexcept;
+        qualifier qualifier() const noexcept;
 
         
         // first_set and follow_set return the FIRST/FOLLOW sets of the LPR
@@ -97,17 +88,17 @@ namespace taul {
         const glyph_set& prefix_set() const noexcept;
 
 
-        static bool equal(const lpr_ref& lhs, const lpr_ref& rhs) noexcept;
+        bool equal(const lpr_ref& other) const noexcept;
 
 
         std::string fmt() const;
-        std::size_t hash() const noexcept;
+        size_t hash() const noexcept;
 
 
     private:
 
-        const internal::lexer_rule* _rule;
-        const internal::grammar_data* _gram;
+        const internal::lexer_rule* _rule = nullptr;
+        const internal::grammar_data* _gram = nullptr;
 
 
         lpr_ref(const internal::lexer_rule* a, const internal::grammar_data* b) noexcept;
@@ -119,22 +110,24 @@ namespace taul {
         friend class grammar;
 
 
-        ppr_ref();
-        ppr_ref(const ppr_ref& other);
-        ppr_ref(ppr_ref&& other) noexcept;
+        ppr_ref() = default;
+        ppr_ref(const ppr_ref&) = default;
+        ppr_ref(ppr_ref&&) noexcept = default;
 
         ~ppr_ref() noexcept = default;
 
-        ppr_ref& operator=(const ppr_ref& rhs);
-        ppr_ref& operator=(ppr_ref&& rhs) noexcept;
+        ppr_ref& operator=(const ppr_ref&) = default;
+        ppr_ref& operator=(ppr_ref&&) noexcept = default;
 
 
-        str name() const;
-        std::size_t index() const;
+        // TODO: for 'qualifier', our unit tests only really cover cases where it
+        //       returns taul::qualifier::none, w/ us not testing situations where
+        //       something else is returned, so improve these tests at some point
 
-        // TODO: id has not been unit tested
-
+        str name() const noexcept;
+        size_t index() const noexcept;
         symbol_id id() const noexcept;
+        qualifier qualifier() const noexcept;
 
 
         // first_set and follow_set return the FIRST/FOLLOW sets of the LPR
@@ -148,17 +141,17 @@ namespace taul {
         const token_set& prefix_set() const noexcept;
 
 
-        static bool equal(const ppr_ref& lhs, const ppr_ref& rhs) noexcept;
+        bool equal(const ppr_ref& other) const noexcept;
 
 
         std::string fmt() const;
-        std::size_t hash() const noexcept;
+        size_t hash() const noexcept;
 
 
     private:
 
-        const internal::parser_rule* _rule;
-        const internal::grammar_data* _gram;
+        const internal::parser_rule* _rule = nullptr;
+        const internal::grammar_data* _gram = nullptr;
 
 
         ppr_ref(const internal::parser_rule* a, const internal::grammar_data* b) noexcept;
@@ -202,7 +195,7 @@ namespace std {
 namespace std {
     template<>
     struct std::hash<taul::lpr_ref> {
-        inline std::size_t operator()(const taul::lpr_ref& s) const noexcept {
+        inline size_t operator()(const taul::lpr_ref& s) const noexcept {
             return s.hash();
         }
     };
@@ -211,7 +204,7 @@ namespace std {
 namespace std {
     template<>
     struct std::hash<taul::ppr_ref> {
-        inline std::size_t operator()(const taul::ppr_ref& s) const noexcept {
+        inline size_t operator()(const taul::ppr_ref& s) const noexcept {
             return s.hash();
         }
     };
@@ -222,8 +215,6 @@ namespace taul {
 
 
     namespace internal {
-
-
         const grammar_data& launder_grammar_data(const grammar& x) noexcept;
     }
 
@@ -240,32 +231,32 @@ namespace taul {
         grammar(internal::grammar_data&& gramdat);
 
 
-        grammar();
-        grammar(const grammar& x);
-        grammar(grammar&& x) noexcept;
+        grammar() = default;
+        grammar(const grammar&) = default;
+        grammar(grammar&&) noexcept = default;
 
         ~grammar() noexcept = default;
 
-        grammar& operator=(const grammar& rhs);
-        grammar& operator=(grammar&& rhs) noexcept;
+        grammar& operator=(const grammar&) = default;
+        grammar& operator=(grammar&&) noexcept = default;
 
 
         // lprs/pprs return the number of LPRs/PPRs
 
-        std::size_t lprs() const noexcept;
-        std::size_t pprs() const noexcept;
+        size_t lprs() const noexcept;
+        size_t pprs() const noexcept;
 
         // nonsupport_lprs is useful for writing regression tests for grammars
 
-        std::size_t nonsupport_lprs() const noexcept;
+        size_t nonsupport_lprs() const noexcept;
 
 
         // lpr/ppr return LPR/PPR refs by index
 
         // lpr/ppr throw std::out_of_range if index is out-of-bounds
 
-        lpr_ref lpr_at(std::size_t index) const;
-        ppr_ref ppr_at(std::size_t index) const;
+        lpr_ref lpr_at(size_t index) const;
+        ppr_ref ppr_at(size_t index) const;
 
         // lpr/ppr return LPR/PPR refs by name
 
@@ -282,14 +273,31 @@ namespace taul {
 
         // is_associated checks if rule is associated w/ this grammar
 
-        // TODO: these have not been unit tested
-
         bool is_associated(lpr_ref rule) const noexcept;
         bool is_associated(ppr_ref rule) const noexcept;
 
 
         std::string fmt(const char* tab = "    ") const;
         std::string fmt_internals(const char* tab = "    ") const;
+
+
+        // TODO: while unit tested, the tests for serialize/deserialize ARE NOT
+        //       comprehensive, and thus DO NOT cover ALL aspects of what info
+        //       an impl must be able to keep track of during serialization
+
+        // serialize serializes the grammar, returning a string encoding
+        // its data, w/ this string being portable across processes/files
+
+        std::string serialize() const;
+
+        // deserialize attempts to generate a grammar from string x
+
+        static std::optional<grammar> deserialize(std::string_view x);
+
+        template<std::convertible_to<std::string_view> T>
+        static inline std::optional<grammar> deserialize(const T& x) {
+            return deserialize(std::string_view(x));
+        }
 
 
     private:

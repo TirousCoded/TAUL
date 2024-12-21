@@ -4,6 +4,11 @@
 
 
 #define _DUMP_LOG 0
+#define _DUMP_FINAL_LLSPEC 0
+
+#if _DUMP_FINAL_LLSPEC
+#include "../disassemble_spec.h"
+#endif
 
 
 taul::internal::spec_lowerer::spec_lowerer(source_pos& pos)
@@ -172,6 +177,12 @@ void taul::internal::spec_lowerer::on_startup() {
 }
 
 void taul::internal::spec_lowerer::on_shutdown() {
+#if _DUMP_FINAL_LLSPEC
+    // copy output so we don't call done on the original
+    auto final_llspec = llspec_writer(output).done();
+    std::cerr << std::format("dumping final llspec...\n{}\n", internal::disassemble_llspec(final_llspec));
+
+#endif
     // do nothing
 }
 

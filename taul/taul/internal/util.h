@@ -6,6 +6,7 @@
 #include <utility>
 #include <optional>
 
+#include "../general.h"
 #include "../logger.h"
 #include "../source_code.h"
 #include "../spec_error.h"
@@ -20,6 +21,19 @@ namespace taul::internal {
     template<enum_type T>
     inline auto to_underlying(T e) noexcept {
         return std::underlying_type_t<T>(e);
+    }
+
+
+    template<typename T, size_t N>
+    concept specific_sized_type = sizeof(T) == N;
+
+
+    template<trivially_copyable_type T>
+    inline void copy_bytes(const T* src, size_t n, T* dest) {
+        TAUL_ASSERT(src);
+        TAUL_ASSERT(dest);
+        TAUL_ASSERT(dest < src || dest >= src + n);
+        std::memcpy((void*)dest, (const void*)src, n * sizeof(T));
     }
 
 

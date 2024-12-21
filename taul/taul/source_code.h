@@ -43,7 +43,7 @@ namespace taul {
     // want this to be 32-bit, as it's large enough for pretty much all use cases,
     // but small enough to be nice-and-compact for use in end-user's code
 
-    using source_pos = std::uint32_t;
+    using source_pos = uint32_t;
 
     // this type is is paired w/ source_pos and measures source code length
 

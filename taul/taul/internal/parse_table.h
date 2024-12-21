@@ -12,11 +12,14 @@
 #include "../symbol_set.h"
 
 #include "id_grouper.h"
+#include "buff.h"
 
 
-#define _DUMP_FIRST_SET_BUILD_PROCESS_LOG 0
-#define _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG 0
-#define _DUMP_PARSE_TABLE_USE_CASE_ADDING_LOG 0
+#define _TAUL_PT_DUMP_FIRST_SET_BUILD_PROCESS_LOG 0
+#define _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG 0
+#define _TAUL_PT_DUMP_PARSE_TABLE_USE_CASE_ADDING_LOG 0
+
+#define _TAUL_PT_DUMP_DESERIALIZE_LOG 0
 
 
 namespace taul::internal {
@@ -298,6 +301,30 @@ namespace taul::internal {
                 ? std::format("assert{}", ids)
                 : std::format("{}", ids);
         }
+
+
+        inline void serialize(buff& b) const {
+            b.write(ids.low, ids.high, assertion);
+        }
+
+        static inline std::optional<pt_terminal<Symbol>> deserialize(buff_reader& b) {
+            auto rdr = b.fork();
+            std::optional<pt_terminal<Symbol>> result{};
+            if (const auto aa = rdr.read<symbol_id, symbol_id, bool>()) {
+                b.commit(rdr);
+                const auto& [low, high, assertion] = *aa;
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+                log(make_stderr_logger(), "pt_terminal::deserialize -> low: {}, high: {}, assertion: {}", low, high, assertion);
+#endif
+                result = pt_terminal<Symbol>{ .ids = symbol_range<Symbol>{ .low = low, .high = high }, .assertion = assertion };
+            }
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+            else {
+                log(make_stderr_logger(), "pt_terminal::deserialize -> failed!");
+            }
+#endif
+            return result;
+        }
     };
 
     struct pt_nonterminal final {
@@ -311,6 +338,30 @@ namespace taul::internal {
                 ? std::format("{}/{}", id, preced_val)
                 : std::format("{}/*signal*", id);
         }
+
+
+        inline void serialize(buff& b) const {
+            b.write(id, preced_val);
+        }
+
+        static inline std::optional<pt_nonterminal> deserialize(buff_reader& b) {
+            auto rdr = b.fork();
+            std::optional<pt_nonterminal> result{};
+            if (const auto aa = rdr.read<symbol_id, preced_t>()) {
+                b.commit(rdr);
+                const auto& [id, preced_val] = *aa;
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+                log(make_stderr_logger(), "pt_nonterminal::deserialize -> id: {}, preced_val: {}", id, preced_val);
+#endif
+                result = pt_nonterminal{ .id = id, .preced_val = preced_val };
+            }
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+            else {
+                log(make_stderr_logger(), "pt_nonterminal::deserialize -> failed!");
+            }
+#endif
+            return result;
+        }
     };
 
     struct pt_preced_pred final {
@@ -321,11 +372,44 @@ namespace taul::internal {
         inline std::string fmt() const {
             return std::format("{{ {}<={} }}", preced_val, preced_max);
         }
+
+
+        inline void serialize(buff& b) const {
+            b.write(preced_max, preced_val);
+        }
+
+        static inline std::optional<pt_preced_pred> deserialize(buff_reader& b) {
+            auto rdr = b.fork();
+            std::optional<pt_preced_pred> result{};
+            if (const auto aa = rdr.read<preced_t, preced_t>()) {
+                b.commit(rdr);
+                const auto& [preced_max, preced_val] = *aa;
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+                log(make_stderr_logger(), "pt_preced_pred::deserialize -> preced_max: {}, preced_val: {}", preced_max, preced_val);
+#endif
+                result = pt_preced_pred{ .preced_max = preced_max, .preced_val = preced_val };
+            }
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+            else {
+                log(make_stderr_logger(), "pt_preced_pred::deserialize -> failed!");
+            }
+#endif
+            return result;
+        }
     };
 
     struct pt_pylon final {
         inline std::string fmt() const {
             return "*pylon*";
+        }
+
+
+        inline void serialize(buff& b) const {
+            // do nothing
+        }
+
+        static inline std::optional<pt_pylon> deserialize(buff_reader& b) {
+            return pt_pylon{};
         }
     };
 
@@ -366,6 +450,57 @@ namespace taul::internal {
             case 3:     result = pylon().fmt();         break;
             default:    TAUL_DEADEND;                   break;
             }
+            return result;
+        }
+
+
+        // NOTE: for serialization, we'll have a uint8_t value specifying
+        //       the type of term it is via its std::variant index
+
+        inline void serialize(buff& b) const {
+            b.write(uint8_t(u.index()));
+            if (is_terminal())          terminal().serialize(b);
+            else if (is_nonterminal())  nonterminal().serialize(b);
+            else if (is_preced_pred())  preced_pred().serialize(b);
+            else if (is_pylon())        pylon().serialize(b);
+            else                        TAUL_DEADEND;
+        }
+
+        static inline std::optional<pt_term<Symbol>> deserialize(buff_reader& b) {
+            auto rdr = b.fork();
+            std::optional<pt_term<Symbol>> result{};
+            if (const auto a = rdr.read<uint8_t>()) {
+                const auto& [index] = *a;
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+                log(make_stderr_logger(), "pt_term<...>::deserialize -> index: {}", size_t(index));
+#endif
+                if (index == 0) { // terminal
+                    if (const auto x = pt_terminal<Symbol>::deserialize(rdr)) {
+                        result = pt_term<Symbol>::init_terminal(x->ids, x->assertion);
+                    }
+                }
+                else if (index == 1) { // non-terminal
+                    if (const auto x = pt_nonterminal::deserialize(rdr)) {
+                        result = pt_term<Symbol>::init_nonterminal(x->id, x->preced_val);
+                    }
+                }
+                else if (index == 2) { // precedence predicate
+                    if (const auto x = pt_preced_pred::deserialize(rdr)) {
+                        result = pt_term<Symbol>::init_preced_pred(x->preced_max, x->preced_val);
+                    }
+                }
+                else if (index == 3) { // pylon
+                    if (const auto x = pt_pylon::deserialize(rdr)) {
+                        result = pt_term<Symbol>::init_pylon();
+                    }
+                }
+            }
+            if (result) b.commit(rdr);
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+            else {
+                log(make_stderr_logger(), "pt_term<...>::deserialize -> failed!");
+            }
+#endif
             return result;
         }
 
@@ -412,6 +547,47 @@ namespace taul::internal {
                 terms_str += std::format(" {}", I.fmt());
             }
             return std::format("{} :{} ;", id, terms_str);
+        }
+
+
+        inline void serialize(buff& b) const {
+            b.write(id, terms.size());
+            for (const auto& I : terms) I.serialize(b);
+        }
+
+        static inline std::optional<pt_rule<Symbol>> deserialize(buff_reader& b) {
+            auto rdr = b.fork();
+            std::optional<pt_rule<Symbol>> result{};
+            if (const auto aa = rdr.read<symbol_id, size_t>()) {
+                const auto& [id, expected_terms] = *aa;
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+                log(make_stderr_logger(), "pt_rule<...>::deserialize -> id: {}, expected_terms: {}", id, expected_terms);
+#endif
+                pt_rule<Symbol> temp{ .id = id };
+                for (size_t i = 0; i < expected_terms; i++) {
+                    if (auto x = pt_term<Symbol>::deserialize(rdr)) {
+                        temp.terms.push_back(std::move(*x));
+                    }
+                    else {
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+                        log(make_stderr_logger(), "pt_rule<...>::deserialize -> failed! (expected term not found)");
+#endif
+                        return std::nullopt;
+                    }
+                }
+                // if didn't fail up to this point, assign result
+                result = std::move(temp);
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+                log(make_stderr_logger(), "pt_rule<...>::deserialize -> done!");
+#endif
+            }
+            if (result) b.commit(rdr);
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+            else {
+                log(make_stderr_logger(), "pt_rule<...>::deserialize -> failed!");
+            }
+#endif
+            return result;
         }
     };
 
@@ -588,7 +764,7 @@ namespace taul::internal {
 
         inline parse_table<Symbol>& add_pylon(size_t index);
 
-        // build_mappings performs generation of parse table mappings
+        // build_mappings performs generation of parse table mappings + FIRST/FOLLOW/prefix sets
 
         // if a mapping would result in overwriting an existing one, it is forgone,
         // and its key is added to the collision set
@@ -625,6 +801,49 @@ namespace taul::internal {
 
 
         inline std::string fmt(const char* tab = "    ") const;
+
+
+        inline void serialize(buff& b) const {
+            b.write(rules.size());
+            for (const auto& I : rules) I.serialize(b);
+        }
+
+        static inline std::optional<parse_table<Symbol>> deserialize(buff_reader& b) {
+            auto rdr = b.fork();
+            std::optional<parse_table<Symbol>> result{};
+            if (const auto aa = rdr.read<size_t>()) {
+                const auto& [expected_rules] = *aa;
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+                log(make_stderr_logger(), "parse_table<...>::deserialize -> expected_rules: {}", expected_rules);
+#endif
+                parse_table<Symbol> temp{};
+                for (size_t i = 0; i < expected_rules; i++) {
+                    if (auto x = pt_rule<Symbol>::deserialize(rdr)) {
+                        temp.rules.push_back(std::move(*x));
+                    }
+                    else {
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+                        log(make_stderr_logger(), "parse_table<...>::deserialize -> failed! (expected rule not found)");
+#endif
+                        return std::nullopt;
+                    }
+                }
+                parse_table_build_details<Symbol> details; // we just discard this
+                temp.build_mappings(details);
+                // if didn't fail up to this point, assign result
+                result = std::move(temp);
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+                log(make_stderr_logger(), "parse_table<...>::deserialize -> done!");
+#endif
+            }
+            if (result) b.commit(rdr);
+#if _TAUL_PT_DUMP_DESERIALIZE_LOG
+            else {
+                log(make_stderr_logger(), "parse_table<...>::deserialize -> failed!");
+            }
+#endif
+            return result;
+        }
     };
 
     template<typename Symbol>
@@ -741,22 +960,22 @@ namespace taul::internal {
             details.first_sets_A.try_emplace(I, symbol_set<Symbol>{});
         }
         details.first_sets_w.resize(rules.size());
-#if _DUMP_FIRST_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FIRST_SET_BUILD_PROCESS_LOG
         TAUL_LOG(make_stderr_logger(), "building FIRST sets!");
 #endif
         while (true) {
-#if _DUMP_FIRST_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FIRST_SET_BUILD_PROCESS_LOG
             TAUL_LOG(make_stderr_logger(), "*** cycle ***");
 #endif
             bool changed = false;
             for (size_t i = 0; i < rules.size(); i++) {
-#if _DUMP_FIRST_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FIRST_SET_BUILD_PROCESS_LOG
                 TAUL_LOG(make_stderr_logger(), "> rule {}", i);
 #endif
                 const auto& I = rules[i];
                 auto& set_A = details.first_sets_A[I.id];
                 auto& set_w = details.first_sets_w[i];
-#if _DUMP_FIRST_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FIRST_SET_BUILD_PROCESS_LOG
                 TAUL_LOG(make_stderr_logger(), "before:");
                 TAUL_LOG(make_stderr_logger(), "    set_A == {}", set_A);
                 TAUL_LOG(make_stderr_logger(), "    set_w == {}", set_w);
@@ -766,7 +985,7 @@ namespace taul::internal {
                 for (const auto& J : I.terms) {
                     // add ID's of front terminal
                     if (J.is_terminal()) {
-#if _DUMP_FIRST_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FIRST_SET_BUILD_PROCESS_LOG
                         TAUL_LOG(make_stderr_logger(), "    -> adding {}", front.terminal().ids);
 #endif
                         if (!set_w.includes_range(J.terminal().ids)) changed = true;
@@ -782,7 +1001,7 @@ namespace taul::internal {
                         const auto other =
                             symbol_set<Symbol>(J_first_set_A)
                             .remove_epsilon(); // gotta remember to remove epsilon!
-#if _DUMP_FIRST_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FIRST_SET_BUILD_PROCESS_LOG
                         TAUL_LOG(make_stderr_logger(), "    -> adding {}", other);
 #endif
                         if (!set_w.includes_set(other)) changed = true;
@@ -794,7 +1013,7 @@ namespace taul::internal {
                     }
                 }
                 if (!found_nonempty_term) {
-#if _DUMP_FIRST_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FIRST_SET_BUILD_PROCESS_LOG
                     TAUL_LOG(make_stderr_logger(), "    -> adding epsilon");
 #endif
                     if (!set_w.includes_epsilon()) changed = true;
@@ -803,7 +1022,7 @@ namespace taul::internal {
 
                 // add latest from set_w to set_A
                 set_A.add_set(set_w);
-#if _DUMP_FIRST_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FIRST_SET_BUILD_PROCESS_LOG
                 TAUL_LOG(make_stderr_logger(), "after:");
                 TAUL_LOG(make_stderr_logger(), "    set_A == {}", set_A);
                 TAUL_LOG(make_stderr_logger(), "    set_w == {}", set_w);
@@ -817,13 +1036,13 @@ namespace taul::internal {
     template<typename Symbol>
     inline void taul::internal::parse_table<Symbol>::_build_follow_sets(parse_table_build_details<Symbol>& details) {
         details.follow_sets_A.reserve(details.defined_nonterminals.size());
-#if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
         TAUL_LOG(make_stderr_logger(), "building FOLLOW sets!");
 #endif
         // ensure every rule has an associated FOLLOW set w/ expected defaults
         for (const auto& I : details.defined_nonterminals) {
             auto& set_A = details.follow_sets_A[I];
-#if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
             TAUL_LOG(make_stderr_logger(), "*** adding defaults (for {}) ***", I);
             TAUL_LOG(make_stderr_logger(), "before:");
             TAUL_LOG(make_stderr_logger(), "    set_A == {}", set_A);
@@ -837,7 +1056,7 @@ namespace taul::internal {
                 .add_all()
                 .remove_set(details.first_sets_A[I])
                 .remove_epsilon();
-#if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
             TAUL_LOG(make_stderr_logger(), "after:");
             TAUL_LOG(make_stderr_logger(), "    set_A == {}", set_A);
 #endif
@@ -850,20 +1069,20 @@ namespace taul::internal {
 #if 0
         // populate FOLLOW sets
         if constexpr (std::is_same_v<Symbol, token>) {
-#if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
             TAUL_LOG(make_stderr_logger(), "*** populating FOLLOW sets ***");
 #endif
             while (true) {
                 bool changed = false;
                 for (size_t i = 0; i < rules.size(); i++) {
-#if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
                     TAUL_LOG(make_stderr_logger(), "> rule {}", i);
 #endif
                     const auto& I = rules[i];
                     // loop across all terms and update corresponding FOLLOW sets of any non-terminals
                     for (size_t j = 0; j < I.terms.size(); j++) {
                         const auto& J = I.terms[j];
-#if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
                         TAUL_LOG(make_stderr_logger(), "> term (index {}) {}", i, J.fmt());
 #endif
                         const bool is_last_term = j + 1 == I.terms.size();
@@ -871,14 +1090,14 @@ namespace taul::internal {
                         if (J.is_terminal()) continue;
 
                         auto& set_A = details.follow_sets_A[J.nonterminal().id];
-#if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
                         TAUL_LOG(make_stderr_logger(), "before:");
                         TAUL_LOG(make_stderr_logger(), "    set_A == {}", set_A);
 #endif
                         if (is_last_term) {
                             // if this is last term, add I's FOLLOW set to non-terminal's FOLLOW set
                             const auto& other_set_A = details.follow_sets_A[I.id];
-#if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
                             TAUL_LOG(make_stderr_logger(), "    -> adding (A) {}", other_set_A);
 #endif
                             if (!set_A.includes_set(other_set_A)) changed = true;
@@ -887,7 +1106,7 @@ namespace taul::internal {
                         else {
                             const auto& after_J = I.terms[j + 1];
                             if (after_J.is_terminal()) {
-#if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
                                 TAUL_LOG(make_stderr_logger(), "    -> adding (B) {}", after_J.terminal().ids);
 #endif
                                 // if next term is a terminal, add it to J's FOLLOW set
@@ -897,7 +1116,7 @@ namespace taul::internal {
                             else if (after_J.is_nonterminal()) {
                                 // if next term is a non-terminal, add its FOLLOW set to J's FOLLOW set
                                 const auto& after_J_set_A = details.follow_sets_A[after_J.nonterminal().id];
-#if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
                                 TAUL_LOG(make_stderr_logger(), "    -> adding (C) {}", after_J_set_A);
 #endif
                                 if (!set_A.includes_set(after_J_set_A)) changed = true;
@@ -905,7 +1124,7 @@ namespace taul::internal {
                             }
                             else TAUL_DEADEND;
                         }
-#if _DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
+#if _TAUL_PT_DUMP_FOLLOW_SET_BUILD_PROCESS_LOG
                         TAUL_LOG(make_stderr_logger(), "after:");
                         TAUL_LOG(make_stderr_logger(), "    set_A == {}", set_A);
 #endif
@@ -945,7 +1164,7 @@ namespace taul::internal {
     template<typename Symbol>
     inline void taul::internal::parse_table<Symbol>::_populate_id_grouper(parse_table_build_details<Symbol>& details) {
         for (const auto& I : details.first_sets_A) {
-#if _DUMP_PARSE_TABLE_USE_CASE_ADDING_LOG
+#if _TAUL_PT_DUMP_PARSE_TABLE_USE_CASE_ADDING_LOG
             TAUL_LOG(make_stderr_logger(), "    > adding from Fi(A) {} (of {})", I.second, I.first);
 #endif
             for (const auto& J : I.second.ranges()) {
@@ -953,7 +1172,7 @@ namespace taul::internal {
             }
         }
         for (const auto& I : details.follow_sets_A) {
-#if _DUMP_PARSE_TABLE_USE_CASE_ADDING_LOG
+#if _TAUL_PT_DUMP_PARSE_TABLE_USE_CASE_ADDING_LOG
             TAUL_LOG(make_stderr_logger(), "    > adding from Fo(A) {} (of {})", I.second, I.first);
 #endif
             for (const auto& J : I.second.ranges()) {
@@ -961,7 +1180,7 @@ namespace taul::internal {
             }
         }
         for (const auto& I : details.first_sets_w) {
-#if _DUMP_PARSE_TABLE_USE_CASE_ADDING_LOG
+#if _TAUL_PT_DUMP_PARSE_TABLE_USE_CASE_ADDING_LOG
             TAUL_LOG(make_stderr_logger(), "    > adding from Fi(w) {}", I);
 #endif
             for (const auto& J : I.ranges()) {
@@ -1036,43 +1255,29 @@ namespace taul::internal {
         if (rules.size() <= 100) {
             size_t i = 0;
             for (const auto& I : rules) {
-                result += std::format(
-                    "\n{}(rule {}) {}",
-                    tab, i, I.fmt());
+                result += std::format("\n{}(rule {}) {}", tab, i, I.fmt());
                 i++;
             }
         }
-        else {
-            result += std::format("\n{}rules.size() > 100; will not display to ensure readability", tab);
-        }
+        else result += std::format("\n{}rules.size() > 100; will not display to ensure readability", tab);
         result += "\nmappings:";
         if (mappings.size() <= 300) {
             for (const auto& I : mappings) {
-                result += std::format(
-                    "\n{}{} -> {}",
-                    tab, I.first.fmt(grouper), I.second);
+                result += std::format("\n{}{} -> {}", tab, I.first.fmt(grouper), I.second);
             }
         }
-        else {
-            result += std::format("\n{}mappings.size() > 300; will not display to ensure readability", tab);
-        }
+        else result += std::format("\n{}mappings.size() > 300; will not display to ensure readability", tab);
         result += "\nFIRST sets (Fi(A)):";
         for (const auto& I : first_sets_A) {
-            result += std::format(
-                "\n{}{} -> {}",
-                tab, I.first, I.second);
+            result += std::format("\n{}{} -> {}", tab, I.first, I.second);
         }
         result += "\nFOLLOW sets (Fo(A)):";
         for (const auto& I : follow_sets_A) {
-            result += std::format(
-                "\n{}{} -> {}",
-                tab, I.first, I.second);
+            result += std::format("\n{}{} -> {}", tab, I.first, I.second);
         }
         result += "\nprefix sets (Pfx(A)):";
         for (const auto& I : prefix_sets_A) {
-            result += std::format(
-                "\n{}{} -> {}",
-                tab, I.first, I.second);
+            result += std::format("\n{}{} -> {}", tab, I.first, I.second);
         }
         return result;
     }

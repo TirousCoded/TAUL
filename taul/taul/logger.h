@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <format>
+#include <mutex>
 
 
 namespace taul {
@@ -103,7 +104,33 @@ namespace taul {
     };
 
 
+    // these fns return loggers encapsulating logging to stdout/stderr
+
+    // these each lazy load single global singleton logger, w/ each subsequent
+    // call just returning these same loggers, w/ it thus being acceptable to
+    // call these methods over-and-over w/out worry
+
     std::shared_ptr<logger> make_stdout_logger();
     std::shared_ptr<logger> make_stderr_logger();
+
+    std::shared_ptr<logger> stdout_lgr();
+    std::shared_ptr<logger> stderr_lgr();
+
+
+    namespace internal {
+        class std_logger_lazy_loader final {
+        public:
+            std_logger_lazy_loader() = default;
+
+
+            static std::shared_ptr<logger> load_stdout();
+            static std::shared_ptr<logger> load_stderr();
+
+
+        private:
+            static std::shared_ptr<logger> _stdout, _stderr;
+            static std::mutex _stdout_mtx, _stderr_mtx;
+        };
+    }
 }
 

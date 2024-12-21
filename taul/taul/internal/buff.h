@@ -22,8 +22,6 @@ namespace taul::internal {
     //            of things like endianness
 
 
-    using buff_t = std::vector<uint8_t>;
-
     template<typename T>
     concept buff_elem_type =
         std::integral<std::remove_cvref_t<T>> ||
@@ -31,129 +29,198 @@ namespace taul::internal {
         std::same_as<std::remove_cvref_t<T>, std::string_view>;
 
 
-    inline buff_t buff_concat(const buff_t& lhs, const buff_t& rhs) {
-        buff_t result{};
-        result.resize(lhs.size() + rhs.size());
-        if (!result.empty()) {
-            std::memcpy((void*)result.data(), (void*)lhs.data(), lhs.size());
-            std::memcpy((void*)(result.data() + lhs.size()), (void*)rhs.data(), rhs.size());
+    struct buff final {
+        std::vector<uint8_t> bytes;
+
+
+        inline size_t size() const noexcept { return bytes.size(); }
+        inline bool has_size() const noexcept { return !bytes.empty(); }
+        inline bool empty() const noexcept { return bytes.empty(); }
+
+        inline uint8_t* data() noexcept { return bytes.data(); }
+        inline const uint8_t* data() const noexcept { return bytes.data(); }
+
+
+        template<std::integral T>
+        inline buff& write_one(T x) {
+            T temp = to_little_endian(x); // ensure portability
+            _write_back(&temp, 1);
+            return *this;
         }
-        return result;
-    }
+
+        template<enum_type T>
+        inline buff& write_one(T x) {
+            return write_one(to_underlying(x));
+        }
+
+        template<std::same_as<std::string_view> T>
+        inline buff& write_one(T x) {
+            TAUL_IN_BOUNDS(x.length(), 0, std::numeric_limits<uint32_t>::max());
+            write_one((uint32_t)x.length()); // write length
+            _write_back(x.data(), x.length());
+            return *this;
+        }
 
 
-    template<std::integral T>
-    inline void buff_write_one(buff_t& b, T x) {
-        T temp = to_little_endian(x); // ensure portability
-        // alloc and copy over temp
-        b.resize(b.size() + sizeof(T));
-        std::memcpy((void*)&b[b.size() - sizeof(T)], (const void*)&temp, sizeof(T));
-    }
-    
-    template<enum_type T>
-    inline void buff_write_one(buff_t& b, T x) {
-        buff_write_one(b, to_underlying(x));
-    }
+        inline buff& write() {
+            return *this; // do nothing
+        }
 
-    template<std::same_as<std::string_view> T>
-    inline void buff_write_one(buff_t& b, T x) {
-        TAUL_IN_BOUNDS(x.length(), 0, std::numeric_limits<uint32_t>::max());
-        buff_write_one(b, (uint32_t)x.length()); // write length
-        // alloc and copy over x
-        b.resize(b.size() + x.length());
-        std::memcpy((void*)&b[b.size() - x.length()], (const void*)x.data(), x.length());
-    }
-
-    inline void buff_write(buff_t& b) {
-        // do nothing
-    }
-
-    template<buff_elem_type Arg, buff_elem_type... Args>
-    inline void buff_write(buff_t& b, Arg&& arg, Args&&... args) {
-        buff_write_one(b, std::remove_cvref_t<Arg>(std::forward<Arg>(arg)));
-        buff_write(b, std::forward<Args>(args)...);
-    }
+        template<buff_elem_type Arg, buff_elem_type... Args>
+        inline buff& write(Arg&& arg, Args&&... args) {
+            write_one(std::remove_cvref_t<Arg>(std::forward<Arg>(arg)));
+            return write(std::forward<Args>(args)...);
+        }
 
 
-    // the len out param will be incremented by sizeof(T) upon read, w/ this being
-    // used to simplify writing stuff that reads buffers
-
-    template<std::integral T>
-    inline T buff_read_one(const buff_t& b, size_t offset, size_t& len) noexcept {
-        // assert [offset, offset + sizeof(T)) is in-bounds
-        TAUL_IN_BOUNDS(offset, 0, b.size());
-        if constexpr (sizeof(T) > 0) TAUL_IN_BOUNDS(offset + sizeof(T) - 1, 0, b.size());
-        len += sizeof(T); // incr len
-        // copy data to result
-        T result{};
-        std::memcpy((void*)&result, (const void*)(b.data() + offset), sizeof(T));
-        return from_little_endian(result); // ensure portability
-    }
-
-    template<enum_type T>
-    inline T buff_read_one(const buff_t& b, size_t offset, size_t& len) noexcept {
-        return T(buff_read_one<std::underlying_type_t<T>>(b, offset, len));
-    }
-
-    template<std::same_as<std::string_view>>
-    inline std::string_view buff_read_one(const buff_t& b, size_t offset, size_t& len) noexcept {
-        // read length of string
-        const auto l = buff_read_one<uint32_t>(b, offset, len);
-        // assert [offset + sizeof(uint32_t), offset + sizeof(uint32_t) + l) is in-bounds
-        TAUL_IN_BOUNDS(offset + sizeof(uint32_t), 0, b.size());
-        if (l > 0) TAUL_IN_BOUNDS(offset + sizeof(uint32_t) + l - 1, 0, b.size());
-        len += l; // incr len
-        return std::string_view((const char*)b.data() + offset + sizeof(uint32_t), l);
-    }
-
-    // template overloads for 0 and 1 args
-
-    inline std::tuple<> buff_read(const buff_t& b, size_t offset, size_t& len) noexcept {
-        return std::make_tuple();
-    }
-
-    template<buff_elem_type T>
-    inline std::tuple<T> buff_read(const buff_t& b, size_t offset, size_t& len) noexcept {
-            return std::make_tuple(buff_read_one<T>(b, offset, len));
-    }
-
-    // template overload for 2 args
-
-    // for exactly 2 template params, we can quality-of-life return a std::pair
-
-    template<buff_elem_type T, buff_elem_type U>
-    inline std::pair<T, U> buff_read(const buff_t& b, size_t offset, size_t& len) noexcept {
-        size_t our_len = 0;
-        // NOTE: can't put below in std::make_pair due to C++ not having defined arg eval order!
-        auto aa = buff_read_one<T>(b, offset, our_len);
-        auto bb = buff_read_one<U>(b, offset + our_len, our_len);
-        len += our_len;
-        return std::make_pair(aa, bb);
-    }
-
-    // template overload for +3 args
-
-    template<buff_elem_type Arg1, buff_elem_type Arg2, buff_elem_type Arg3, buff_elem_type... Args>
-    inline std::tuple<Arg1, Arg2, Arg3, Args...> buff_read(const buff_t& b, size_t offset, size_t& len) noexcept {
-        size_t our_len = 0;
-        // NOTE: can't put below in std::tuple_cat due to C++ not having defined arg eval order!
-        auto aa = buff_read<Arg1>(b, offset, our_len);
-        auto bb = buff_read<Arg2, Arg3, Args...>(b, offset + our_len, our_len);
-        len += our_len;
-        return std::tuple_cat(aa, bb);
-    }
+        static inline buff concat(const buff& lhs, const buff& rhs) {
+            buff result{};
+            result.bytes.resize(lhs.size() + rhs.size());
+            if (result.has_size()) {
+                copy_bytes(lhs.data(), lhs.size(), result.data());
+                copy_bytes(rhs.data(), rhs.size(), result.data() + lhs.size());
+            }
+            return result;
+        }
 
 
-    template<buff_elem_type T>
-    inline T buff_peek_one(const buff_t& b, size_t offset) noexcept {
-        size_t len = 0;
-        return buff_read_one<T>(b, offset, len);
-    }
+    private:
 
-    template<buff_elem_type... Args>
-    inline std::tuple<Args...> buff_peek(const buff_t& b, size_t offset) noexcept {
-        size_t len = 0;
-        return buff_read<Args...>(b, offset, len);
-    }
+        template<trivially_copyable_type T>
+        inline void _write_back(const T* x, size_t n) {
+            bytes.resize(size() + n * sizeof(T));
+            copy_bytes((const uint8_t*)x, n * sizeof(T), data() + (size() - n * sizeof(T)));
+        }
+    };
+
+
+    struct buff_reader final {
+        const buff* target = nullptr;
+        size_t offset = 0;
+
+
+        inline buff_reader(const buff& target, size_t offset = 0)
+            : target(&target),
+            offset(offset) {}
+
+        buff_reader() = delete;
+        buff_reader(const buff_reader&) = default;
+        buff_reader(buff_reader&&) noexcept = default;
+
+        ~buff_reader() noexcept = default;
+
+        buff_reader& operator=(const buff_reader&) = default;
+        buff_reader& operator=(buff_reader&&) noexcept = default;
+
+
+        // when parsing some input, it's useful to clone the buff_reader, use
+        // that clone for the parse, and then assign this clone back onto *this,
+        // as this method lets us easily undo buff_reader state changes in the
+        // event that the parse fails
+
+        // we'll use two methods to encapsulate this pattern: 'fork' for the
+        // copy itself, and 'commit' for the assigning back onto *this
+
+        // we can also use fork for impl of 'peek' methods, by simply never
+        // committing the forked buff_reader
+
+        inline buff_reader fork() const noexcept { return *this; }
+        inline void commit(buff_reader x) noexcept { *this = std::move(x); }
+
+
+        // returns number of bytes remaining until end of buffer
+
+        inline size_t remaining() const noexcept {
+            TAUL_ASSERT(offset <= deref_assert(target).size());
+            return deref_assert(target).size() - offset;
+        }
+
+
+        template<std::integral T>
+        inline std::optional<T> read_one() noexcept {
+            return _next_one<T>();
+        }
+
+        template<enum_type T>
+        inline std::optional<T> read_one() noexcept {
+            auto a = read_one<std::underlying_type_t<T>>();
+            return
+                a
+                ? std::make_optional((T)*a)
+                : std::nullopt;
+        }
+
+        template<std::same_as<std::string_view>>
+        inline std::optional<std::string_view> read_one() noexcept {
+            auto rdr = fork();
+            std::optional<std::string_view> result{};
+            if (const auto length = rdr.read_one<uint32_t>()) {
+                if (const auto data = rdr._next_span(length.value())) {
+                    commit(rdr);
+                    result = std::string_view((const char*)data->data(), data->size());
+                }
+            }
+            return result;
+        }
+
+
+        inline std::optional<std::tuple<>> read() noexcept {
+            return std::make_tuple();
+        }
+
+        template<buff_elem_type T>
+        inline std::optional<std::tuple<T>> read() noexcept {
+            auto rdr = fork();
+            std::optional<std::tuple<T>> result{};
+            if (const auto a = rdr.read_one<T>()) {
+                commit(rdr);
+                result = std::make_tuple(*a);
+            }
+            return result;
+        }
+
+        template<buff_elem_type Arg1, buff_elem_type Arg2, buff_elem_type... Args>
+        inline std::optional<std::tuple<Arg1, Arg2, Args...>> read() noexcept {
+            auto rdr = fork();
+            std::optional<std::tuple<Arg1, Arg2, Args...>> result{};
+            if (const auto a = rdr.read<Arg1>()) {
+                if (const auto b = rdr.read<Arg2, Args...>()) {
+                    commit(rdr);
+                    result = std::tuple_cat(*a, *b);
+                }
+            }
+            return result;
+        }
+
+
+        template<buff_elem_type T>
+        inline std::optional<T> peek_one() noexcept {
+            return fork().read_one<T>();
+        }
+
+        template<buff_elem_type... Args>
+        inline std::optional<std::tuple<Args...>> peek() noexcept {
+            return fork().read<Args...>();
+        }
+
+
+    private:
+
+        template<trivially_copyable_type T>
+        inline std::optional<T> _next_one() noexcept {
+            if (remaining() < sizeof(T)) return std::nullopt;
+            T result{};
+            copy_bytes((const uint8_t*)deref_assert(target).data() + offset, sizeof(T), (uint8_t*)&result);
+            offset += sizeof(T);
+            return from_little_endian(result); // ensure portability
+        }
+
+        inline std::optional<std::span<const uint8_t>> _next_span(size_t n) noexcept {
+            if (remaining() < n) return std::nullopt;
+            const auto result = std::span<const uint8_t>((const uint8_t*)deref_assert(target).data() + offset, n);
+            offset += n;
+            return result;
+        }
+    };
 }
 

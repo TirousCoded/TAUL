@@ -40,13 +40,13 @@ namespace taul {
         parse_tree(grammar gram);
 
         parse_tree() = delete;
-        parse_tree(const parse_tree& rhs);
-        parse_tree(parse_tree&&) noexcept = default;
+        parse_tree(const parse_tree& x);
+        parse_tree(parse_tree&& x) noexcept;
 
         ~parse_tree() noexcept = default;
 
         parse_tree& operator=(const parse_tree& rhs);
-        parse_tree& operator=(parse_tree&&) noexcept = default;
+        parse_tree& operator=(parse_tree&& rhs) noexcept;
 
 
         // is_sealed returns if the parse_tree is *sealed*

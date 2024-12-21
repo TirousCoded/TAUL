@@ -52,7 +52,7 @@ namespace taul::internal {
         void add_ppr_decl(str name);
 
         void add_lpr(str name, qualifier q);
-        void add_ppr(str name, qualifier);
+        void add_ppr(str name, qualifier q);
 
 
         // these are used to get diagnostic info needed for checking for 

@@ -23,8 +23,8 @@ std::string taul::internal::fmt_llspec_opcode(llspec_opcode x) {
 
 taul::internal::llspec taul::internal::llspec::concat(const llspec& a, const llspec& b) {
     llspec result{};
-    result.bin = internal::buff_concat(a.bin, b.bin);
-    result.associate(a.src);
+    result._bin = buff::concat(a._bin, b._bin);
+    result.associate(a._src);
     return result;
 }
 
@@ -34,113 +34,113 @@ taul::internal::llspec_writer& taul::internal::llspec_writer::pos(source_pos new
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::close() {
-    internal::buff_write(_temp.bin, llspec_opcode::close, _pos);
+    _temp._bin.write(llspec_opcode::close, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::alternative() {
-    internal::buff_write(_temp.bin, llspec_opcode::alternative, _pos);
+    _temp._bin.write(llspec_opcode::alternative, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::lpr_decl(std::string_view name) {
-    internal::buff_write(_temp.bin, llspec_opcode::lpr_decl, _pos, name);
+    _temp._bin.write(llspec_opcode::lpr_decl, _pos, name);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::ppr_decl(std::string_view name) {
-    internal::buff_write(_temp.bin, llspec_opcode::ppr_decl, _pos, name);
+    _temp._bin.write(llspec_opcode::ppr_decl, _pos, name);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::lpr(std::string_view name, qualifier qualifier) {
-    internal::buff_write(_temp.bin, llspec_opcode::lpr, _pos, name, qualifier);
+    _temp._bin.write(llspec_opcode::lpr, _pos, name, qualifier);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::ppr(std::string_view name, qualifier qualifier) {
-    internal::buff_write(_temp.bin, llspec_opcode::ppr, _pos, name, qualifier);
+    _temp._bin.write(llspec_opcode::ppr, _pos, name, qualifier);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::end() {
-    internal::buff_write(_temp.bin, llspec_opcode::end, _pos);
+    _temp._bin.write(llspec_opcode::end, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::any() {
-    internal::buff_write(_temp.bin, llspec_opcode::any, _pos);
+    _temp._bin.write(llspec_opcode::any, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::string(std::string_view s) {
-    internal::buff_write(_temp.bin, llspec_opcode::string, _pos, s);
+    _temp._bin.write(llspec_opcode::string, _pos, s);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::charset(std::string_view s) {
-    internal::buff_write(_temp.bin, llspec_opcode::charset, _pos, s);
+    _temp._bin.write(llspec_opcode::charset, _pos, s);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::token() {
-    internal::buff_write(_temp.bin, llspec_opcode::token, _pos);
+    _temp._bin.write(llspec_opcode::token, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::failure() {
-    internal::buff_write(_temp.bin, llspec_opcode::failure, _pos);
+    _temp._bin.write(llspec_opcode::failure, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::name(std::string_view name, preced_t preced_val) {
-    internal::buff_write(_temp.bin, llspec_opcode::name, _pos, name, preced_val);
+    _temp._bin.write(llspec_opcode::name, _pos, name, preced_val);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::sequence() {
-    internal::buff_write(_temp.bin, llspec_opcode::sequence, _pos);
+    _temp._bin.write(llspec_opcode::sequence, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::lookahead() {
-    internal::buff_write(_temp.bin, llspec_opcode::lookahead, _pos);
+    _temp._bin.write(llspec_opcode::lookahead, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::lookahead_not() {
-    internal::buff_write(_temp.bin, llspec_opcode::lookahead_not, _pos);
+    _temp._bin.write(llspec_opcode::lookahead_not, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::not0() {
-    internal::buff_write(_temp.bin, llspec_opcode::not0, _pos);
+    _temp._bin.write(llspec_opcode::not0, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::optional() {
-    internal::buff_write(_temp.bin, llspec_opcode::optional, _pos);
+    _temp._bin.write(llspec_opcode::optional, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::kleene_star() {
-    internal::buff_write(_temp.bin, llspec_opcode::kleene_star, _pos);
+    _temp._bin.write(llspec_opcode::kleene_star, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::kleene_plus() {
-    internal::buff_write(_temp.bin, llspec_opcode::kleene_plus, _pos);
+    _temp._bin.write(llspec_opcode::kleene_plus, _pos);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::preced_pred(preced_t preced_max, preced_t preced_val) {
     TAUL_ASSERT(preced_val == signal_preced_val); // <- at present, anything else is probably wrong
-    internal::buff_write(_temp.bin, llspec_opcode::preced_pred, _pos, preced_max, preced_val);
+    _temp._bin.write(llspec_opcode::preced_pred, _pos, preced_max, preced_val);
     return *this;
 }
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::pylon() {
-    internal::buff_write(_temp.bin, llspec_opcode::pylon, _pos);
+    _temp._bin.write(llspec_opcode::pylon, _pos);
     return *this;
 }
 
@@ -171,32 +171,23 @@ std::optional<taul::internal::llspec_opcode> taul::internal::llspec_interpreter:
 }
 
 void taul::internal::llspec_interpreter::interpret(const llspec& x) {
-    size_t offset = 0;
-    on_startup();
+    auto rdr = buff_reader(x._bin);
     _peek.reset();
-    // keep iterating while we either have more things to decode, or while _peek
-    // isn't std::nullopt (to account for edge case where at end of spec offset will
-    // equal x.bin.size(), but we still have one more cycle to do)
-    while (offset < x.bin.size() || (bool)_peek) {
-        offset += _step(x, offset);
-    }
+    on_startup();
+    while (_step(rdr)) {}
     on_shutdown();
 }
 
-size_t taul::internal::llspec_interpreter::_step(const llspec& s, size_t offset) {
+bool taul::internal::llspec_interpreter::_step(buff_reader& rdr) {
     static_assert(llspec_opcodes == 22);
-    size_t len = 0;
-    auto [opcode, new_pos] = internal::buff_read<llspec_opcode, source_pos>(s.bin, offset, len);
+    auto offset = rdr.offset;
+    auto header = rdr.read<llspec_opcode, source_pos>();
+    if (!header) return false;
+    auto [opcode, new_pos] = deref_assert(header);
     _pos = new_pos;
-    // below, this needs to be called after further oprands reads, but before the
+    // this needs to be called below between usage of rdr.read and the
     // on_### method call itself to setup _peek properly
-    auto setup_peek =
-        [&] {
-        _peek =
-            offset + len < s.bin.size()
-            ? std::make_optional(internal::buff_peek_one<llspec_opcode>(s.bin, offset + len))
-            : std::nullopt;
-        };
+    auto setup_peek = [&] { _peek = rdr.peek_one<llspec_opcode>(); };
     switch (opcode) {
     case llspec_opcode::close:
     {
@@ -212,28 +203,28 @@ size_t taul::internal::llspec_interpreter::_step(const llspec& s, size_t offset)
     break;
     case llspec_opcode::lpr_decl:
     {
-        auto [name] = internal::buff_read<std::string_view>(s.bin, offset + len, len);
+        auto [name] = rdr.read<std::string_view>().value();
         setup_peek();
         on_lpr_decl(name);
     }
     break;
     case llspec_opcode::ppr_decl:
     {
-        auto [name] = internal::buff_read<std::string_view>(s.bin, offset + len, len);
+        auto [name] = rdr.read<std::string_view>().value();
         setup_peek();
         on_ppr_decl(name);
     }
     break;
     case llspec_opcode::lpr:
     {
-        auto [name, qualifier] = internal::buff_read<std::string_view, taul::qualifier>(s.bin, offset + len, len);
+        auto [name, qualifier] = rdr.read<std::string_view, taul::qualifier>().value();
         setup_peek();
         on_lpr(name, qualifier);
     }
     break;
     case llspec_opcode::ppr:
     {
-        auto [name, qualifier] = internal::buff_read<std::string_view, taul::qualifier>(s.bin, offset + len, len);
+        auto [name, qualifier] = rdr.read<std::string_view, taul::qualifier>().value();
         setup_peek();
         on_ppr(name, qualifier);
     }
@@ -252,14 +243,14 @@ size_t taul::internal::llspec_interpreter::_step(const llspec& s, size_t offset)
     break;
     case llspec_opcode::string:
     {
-        auto [s0] = internal::buff_read<std::string_view>(s.bin, offset + len, len);
+        auto [s0] = rdr.read<std::string_view>().value();
         setup_peek();
         on_string(s0);
     }
     break;
     case llspec_opcode::charset:
     {
-        auto [s0] = internal::buff_read<std::string_view>(s.bin, offset + len, len);
+        auto [s0] = rdr.read<std::string_view>().value();
         setup_peek();
         on_charset(s0);
     }
@@ -278,7 +269,7 @@ size_t taul::internal::llspec_interpreter::_step(const llspec& s, size_t offset)
     break;
     case llspec_opcode::name:
     {
-        auto [name, preced_val] = internal::buff_read<std::string_view, preced_t>(s.bin, offset + len, len);
+        auto [name, preced_val] = rdr.read<std::string_view, preced_t>().value();
         setup_peek();
         on_name(name, preced_val);
     }
@@ -327,7 +318,7 @@ size_t taul::internal::llspec_interpreter::_step(const llspec& s, size_t offset)
     break;
     case llspec_opcode::preced_pred:
     {
-        auto [preced_max, preced_val] = internal::buff_read<preced_t, preced_t>(s.bin, offset + len, len);
+        auto [preced_max, preced_val] = rdr.read<preced_t, preced_t>().value();
         setup_peek();
         on_preced_pred(preced_max, preced_val);
     }
@@ -340,6 +331,6 @@ size_t taul::internal::llspec_interpreter::_step(const llspec& s, size_t offset)
     break;
     default: TAUL_DEADEND; break;
     }
-    return len;
+    return true;
 }
 

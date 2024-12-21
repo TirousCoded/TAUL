@@ -11,13 +11,26 @@
 taul::parse_tree::parse_tree(grammar gram) 
     : _state({ ._gram = gram }) {}
 
-taul::parse_tree::parse_tree(const parse_tree& rhs)
-    : _state(rhs._state) {
+taul::parse_tree::parse_tree(const parse_tree& x)
+    : _state(x._state) {
+    _update_owner_ptrs();
+}
+
+taul::parse_tree::parse_tree(parse_tree&& x) noexcept
+    : _state(std::move(x._state)) {
     _update_owner_ptrs();
 }
 
 taul::parse_tree& taul::parse_tree::operator=(const parse_tree& rhs) {
+    if (this == &rhs) return *this;
     _state = rhs._state;
+    _update_owner_ptrs();
+    return *this;
+}
+
+taul::parse_tree& taul::parse_tree::operator=(parse_tree&& rhs) noexcept {
+    if (this == &rhs) return *this;
+    _state = std::move(rhs._state);
     _update_owner_ptrs();
     return *this;
 }
@@ -283,8 +296,8 @@ std::optional<std::variant<taul::lpr_ref, taul::ppr_ref>> taul::parse_tree::_mak
 
 void taul::parse_tree::_update_owner_ptrs() {
     // TODO: I got some NASTY memory corruption problems from this not occurring
-    //       on copy ctor/assign, so maybe write some unit tests to cover behaviour
-    //       about copies being as expected
+    //       on copy/move ctor/assign, so maybe write some unit tests to cover
+    //       behaviour about copies/moves being as expected
     for (auto& I : _state._nodes) { // update _data._owner ptrs
         I._data._owner = this;
     }

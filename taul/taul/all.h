@@ -46,6 +46,7 @@
 #include "symbol_stream.h"
 #include "symbol_filter.h"
 
+#include "source_pos_counter.h"
 #include "parse_tree.h"
 #include "parse_tree_pattern.h"
 

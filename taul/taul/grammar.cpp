@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include "asserts.h"
+#include "base64.h"
 #include "symbol_set.h"
 
 #include "internal/grammar_data.h"
@@ -13,75 +14,46 @@
 using namespace taul::string_literals;
 
 
-taul::lpr_ref::lpr_ref() 
-    : lpr_ref(nullptr, nullptr) {}
-
-taul::lpr_ref::lpr_ref(const lpr_ref& other)
-    : lpr_ref(other._rule, other._gram) {}
-
-taul::lpr_ref::lpr_ref(lpr_ref&& other) noexcept
-    : lpr_ref() {
-    std::swap(_rule, other._rule);
-    std::swap(_gram, other._gram);
+taul::str taul::lpr_ref::name() const noexcept {
+    return deref_assert(_rule).name;
 }
 
-taul::lpr_ref& taul::lpr_ref::operator=(const lpr_ref& rhs) {
-    _rule = rhs._rule;
-    _gram = rhs._gram;
-    return *this;
-}
-
-taul::lpr_ref& taul::lpr_ref::operator=(lpr_ref&& rhs) noexcept {
-    if (&rhs != this) {
-        std::swap(_rule, rhs._rule);
-        std::swap(_gram, rhs._gram);
-    }
-    return *this;
-}
-
-taul::str taul::lpr_ref::name() const {
-    return _rule ? _rule->name : (TAUL_DEADEND, taul::str{});
-}
-
-std::size_t taul::lpr_ref::index() const {
-    return _rule ? _rule->index : (TAUL_DEADEND, std::size_t(-1));
-}
-
-taul::qualifier taul::lpr_ref::qualifier() const {
-    return _rule ? _rule->qualifier : (TAUL_DEADEND, taul::qualifier{});
+size_t taul::lpr_ref::index() const noexcept {
+    return deref_assert(_rule).index;
 }
 
 taul::symbol_id taul::lpr_ref::id() const noexcept {
     return symbol_traits<glyph>::first_nonterminal_id + symbol_id_num(index());
 }
 
+taul::qualifier taul::lpr_ref::qualifier() const noexcept {
+    return deref_assert(_rule).qualifier;
+}
+
 const taul::glyph_set& taul::lpr_ref::first_set() const noexcept {
-    TAUL_ASSERT(_gram);
-    TAUL_ASSERT(_gram->_lpr_pt.first_sets_A.contains(id()));
-    return _gram->_lpr_pt.first_sets_A.at(id());
+    TAUL_ASSERT(deref_assert(_gram)._lpr_pt.first_sets_A.contains(id()));
+    return deref_assert(_gram)._lpr_pt.first_sets_A.at(id());
 }
 
 const taul::glyph_set& taul::lpr_ref::follow_set() const noexcept {
-    TAUL_ASSERT(_gram);
-    TAUL_ASSERT(_gram->_lpr_pt.follow_sets_A.contains(id()));
-    return _gram->_lpr_pt.follow_sets_A.at(id());
+    TAUL_ASSERT(deref_assert(_gram)._lpr_pt.follow_sets_A.contains(id()));
+    return deref_assert(_gram)._lpr_pt.follow_sets_A.at(id());
 }
 
 const taul::glyph_set& taul::lpr_ref::prefix_set() const noexcept {
-    TAUL_ASSERT(_gram);
-    TAUL_ASSERT(_gram->_lpr_pt.prefix_sets_A.contains(id()));
-    return _gram->_lpr_pt.prefix_sets_A.at(id());
+    TAUL_ASSERT(deref_assert(_gram)._lpr_pt.prefix_sets_A.contains(id()));
+    return deref_assert(_gram)._lpr_pt.prefix_sets_A.at(id());
 }
 
-bool taul::lpr_ref::equal(const lpr_ref& lhs, const lpr_ref& rhs) noexcept {
-    return lhs._rule == rhs._rule;
+bool taul::lpr_ref::equal(const lpr_ref& other) const noexcept {
+    return _rule == other._rule;
 }
 
 std::string taul::lpr_ref::fmt() const {
-    return _rule ? _rule->fmt() : (TAUL_DEADEND, "");
+    return deref_assert(_rule).fmt();
 }
 
-std::size_t taul::lpr_ref::hash() const noexcept {
+size_t taul::lpr_ref::hash() const noexcept {
     return std::hash<decltype(_rule)>{}(_rule);
 }
 
@@ -89,71 +61,46 @@ taul::lpr_ref::lpr_ref(const internal::lexer_rule* a, const internal::grammar_da
     : _rule(a), 
     _gram(b) {}
 
-taul::ppr_ref::ppr_ref()
-    : ppr_ref(nullptr, nullptr) {}
-
-taul::ppr_ref::ppr_ref(const ppr_ref& other)
-    : ppr_ref(other._rule, other._gram) {}
-
-taul::ppr_ref::ppr_ref(ppr_ref&& other) noexcept
-    : ppr_ref() {
-    std::swap(_rule, other._rule);
-    std::swap(_gram, other._gram);
+taul::str taul::ppr_ref::name() const noexcept {
+    return deref_assert(_rule).name;
 }
 
-taul::ppr_ref& taul::ppr_ref::operator=(const ppr_ref& rhs) {
-    _rule = rhs._rule;
-    _gram = rhs._gram;
-    return *this;
-}
-
-taul::ppr_ref& taul::ppr_ref::operator=(ppr_ref&& rhs) noexcept {
-    if (&rhs != this) {
-        std::swap(_rule, rhs._rule);
-        std::swap(_gram, rhs._gram);
-    }
-    return *this;
-}
-
-taul::str taul::ppr_ref::name() const {
-    return _rule ? _rule->name : (TAUL_DEADEND, taul::str{});
-}
-
-std::size_t taul::ppr_ref::index() const {
-    return _rule ? _rule->index : (TAUL_DEADEND, std::size_t(-1));
+size_t taul::ppr_ref::index() const noexcept {
+    return deref_assert(_rule).index;
 }
 
 taul::symbol_id taul::ppr_ref::id() const noexcept {
     return symbol_traits<token>::first_nonterminal_id + symbol_id_num(index());
 }
 
+taul::qualifier taul::ppr_ref::qualifier() const noexcept {
+    return deref_assert(_rule).qualifier;
+}
+
 const taul::token_set& taul::ppr_ref::first_set() const noexcept {
-    TAUL_ASSERT(_gram);
-    TAUL_ASSERT(_gram->_ppr_pt.first_sets_A.contains(id()));
-    return _gram->_ppr_pt.first_sets_A.at(id());
+    TAUL_ASSERT(deref_assert(_gram)._ppr_pt.first_sets_A.contains(id()));
+    return deref_assert(_gram)._ppr_pt.first_sets_A.at(id());
 }
 
 const taul::token_set& taul::ppr_ref::follow_set() const noexcept {
-    TAUL_ASSERT(_gram);
-    TAUL_ASSERT(_gram->_ppr_pt.follow_sets_A.contains(id()));
-    return _gram->_ppr_pt.follow_sets_A.at(id());
+    TAUL_ASSERT(deref_assert(_gram)._ppr_pt.follow_sets_A.contains(id()));
+    return deref_assert(_gram)._ppr_pt.follow_sets_A.at(id());
 }
 
 const taul::token_set& taul::ppr_ref::prefix_set() const noexcept {
-    TAUL_ASSERT(_gram);
-    TAUL_ASSERT(_gram->_ppr_pt.prefix_sets_A.contains(id()));
-    return _gram->_ppr_pt.prefix_sets_A.at(id());
+    TAUL_ASSERT(deref_assert(_gram)._ppr_pt.prefix_sets_A.contains(id()));
+    return deref_assert(_gram)._ppr_pt.prefix_sets_A.at(id());
 }
 
-bool taul::ppr_ref::equal(const ppr_ref& lhs, const ppr_ref& rhs) noexcept {
-    return lhs._rule == rhs._rule;
+bool taul::ppr_ref::equal(const ppr_ref& other) const noexcept {
+    return _rule == other._rule;
 }
 
 std::string taul::ppr_ref::fmt() const {
-    return _rule ? _rule->fmt() : (TAUL_DEADEND, "");
+    return deref_assert(_rule).fmt();
 }
 
-std::size_t taul::ppr_ref::hash() const noexcept {
+size_t taul::ppr_ref::hash() const noexcept {
     return std::hash<decltype(_rule)>{}(_rule);
 }
 
@@ -162,11 +109,11 @@ taul::ppr_ref::ppr_ref(const internal::parser_rule* a, const internal::grammar_d
     _gram(b) {}
 
 bool taul::operator==(const lpr_ref& lhs, const lpr_ref& rhs) noexcept {
-    return lpr_ref::equal(lhs, rhs);
+    return lhs.equal(rhs);
 }
 
 bool taul::operator==(const ppr_ref& lhs, const ppr_ref& rhs) noexcept {
-    return ppr_ref::equal(lhs, rhs);
+    return lhs.equal(rhs);
 }
 
 bool taul::operator!=(const lpr_ref& lhs, const lpr_ref& rhs) noexcept {
@@ -180,52 +127,37 @@ bool taul::operator!=(const ppr_ref& lhs, const ppr_ref& rhs) noexcept {
 taul::grammar::grammar(internal::grammar_data&& gramdat) 
     : _data(std::make_shared<internal::grammar_data>(std::forward<internal::grammar_data&&>(gramdat))) {}
 
-taul::grammar::grammar()
-    : _data(nullptr) {}
-
-taul::grammar::grammar(const grammar& x)
-    : _data(x._data) {}
-
-taul::grammar::grammar(grammar&& x) noexcept
-    : _data(std::move(x._data)) {}
-
-taul::grammar& taul::grammar::operator=(const grammar& rhs) {
-    _data = rhs._data;
-    return *this;
-}
-
-taul::grammar& taul::grammar::operator=(grammar&& rhs) noexcept {
-    if (&rhs != this) {
-        _data = std::move(rhs._data);
-    }
-    return *this;
-}
-
-std::size_t taul::grammar::lprs() const noexcept {
+size_t taul::grammar::lprs() const noexcept {
     return _data ? _data->_lprs.size() : 0;
 }
 
-std::size_t taul::grammar::pprs() const noexcept {
+size_t taul::grammar::pprs() const noexcept {
     return _data ? _data->_pprs.size() : 0;
 }
 
-std::size_t taul::grammar::nonsupport_lprs() const noexcept {
-    std::size_t n = 0;
-    for (const auto& I : _data->_lprs) {
-        if (I.qualifier != qualifier::support) {
-            n++;
+size_t taul::grammar::nonsupport_lprs() const noexcept {
+    size_t n = 0;
+    if (_data) {
+        for (const auto& I : _data->_lprs) {
+            if (I.qualifier != qualifier::support) {
+                n++;
+            }
         }
     }
     return n;
 }
 
-taul::lpr_ref taul::grammar::lpr_at(std::size_t index) const {
-    if (!_data) throw std::out_of_range("lpr_at index out-of-range!");
+taul::lpr_ref taul::grammar::lpr_at(size_t index) const {
+    if (!_data) {
+        throw std::out_of_range("lpr_at index out-of-range!");
+    }
     return lpr_ref(&(_data->_lprs.at(index)), _data.get());
 }
 
-taul::ppr_ref taul::grammar::ppr_at(std::size_t index) const {
-    if (!_data) throw std::out_of_range("ppr_at index out-of-range!");
+taul::ppr_ref taul::grammar::ppr_at(size_t index) const {
+    if (!_data) {
+        throw std::out_of_range("ppr_at index out-of-range!");
+    }
     return ppr_ref(&(_data->_pprs.at(index)), _data.get());
 }
 
@@ -322,7 +254,33 @@ std::string taul::grammar::fmt_internals(const char* tab) const {
         *this, a);
 }
 
-const taul::internal::grammar_data& taul::internal::launder_grammar_data(const grammar& x) noexcept {
-    TAUL_ASSERT(x._data);
-    return *(x._data);
+std::string taul::grammar::serialize() const {
+    std::string result = "TAUL";
+    if (_data) {
+        internal::buff b{};
+        _data->serialize(b);
+        result += encode_base64(std::span<const uint8_t>(b.data(), b.size()));
+    }
+    return result;
 }
+
+std::optional<taul::grammar> taul::grammar::deserialize(std::string_view x) {
+    if (x.length() < 4) return std::nullopt;
+    const auto head = x.substr(0, 4);
+    const auto body = x.substr(4);
+    if (head != "TAUL") return std::nullopt;
+    if (auto content = decode_base64(body)) {
+        internal::buff b;
+        b.bytes = std::move(*content);
+        auto rdr = internal::buff_reader(b);
+        if (auto gramdat = internal::grammar_data::deserialize(rdr)) {
+            return grammar(std::move(*gramdat));
+        }
+    }
+    return std::nullopt;
+}
+
+const taul::internal::grammar_data& taul::internal::launder_grammar_data(const grammar& x) noexcept {
+    return deref_assert(x._data);
+}
+

@@ -28,9 +28,16 @@ public:
 
     std::optional<std::string> peek();
 
-    // fetch next arg string, if any, if it is x, w/ advancing reader
+    // checks if next arg string, if any, is x, w/ advancing reader
 
-    std::optional<std::string> expect(const std::string& x);
+    bool expect(std::string_view x);
+    bool expect(std::initializer_list<std::string_view> x);
+
+    // extends 'expect' w/ the requirement for a '=<value>' part following string
+    // x to exist, returning <value> found, if any
+
+    std::optional<std::string> expect_ext(std::string_view x);
+    std::optional<std::string> expect_ext(std::initializer_list<std::string_view> x);
 
 
 private:
