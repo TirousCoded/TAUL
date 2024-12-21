@@ -43,9 +43,10 @@ int32_t main(int32_t argc, const char** argv) {
         if (args.expect("help")) {
             message("Synopsis:");
             message("");
-            message("    taulc help <command>");
+            message("    taulc help [<command>]");
             message("");
-            message("Explains form and function of <command>.");
+            message("If provided, explains form and function of <command>, otherwise explaining general");
+            message("taulc help information.");
         }
         else if (args.expect("version")) {
             message("Synopsis:");
@@ -91,7 +92,21 @@ int32_t main(int32_t argc, const char** argv) {
             message("");
             message("If <include-path> is not provided, 'taul' will be presumed.");
         }
-        else error("Cannot provide help for no or unrecognized command!");
+        else if (const auto unrecognized = args.next()) {
+            error("Cannot provide help for unrecognized command '{0}'!", *unrecognized);
+        }
+        else {
+            message("The following commands are available:");
+            message("");
+            message("    (1) help");
+            message("    (2) version");
+            message("    (3) check");
+            message("    (4) compile");
+            message("");
+            message("Enter the following for help with a specific command:");
+            message("");
+            message("    taulc help <command>");
+        }
     }
     else if (args.expect("version")) {
         message("{}", taul::api_version);
