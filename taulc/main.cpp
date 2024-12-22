@@ -63,6 +63,7 @@ int32_t main(int32_t argc, const char** argv) {
             message("Checks if TAUL spec file at <source-path>, if any, compiles correctly.");
             message("");
             message("Any compilation errors which arise are reported.");
+            message("");
             message("All stages of TAUL spec compilation and loading are tested for errors.");
         }
         else if (args.expect("compile")) {
@@ -79,6 +80,7 @@ int32_t main(int32_t argc, const char** argv) {
             message("No checks are made to ensure that <fetcher> is a valid C++ identifier.");
             message("");
             message("Any compilation errors which arise are reported.");
+            message("");
             message("All stages of TAUL spec compilation and loading are tested for errors.");
             message("");
             message("If provided, <include-path> tells taulc where it can find TAUL library header files,");
@@ -98,10 +100,10 @@ int32_t main(int32_t argc, const char** argv) {
         else {
             message("The following commands are available:");
             message("");
-            message("    (1) help");
-            message("    (2) version");
-            message("    (3) check");
-            message("    (4) compile");
+            message("    help");
+            message("    version");
+            message("    check");
+            message("    compile");
             message("");
             message("Enter the following for help with a specific command:");
             message("");
@@ -169,7 +171,7 @@ void exec_compile(
         const auto generated_code =
             include_path_value
             ? taul::export_fetcher(*loaded, fetcher.c_str(), include_path_value->c_str(), has_triangle_brackets)
-            : taul::export_fetcher(*loaded, fetcher.c_str(), "taul", false);
+            : taul::export_fetcher(*loaded, fetcher.c_str());
         if (!generated_code.to_file(out_path)) {
             error("TAUL spec file output failed!");
         }

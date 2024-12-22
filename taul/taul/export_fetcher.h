@@ -20,9 +20,9 @@ namespace taul {
 
     source_code export_fetcher(
         const grammar& gram,
-        const char* fetcher_name,
-        const char* taul_include_path_prefix = "taul",
-        bool taul_includes_should_use_triangle_brackets = true,
+        const char* fetcher,
+        const char* taul_include_path = "taul",
+        bool taul_includes_use_triangle_brackets = false,
         const char* tab = "    ");
 
 
