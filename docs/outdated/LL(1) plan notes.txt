@@ -1,0 +1,463 @@
+
+
+IMPORTANT: this document is *completely out-of-date*, and no longer is all
+           that good a piece of reference material for the TAUL library
+
+
+-- LL(1) PLAN NOTES --
+
+
+    todo:
+        - how should we represent codepoints, LPR IDs, and PPR IDs
+        - how should we represent terminals and non-terminals?
+        - how should grammars be represented, such that we can statically
+          analyse it in the ways we need?
+            - we need to resolve FIRST and FOLLOW sets
+            - we need to detect left-recursion (and print reasonable errors)
+            - we need to detect ambiguity (and print reasonable errors)
+            - we need to detect common prefixes (and print reasonable errors)
+        - how are grammars represented?
+        - how should the lexical/syntactic evaluation process operate?
+        - what are the lines of interface segregation in our system?
+        - what should our final revised frontend look like?
+        - what's our plan for the final integration of our revision code
+          into our codebase?
+
+
+-- LEXER/PARSER BEHAVIOUR & GRAMMAR REPRESENTATION --
+
+
+    (rule definition/behaviour)
+
+    The LL(1) lexer/parser behaviour of our system uses the following
+    wikipedia article's description as a base, which we then revise w/
+    regards to our system's semantics:
+
+        https://en.wikipedia.org/wiki/LL_parser#Parser
+
+    Our system will decompose complex rules into simpler ones by 
+    having it be that rules may not contain nested subsequences, instead
+    requiring these to be factored out into helper rules.
+
+    These helper rules will be marked as 'transparent', meaning that the
+    lexer/parser will not generate anything for that non-terminal, instead
+    associating any terminals/non-terminals resulting from it w/ whatever
+    it's nested inside of.
+
+    These transparent non-terminals are also not acknowledged in the final
+    grammar generated, but will be acknowledged in our IR.
+
+    (before)
+
+        A               : a ( a b c ) c ( ( d e ) f ) ;
+
+    (after)
+
+        A               : a A.0 c A.1 ;
+        A.1             : a b c ;           (transparent)
+        A.2             : A.2.0 f ;         (transparent)
+        A.2.0           : d e ;             (transparent)
+
+    Each terminal or non-terminal in a rule's sequence is called a 'term'.
+
+    (rule sequence term flags)
+
+    Each term may have three flags set on them, modifying their behaviour: 
+    'optional', 'repetitive', and 'assertion'.
+
+    The optional flag means the lexer/parser should not panic if the term
+    fails to match, instead it should just skip it and move on, reporting
+    *nothing* to the output about it.
+
+    The repetitive flag means the lexer/parser should, prior to pushing
+    its usual contents to the stack, first push a copy of the term itself,
+    and then push its usual contents (thus creating a loop,) w/ this
+    copy being marked as optional if it wasn't already, in order to have
+    all repetitions of the loop, except for the first, be optional.
+
+    The optional and repetitive flags together allow for us to implement
+    our 'optional', 'kleene star', and 'kleene plus' exprs.
+
+    The assertion flag instructs the lexer/parser not to consume any
+    input as a result of the term matching, and to report *nothing* if
+    the term matches successfully.
+
+    An important invariant of the assertion flag is that ONLY TERMINAL
+    AND TERMINAL SET terms are allowed to use it, and never non-terminal
+    or non-termainl set terms.
+
+    This assertion flag allows us to implement our 'lookahead' expr.
+    Likewise, the optional and assertion flags let us implement our
+    'lookahead-not' expr.
+
+    These flags need to be considered when regarding FIRST and FOLLOW sets.
+
+    (alternative sets)
+
+    Alongside the above regarding decomposition of sequences into 
+    transparent helper rules, decomposition will also be used to break
+    up alternative sets into individual rules, further reducing the
+    complexity of individual rules.
+
+    (before)
+
+        A               : a | ( b | d ) c d | c d ;
+
+    (after)
+
+        A               : a ;
+        A               : A.0 c d ;
+        A               : c d ;
+
+        A.0             : b ;
+        A.0             : d ;
+
+    In truth, perhaps when implementing we'll instead define each rule as
+    having a set of alternatives, each w/ its own sequence, rather than
+    further decomposing rules in the manner above.
+
+    (having multiple 'start rules')
+
+    I did some formal-language math below, and I realized that *I think* we
+    don't need to have just one rule be deemed the 'start rule'.
+    
+    Instead, we could define ALL rules as potential start rules, by giving
+    them all $ in their FOLLOW sets at the start of the process of discerning
+    their FOLLOW sets.
+
+    The only reason the FOLLOW set is needed is to account for 'nullable'
+    rules which can rewrite to the empty string (aka. 'epsilon'.) This being
+    the case means that w/out nullable rules, there would be definitely
+    no worry about which rule is the start rule.
+    
+    The only reason the start rule is special is that it could be followed by 
+    $, and the only reason that's notable is that we need to add nullable rule
+    parse table entries to $'s column, for them to work. To this end, I believe
+    that, as stated above, multiple start rules can be achieved by simply
+    putting $ into the FOLLOW sets of ALL rules.
+
+        A : a b ;
+        B : {} | b ;
+        C : A | B ;
+
+        FIRST(A) = { a }
+        FIRST(B) = { {}, b }
+        FIRST(C) = { {}, a, b }
+
+        FOLLOW(A) = { $ }
+        FOLLOW(B) = { $ }           <- give ALL non-terminals $ in FOLLOW set
+        FOLLOW(C) = { $ }
+
+        -- a --
+        A : A -> a b
+        B : 
+        C : C -> A
+        -- b --
+        A : 
+        B : B -> b
+        C : C -> B
+        -- $ --
+        A : 
+        B : B -> {}
+        C : C -> B
+
+
+-- DETECTING GRAMMAR AMBIGUITY AND LEFT-RECURSION --
+
+
+    The process of attempting generating to generate the LL(1) parse table
+    should suffice to detect both ambiguity and left-recurion. In both cases
+    they should result in multiple entries in a given cell of the table, w/
+    left-recursion being a form of grammar ambiguity.
+
+        E : t | A ;
+        A : E ;
+
+        FIRST(E alt 0)  = { t }
+        FIRST(E alt 1)  = { t }
+        FIRST(A)        = { t }
+
+    The above shows a simple example of the inherent ambiguity of left-recursive
+    grammars. The non-terminals E and A are ambiguous. Likewise, even if A
+    was removed, the two alternatives of E would still be ambiguous.
+
+    Likewise, left-recursive grammars which have only a single rule will
+    still be easily detectable, as they will result in empty FIRST sets,
+    which will likewise result in an empty parse table. I don't know if
+    this would be deemed normally *an error*, but we can treat it as one.
+
+        E : E ;
+
+        FIRST(E) = {}
+
+    I think we'll have it be that rules w/ empty FIRST sets will be illegal.
+
+
+-- CODEPOINTS, LPR IDs, AND PPR IDs --
+
+
+    We'll define the following types:
+
+        taul::codepoint     <- Unicode Codepoint
+        taul::lpr_id        <- ID of LPR
+        taul::ppr_id        <- ID of PPR
+
+    These are not terminals/non-terminals. Those are defined at a higher
+    level of abstraction, which in turn incorporates the above.
+
+    We'll impose a rule that codepoints, LPR ID, and PPR ID types must be
+    32-bit unsigned integers, to keep things consistent, and for data
+    cache reasons.
+
+    taul::codepoint and taul::lpr_id will define 'end-of-input' sentinels.
+
+    taul::lpr_id will define a 'failure (token)' sentinel.
+
+    These types, when used to describe 'symbols', are 'symbol ID types'.
+
+
+-- TOKENS --
+
+
+    In the context of their use in token terminals to lexers, LPR IDs
+    may be referred to as 'token IDs'.
+
+    Thus, we'll define the following type alias:
+
+        taul::token_id = taul::lpr_id
+
+    Hereafter, the term 'token' will be liberally used to refer to token IDs,
+    and other forms of token-related information, collectively as 'tokens'.
+
+
+-- SYMBOL SETS --
+
+
+    We'll define the following type:
+
+        taul::symbol_set<Symbol>
+
+    This type encapsulates a set-theoretic set of symbols.
+
+    Terminals are defined in our system as having a, likely vast, yet still
+    fixed range of possible states (ie. codepoints or tokens.) To this end,
+    we can use our current 'charset string' system, which implements a 
+    rudimentary version of one of these sets, to impl symbol_set.
+
+    These will prove invaluable in simplifying the process of compiling,
+    and statically analysing, TAUL grammars.
+
+    We'll define two aliases of symbol_set:
+
+        taul::codepoint_set = taul::symbol_set<taul::codepoint>
+        taul::token_set     = taul::symbol_set<taul::token_id>
+
+
+-- CODEPOINT AND TOKEN INFO --
+
+
+    We'll define the following types:
+
+        taul::codepoint_info
+        taul::token_info
+
+    These encapsulate information on a codepoint or token.
+
+    These are used below in symbol streams.
+
+
+-- SYMBOL TRAITS --
+
+
+    We'll define the following type:
+
+        taul::symbol_traits<Symbol>
+
+    These symbol_traits specializations will encapsulate useful details about
+    our codepoint and token symbols.
+
+    symbol_traits specializations will be required to define the following:
+
+        info
+
+    Above, 'info' is a type encapsulating metadata about a usage of the symbol,
+    primarily metadata gotten from a symbol_stream using it.
+
+    The 'info' type is expected to define the following member:
+
+        Symbol id() const noexcept
+
+    Where 'Symbol' is the symbol type, this id method is to return the
+    symbol ID value of the symbol encapsulated by its metadata.
+
+
+-- SYMBOL STREAMS --
+
+
+    We'll define the following types:
+
+        taul::symbol_stream<Symbol, Traits = taul::symbol_traits<Symbol>>
+
+    symbol_stream defines the abstract base class of text readers and lexers, 
+    both of which are defined by providing a stream of symbols, w/ possible 
+    associated metadata, via a pull-based interface.
+
+    The final symbol of a symbol stream is expected to be some EOI sentinel.
+
+    symbol_stream will define the following interface:
+
+        const Traits::info& peek() const noexcept
+
+        Traits::info next()
+
+        bool done() const noexcept
+
+    These are virtual methods overrided by derivative classes.
+
+    The 'peek' method returns a view of the next symbol in the stream.
+
+    The 'next' method returns the next symbol in the stream, advancing the 
+    state of the stream.
+
+    The behaviour of peek and next are undefined the symbol stream has ended.
+
+    The 'done' method returns if the symbol stream has ended.
+
+    From the above, we define two abstract base class type aliases defining
+    that of our codepoint and token streams:
+
+        taul::codepoint_stream  = taul::symbol_stream<taul::codepoint>
+        taul::token_stream      = taul::symbol_stream<taul::token_id>
+
+
+-- GRAMMARS AND CONTEXTS --
+
+
+    We'll define the following types:
+
+        taul::grammar
+
+        taul::context
+
+    taul::grammar will be the new impls equivalent of the current taul::grammar,
+    w/ it being an immutable object encapsulating a compiled TAUL grammar.
+
+    taul::context will encapsulate the mutable state used to perform lexical/syntactic
+    analysis w/ a grammar, w/ this state's usage thus not being thread-safe.
+
+    Instead of our old design's function objects being used for lexical/syntactic
+    analysis, this new design will *bind* a grammar to a context, and then via a
+    procedural interface, looking up lexer/parser rules via string names, putting
+    them to use.
+
+    taul::context's interface will include the following:
+
+        match
+        tokenize
+        parse
+
+    The 'match' method performs lexical analysis for the creation of a single token.
+    
+    The 'tokenize' method extends match, tokenizing the entire input.
+    
+    The match and tokenize methods should include overloads supporting lexical 
+    analysis both w/ a specific lexer rule, or w/ the grammar *in general*, tokenizing
+    such that which tokens are created is decided automatically.
+
+    The 'parse' method performs syntactic analysis (and maybe lexical analysis) in 
+    order to generate an entire parse tree.
+
+    The parse method should include overloads accepting both inputs of text, in which
+    case parse will perform lexical analysis alongside syntactic analysis, as well
+    as inputs of tokens, in which case only syntactic analysis is performed.
+
+    The parse method should support use of taul::listener (see below) during parsing,
+    as well as allowing for the actual generation of a physical parse tree to be
+    disabled, for situations where the end-user just wants a stream of events (such
+    as for generating an AST, or performing direct interpretation of source code.)
+
+
+-- PARSE TREE LISTENERS --
+
+
+    We'll define the following type:
+
+        taul::listener
+
+    taul::listener provides an interface for defining a system which analyses a
+    parse tree via a series of events.
+
+    taul::listener should be able to be used both w/ an already generated parse
+    tree, as well as during the parsing itself, as our LL(1) non-backtracking parser
+    design allows for this.
+
+
+-- PARSE TREES --
+
+
+    We'll define the following types:
+
+        taul::parse_tree
+        taul::parse_tree_node
+
+    taul::parse_tree and taul::parse_tree_node will define our parse trees.
+
+    Perhaps instead we'll have taul::parse_tree encapsulate a node, and then
+    simply have them contain child nodes of type taul::parse_tree also.
+
+
+-- DEVELOPMENT PLAN --
+
+
+    phase #1 - preparing our frontend
+
+        1) fully impl lookahead, lookahead-not, and not exprs at spec-level
+            * then integrate into syntax
+        2) fully impl optional, kleene star, and kleene plus exprs at spec-level
+            * then integrate into syntax
+        3) scrap modifier, assertion, constraint, and localend exprs
+            * also scrap begin, and range, as we won't be needing those either
+            * scrap taul::polarity too
+        4) scrap our frontend's notion of 'biases', scrapping taul::bias itself
+            * scrap our grammar-bias spec instruction too
+
+        5) add taul::context
+            * replacing taul::lexer, taul::parser, taul::node_ctx, etc.
+        6) add taul::parse_tree
+            * replacing taul::node, taul::node_assember, etc.
+            * also maybe replacing taul::traverser (w/ taul::listener, later)
+        7) make it so that parsing NEVER fails to create a parse tree
+
+        8) either scrap 'support' LPRs, or impl them in syntax fully
+
+        9) package up internals of grammar state, context state/behaviour,
+           and spec loading behaviour, into self-contained backend subcomponents
+           which are decoupled from our system, such that we can impl LL(1)
+           equivs later, and just swap them out
+            * call these 'backend components'
+
+    phase #2 - implementation of LL(1) parser
+
+        1) impl taul::codepoint, taul::lpr_id, and taul::ppr_id
+        2) impl symbol trait stuff
+        3) impl symbol set stuff
+            * I think we'll have our 'charset strings' be a frontend
+              intermediate that gets translated into backend symbol set
+        4) impl symbol stream stuff
+            * not 100% sure how closely we want to follow the above
+            * make sure to have an 'end of input' symbol though
+        5) impl internal representation of grammar rule patterns
+            * this'll be both internal state of grammar, and act as our IR
+        6) impl internal resolving of FIRST and FOLLOW sets
+        7) impl internal representation of parse table + system for building it
+            * this should be able to detect *all* prefix-related errors
+
+        8) impl internal symbol stack and eval process (generalizing lexing/parsing)
+        9) impl internals of our reader, lexer, and parser
+        
+        10) impl our 'backend components' for our LL(1) parsing system
+        11) impl in our frontend spec load errors for things like common prefixes
+        12) impl taul::listener
+            * we forgo this in phase #1 due to backtracking
+            * impl for both use w/ taul::parse_tree, and during parsing process
+

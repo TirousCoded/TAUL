@@ -1,0 +1,80 @@
+
+
+-- LL(1) TRANSITION PLAN --
+
+
+This document aims to layout our plan for transitioning TAUL into
+being a non-backtracking LL(1) parser, as currently TAUL is a 
+backtracking parser, and I've realized that this was a mistake.
+
+The basic plan is to massage the frontend of TAUL into being that
+of an LL(1) parsing system, while still operating as a backtracking
+parser under the hood. After we're done revising the frontend, we'll
+revise the implementation to be a true LL(1) parser using FSMs.
+
+Likewise, when revising the frontend, we'll start by revising our
+compiler stuff, but still compiling to backtracking spec stuff. Later 
+on, we'll then go and revise the frontend for specs, replacing these 
+backtracking features w/ appropriate LL(1) parser frontend features.
+
+For the semantics of TAUL, this will mean the following changes:
+    
+    1) We'll need to scrap 'assertion', 'constraint', and 'localend'
+       exprs, as these exprs are inhierently backtracking-based.
+
+    2) We'll need to add '(positive/negative) lookahead' and 'not' exprs.
+
+       The *positive* lookahead expr takes the form '&x', where 
+       x is a subexpr describing exactly one char/token, w/ this 
+       expr asserting what the next char/token must be, w/out advancing.
+
+       The *negative* lookahead expr takes the form '-x', and 
+       operates as the opposite of the positive form: the negative
+       form asserts that either no next char/token exists, or that
+       if it does, it is NOT in x, all w/out advancing (which
+       is like the positive version.)
+
+       The not expr takes the form '~x', where x is a subexpr
+       describing a set of chars/tokens, w/ this expr matching
+       a single char/token which is NOT in said set.
+
+       The not expr should allow for things like "~(Abc|Def)" in
+       parser rules, w/ the compiler having to figure out if the
+       subexpr is violating rule of needing to be merely a *set*.
+
+    3) For our parser, being LL(1) means we're gonna make it so 
+       that our parser *never* fails to generate an AST from the 
+       input. Instead, it will insert 'failure' nodes into the AST 
+       to delimit syntax errors.
+
+       Not 100% sure about this one though, maybe initially we
+       won't bother making it *not fail* to generate an AST, I'm
+       really not sure.
+
+       Alongside (or maybe instead of?) the above, we'll also need
+       to have a system of 'error recovery' in which the parser
+       attempts to resolve the error by doing things like skipping
+       tokens in the token sequence, and things like that.
+
+    4) Remove all our 'bias' stuff, as our bias system is based
+       on backtracking lexers/parsers comparing multiple results
+       to pick the *best* one, which a transition to an LL(1)
+       parser means totally discarding, so we'll need to retire
+       our taul::bias enum, and all the frontend stuff using it.
+
+       Thus, thereafter, all will by default be 'first longest'.
+
+    5) Maybe forbid lexer rules from referencing one another, as
+       that simplifies things, and we can re-add it later.
+
+       Likewise, maybe scrap 'support' LPRs, and then later on
+       replace them w/ ANTLR-inspired 'fragments'. Perhaps these
+       could exist purely at compile-time, not in the grammar.
+
+    6) ANTLR doesn't support our '{n}', '{n,}', or '{n,m}' repetition
+       semantics, instead just supporting '?', '*', and '+'.
+
+       To this end, w/ me realizing LL(1) semantics w/out the prior
+       three may be easier to implement, and so I think we'll also
+       cut them in TAUL as well.
+
