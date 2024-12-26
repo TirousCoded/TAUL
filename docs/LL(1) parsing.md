@@ -41,7 +41,7 @@ Prefix sets are defined as the set of symbols which are actually used to constru
 ## The Parse Stack
 
 When the *parse stack* is being initialized (be it in the context of lexing or parsing) the *end-of-input*
-terminal is NOT pushed ahead of the *start rule*, in fact, it's not pushed *at all*.
+terminal is **not** pushed ahead of the *start rule*, in fact, it's not pushed *at all*.
 
 There are two reasons for this:
 

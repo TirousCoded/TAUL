@@ -485,7 +485,7 @@ namespace taul {
     static_assert(encoding_unit(utf32_bom) == 4);
 
     // units_required returns the number of *units* (see above) needed in
-    // order to properly encoded codepoint cp w/ encoding x
+    // order to properly encode codepoint cp w/ encoding x
 
     // units_required returns 0 if is_unicode(cp) == false
 

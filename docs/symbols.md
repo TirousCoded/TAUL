@@ -1,7 +1,8 @@
 # Symbols
 
-TAUL defines a system of *symbol IDs* which are used throughout the frontend and backend to describe terminal/non-terminal
-symbols in a variaty of circumstances.
+TAUL defines a system of *symbol IDs* which are used throughout the frontend/backend to describe terminal/non-terminal
+symbols in a variaty of circumstances, such as when querying the FIRST/FOLLOW/prefix sets of production rules, or when
+symbol information needs to be communicated between pipeline components.
 
 ## Symbol Types
 
@@ -9,9 +10,9 @@ Symbol IDs can identify one of three things:
 
 - A *Unicode codepoint*.
 
-- A *Lexer Rule* (or *LPR*) ID.
+- A *LPR ID*.
 
-- A *Parser Rule* (or *PPR*) ID.
+- A *PPR ID*.
 
 ## Special Symbols
 
@@ -26,10 +27,10 @@ codepoint, and is TAUL's alternative to using *EOF* for the end-of-input.
 
 ## Glyphs, Tokens And Parse Trees
 
-During lexical analysis, terminals are identified by Unicode codepoint symbols, while non-terminals are identified
+During *lexical analysis*, terminals are identified by Unicode codepoint symbols, while non-terminals are identified
 by LPR ID symbols.
 
-During syntactic analysis, terminals are identified by LPR ID symbols, while non-terminals are identified by PPR
+During *syntactic analysis*, terminals are identified by LPR ID symbols, while non-terminals are identified by PPR
 ID symbols.
 
 *Glyphs* are the inputs to lexical analysis, encapsulating Unicode codepoint symbols.

@@ -32,6 +32,20 @@ namespace taul {
     //       could provide a nice performance boost to them
 
 
+    // symbol_set describes symbol sets by recording the contiguous symbol
+    // ID ranges of the symbols in the set
+    //
+    // doing things like this means that symbol_set time complexity regarding
+    // looking-up things in the set grows w/ the degree of *fragmentation* of
+    // the set (ie. how many contiguous ranges are needed to describe it),
+    // rather than the number of symbols encapsulated by the set
+    //
+    // this is useful, as it means we can have, for example, a set that contains
+    // ALL non-ASCII Unicode codepoints, w/out having to incur a huge additional
+    // cost to looking things up therein, so long as we don't start creating
+    // lots of *holes* in said range
+
+
     // while not an ID, for things like FIRST/FOLLOW sets, we need our
     // sets to be able to contain the formal language 'epsilon', which
     // is a special set member representing an empty set of symbols
