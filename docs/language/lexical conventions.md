@@ -14,18 +14,18 @@ TAUL supports the following *escape sequences*:
 
 ```
 \0              <- Null
-\a				<- Bell (Alert)
-\b				<- Backspace
-\f				<- Form Feed
-\n				<- Line Feed
-\r				<- Carriage Return
-\t				<- Horizontal Tab
-\v				<- Vertical Tab
-\'				<- Single Quotation
-\]				<- Right Square Bracket
-\-				<- Minus
-\\				<- Backslash
-\xhh			<- Hex Literal (8-bit)
+\a              <- Bell (Alert)
+\b              <- Backspace
+\f              <- Form Feed
+\n              <- Line Feed
+\r              <- Carriage Return
+\t              <- Horizontal Tab
+\v              <- Vertical Tab
+\'              <- Single Quotation
+\]              <- Right Square Bracket
+\-              <- Minus
+\\              <- Backslash
+\xhh            <- Hex Literal (8-bit)
 \uhhhh          <- Hex Literal (16-bit)
 \uhhhhhhhh      <- Hex Literal (32-bit)
 ```
@@ -50,7 +50,7 @@ TAUL *hex literal* escape sequences which are malformed are interpreted as
 are not otherwise considered to be escaped.
 
 ```
-\x3g			<- interpreted as literalized x
+\x3g            <- interpreted as literalized x
 ```
 
 ## Tokens
@@ -88,16 +88,16 @@ A *keyword token* is any of the following:
 
 An *operator token* is any of the following:
 
-- `.` (dot)
-- `:` (colon)
-- `;` (semicolon)
-- `|` (vbar)
+- `.` *(dot)*
+- `:` *(colon)*
+- `;` *(semicolon)*
+- `|` *(vbar)*
 - `?`
 - `*`
 - `+`
 - `&`
-- `-` (minus)
-- `~` (tilde)
+- `-` *(minus)*
+- `~` *(tilde)*
 - `(`
 - `)`
 
@@ -119,7 +119,7 @@ A *string (literal) token* is a pair of *single-quotes* (ie. not *double-quotes*
 *visible characters* between them, including *escape sequences*.
 
 ```
-this is an example string 123 !@#
+'this is an example string 123 !@#'
 ```
 
 In string literals, single-quotes must be escaped.
@@ -144,7 +144,7 @@ might otherwise have to diagnose (ie. from something not working.)
 
 ### Charsets
 
-A `charset (literal) token` is a pair of `[` and ']' characters with *visible characters* between
+A *charset (literal) token* is a pair of `[` and `]` characters with *visible characters* between
 them, including *escape sequences*.
 
 Modelled off *character sets in ANTLR*, a *charset* (aka. *character set*) is a pattern matching a
@@ -163,30 +163,30 @@ In charset literals, `]` characters must be escaped.
 ```
 
 Charset literals are forbidden from containing *non-visible ASCII characters* or *newlines* (see
-*newline tokens*), for the same reasons as string literals.
+*newline tokens*) for the same reasons as string literals.
 
-The *set of characters* of the charset are expressed by combinations of *individual characters*,
+The *set of characters* of the charset are expressed by combinations of *individual characters*
 and *character ranges*.
 
 An *individual character* adds said character to the set.
 
 ```
-[abc]			<- contains a, b and c
+[abc]           <- contains a, b and c
 ```
 
 A *character range* adds characters an *inclusive* (ie. not *exclusive*) range of characters
 to the set.
 
 Character ranges take the form `X-Y`, where *X* and *Y* are the ends of the range, with the range
-being the *inclusive range [X, Y]*. Such a character range adds characters *X*, *Y*, and *all characters
+being the range *[X, Y]*. Such a character range adds characters *X*, *Y*, and *all characters
 between X and Y* to the set.
 
 ```
-[a-zA-Z]		<- contains all uppercase and lowercase latin alphabet characters
+[a-zA-Z]        <- contains all uppercase and lowercase latin alphabet characters
 ```
 
 In the above character range `X-Y`, take note that *X* need-not be a lower Unicode codepoint than
-*Y*. *X* and *Y* may be equal, and *X* may even be larger than *Y*.
+*Y*. The characters *X* and *Y* may be equal, and *X* may even be larger than *Y*.
 
 The following charsets are equivalent:
 
@@ -209,7 +209,7 @@ The following charsets are equivalent:
 The `-` character must be escaped for use as a regular character in a charset.
 
 ```
-[a\-z]			<- contains a, -, z and nothing else
+[a\-z]          <- contains a, -, z and nothing else
 ```
 
 There are three cases where `-` may be used as a regular character without
@@ -219,21 +219,21 @@ needing to escape it as `\-`:
 
 2. If it appears as the right value of a character range (ie. the *Y* in `X-Y`.)
 
-3. If it appears as the escape sequence `\x2d`.
+3. If it appears as the escape sequence `\x2d` (or the equivalent 16- or 32-bit version.)
 
 ```
-[-a-z]			<- contains - and all lowercase latin alphabet characters
-[a--]			<- contains a, -, and all characters between them
-[a\x2dz]		<- contains a, z, and -
+[-a-z]          <- contains - and all lowercase latin alphabet characters
+[a--]           <- contains a, -, and all characters between them
+[a\x2dz]        <- contains a, z, and -
 ```
 
 Individual characters and character ranges may be used together.
 
 ```
-[a-f123g-l_ef]	<- contains a through f, 1, 2, 3, g through l, _, e and f
+[a-f123g-l_ef]  <- contains a through f, 1, 2, 3, g through l, _, e and f
 ```
 
-Charsets may contain duplicates.
+Charsets may contain multiple instances of a given character being added to it.
 
 The following charsets are equivalent:
 
