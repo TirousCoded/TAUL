@@ -9,6 +9,7 @@ Production rules are either *lexer rules* (or *LPRs*) or *parser rules* (or *PPR
 *Synopsis:*
 
 ```
+<name> : <expression> ;
 <qualifier> <name> : <expression> ;
 ```
 
@@ -18,7 +19,7 @@ Production rules are either *lexer rules* (or *LPRs*) or *parser rules* (or *PPR
 
 - *\<expression\>* is the expression defining the pattern of the production rule.
 
-- *\<qualifier\>*, which is *optional*, is the qualifier of the production rule, if any.
+- *\<qualifier\>*, if any, is the qualifier of the production rule.
 
 ```
 lexer section:
@@ -69,17 +70,17 @@ parser section:
 
 ## Qualifiers
 
-Qualifiers are optional modifiers prepended to production rules to change their semantics.
+*Synopsis:*
 
-There are three qualifier:
+```
+skip
+support
+precedence
+```
 
-- `skip` *(lexer only)*
+Qualifiers change production rule semantics.
 
-- `support` *(lexer only)*
-
-- `precedence` *(parser only)*
-
-The `skip` qualifier marks a LPR as producing *skip tokens*.
+The `skip` qualifier *(lexer rules only)* marks a LPR as producing *skip tokens*.
 
 ```
 lexer section:
@@ -87,8 +88,8 @@ lexer section:
     skip ws : [ \t]+ ; # defines whitespace tokens which will get cut
 ```
 
-The `support` qualifier marks a LPR as existing only to help define other LPRs, but to otherwise
-be excluded from lexical analysis.
+The `support` qualifier *(lexer rules only)* marks a LPR as existing only to help define other LPRs,
+but to otherwise be excluded from lexical analysis.
 
 ```
 lexer section:
@@ -100,7 +101,7 @@ lexer section:
     ABC             : 'a' HELPER 'c' ;
 ```
 
-The `precedence` qualifier marks a PPR as *supporting direct left-recursion*.
+The `precedence` qualifier *(parser rules only)* marks a PPR as *supporting direct left-recursion*.
 
 ```
 lexer section:
