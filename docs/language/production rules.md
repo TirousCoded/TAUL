@@ -142,6 +142,18 @@ sequences matching its pattern **must** be populated only by *sequences of lengt
 
 This guarantee makes set-like expressions operate akin to charsets.
 
+### Alternatives
+
+Certain composite expressions contain nested *alternatives*.
+
+Alternatives are sequences of nested subexpressions, and act somewhat like composite expressions.
+
+### FIRST Sets
+
+All *expressions* and *alternatives* have *FIRST sets*, which given the set of possible symbol
+sequences matching an expression's/alternative's pattern, is the set of all the *first symbols*
+in said sequences (excluding empty sequences.)
+
 ### Expression Precedence
 
 Excluding the *special top-level expression*, the following lists TAUL expressions in order of
@@ -177,7 +189,7 @@ Excluding the *special top-level expression*, the following lists TAUL expressio
 
 ### Top-Level
 
-*Type: Composite*
+*Type: Composite (Uses Alternatives)*
 
 *Synopsis:*
 
@@ -189,19 +201,25 @@ Excluding the *special top-level expression*, the following lists TAUL expressio
 
 - *\<alt-#\>* are the *alternatives* of the expression.
 
-Alternatives are subexpression sequences.
+Top-level expressions are special composite expressions encapsulating
+the *ultimate patterns of production rules*.
 
-Top-level expressions are a special composite expression which
-encapsulates the top-level of LPR/PPR expressions.
-
-Matches the subexpression sequence of the *\<alt-#\>* which matches 
-successfully, consuming input.
-
-It is illegal for common prefixes between alternatives to cause
-the grammar to be ambiguous.
+Matches the subexpression sequence of the *\<alt-#\>* which can match
+successfully, *consuming input*.
 
 ```
+lexer section:
 
+    A       : 'a' | 'A' ;
+    B       : 'b' | 'B' ;
+    C       : 'c' | 'C' ;
+    D       : 'd' | 'D' ;
+
+parser section:
+
+    Syntax  : A B_Or_D C ;
+	
+	B_Or_D  : B | D ;
 ```
 
 ### End
@@ -217,7 +235,17 @@ end
 Matches the *end-of-input* glyph/token, *consuming no input*.
 
 ```
+lexer section:
 
+    A   : 'a' ;
+    B   : 'b' ;
+    C   : 'c' ;
+	
+    END : end ; # creates END token when end-of-input is reached
+
+parser section:
+
+    ABC : A B C end ; # expects end-of-input following 'abc'
 ```
 
 ### Any
@@ -233,7 +261,17 @@ any
 Matches any glyph/token, except *end-of-input*, *consuming input*.
 
 ```
+lexer section:
 
+    # A matches 'a?c', where ? is any character
+
+    A       : 'a' any 'c' ;
+
+parser section:
+
+    # Syntax matches 'a?ca?ca?c???', where ? is any character
+
+    Syntax  : A A A any any any ;
 ```
 
 ### Token
@@ -249,7 +287,15 @@ token
 Matches any token except *failure* or *end-of-input* tokens, *consuming input*.
 
 ```
+lexer section:
 
+    A      : 'a' ;
+    B      : 'b' ;
+    C      : 'c' ;
+	
+parser section:
+
+    Syntax : token token token ;
 ```
 
 ### Failure
@@ -265,7 +311,18 @@ failure
 Matches any *failure* token, *consuming input*.
 
 ```
+lexer section:
 
+    A      : 'a' ;
+    B      : 'b' ;
+    C      : 'c' ;
+	
+parser section:
+
+    # Syntax matches 'a?b?c', where ? is a sequence of >=1 characters which fail
+    # lexical analysis
+
+    Syntax : A failure B failure C ;
 ```
 
 ### String
@@ -278,12 +335,16 @@ Matches any *failure* token, *consuming input*.
 <string>
 ```
 
-The *\<string\>* is the *string literal* specifying the string.
+*Where:*
+
+- *\<string\>* is the *string literal*.
 
 Matches the glyph sequence described by *\<string\>*, *consuming input*.
 
 ```
+lexer section:
 
+    ABC : 'abc' ;
 ```
 
 ### Charset
@@ -296,12 +357,16 @@ Matches the glyph sequence described by *\<string\>*, *consuming input*.
 <charset>
 ```
 
-The *\<charset\>* is the *charset literal* specifying the charset.
+*Where:*
+
+- *\<charset\>* is the *charset literal*.
 
 Matches a glyph in *\<charset\>*, *consuming input*.
 
 ```
+lexer section:
 
+    LETTER : [a-zA-Z] ;
 ```
 
 ### Name
@@ -314,25 +379,42 @@ Matches a glyph in *\<charset\>*, *consuming input*.
 <name>
 ```
 
-The *\<name\>* is an identifier specifying a LPR or PPR.
+*Where:*
 
-*If in a LPR*, *\<name\>* must specify another LPR.
+- *\<name\>* is the *name identifier* specifying a production rule.
 
-*If in a LPR*, matches LPR *\<name\>*, *consuming input*.
+*If in a LPR*:
 
-*If in a PPR*, and *\<name\>* specifies a LPR, matches a token which is associated
-with LPR *\<name\>*.
+- *\<name\>* must specify another LPR.
 
-*If in a PPR*, and *\<name\>* specifies a PPR, matches PPR *\<name\>*, *consuming input*,
-and with this evaluation being associated with a new branch being output.
+- Matches LPR *\<name\>*, *consuming input*.
+
+*If in a PPR*:
+
+- If *\<name\>* specifies a LPR: matches a token which is associated with LPR *\<name\>*.
+
+- If *\<name\>* specifies a PPR: matches PPR *\<name\>*, *consuming input*, with this
+evaluation being *associated with a new branch being output*.
 
 ```
+lexer section:
 
+    A               : HELPER ;
+	B               : 'b' ;
+	C               : 'c' ;
+
+    support HELPER  : 'a' ;
+	
+parser section:
+
+    Syntax          : ABC end ;
+	
+	ABC             : A B C ;
 ```
 
 ### Sequence
 
-*Type: Composite*
+*Type: Composite (Uses Alternatives)*
 
 *Synopsis:*
 
@@ -344,16 +426,19 @@ and with this evaluation being associated with a new branch being output.
 
 - *\<alt-#\>* are the *alternatives* of the expression.
 
-Alternatives are subexpression sequences.
-
-Matches the subexpression sequence of the *\<alt-#\>* which matches 
+Matches the subexpression sequence of the *\<alt-#\>* which can match
 successfully, *consuming input*.
 
-It is illegal for common prefixes between alternatives to cause the 
-grammar to be ambiguous.
-
 ```
+lexer section:
 
+    ABC     : 'a' ( 'b' | 'd' ) 'c' ;
+
+    B       : 'b' ;
+	
+parser section:
+
+    Syntax  : B ( ABC | B B B ) ABC end ;
 ```
 
 ### LookAhead
@@ -372,17 +457,15 @@ grammar to be ambiguous.
 
 These expressions are for *peeking* at what the next symbol is.
 
-Matches a set *S*, *consuming no input*, where *S* is the *FIRST set* of *\<subexpr\>*.
+Matches the next glyph/token, *consuming no input*, if and only if said said glyph/token
+is in the *FIRST set* of this expression.
 
-The *FIRST set* of *\<subexpr\>* may not contain the *end-of-input*.
-
-This choice to forbid the *FIRST set* of *\<subexpr\>* from containing the *end-of-input*
-was made deliberately as expressions like *lookahead-not* and *not* may be confusing to use
-if *end-of-input* is present, and so the decision was made to forbid it in general, requiring
-the end-user to specify it elsewhere in their production rules.
+This expression's *FIRST set* may not contain the *end-of-input*. The reason is because
+*lookahead-not* and *not* expressions can be confusing to reason about if they can include
+*end-of-input*, and so the decision was made to forbid it in general.
 
 ```
-
+TODO
 ```
 
 ### LookAhead-Not
@@ -399,20 +482,17 @@ the end-user to specify it elsewhere in their production rules.
 
 - *\<subexpr\>* is the subexpression.
 
-These expressions are for *peeking* at what the next symbol is not.
+These expressions are for *peeking* at what the next symbol is **not**.
 
-Matches a set *S*, *consuming no input*, where *S* is the set of all symbols,
-except the *end-of-input*, and except those in the *FIRST set* of *\<subexpr\>*.
+Matches the next glyph/token, *consuming no input*, if and only if said said glyph/token
+is **not** in the *FIRST set* of this expression.
 
-The *FIRST set* of *\<subexpr\>* may not contain the *end-of-input*.
-
-This choice to forbid the *FIRST set* of *\<subexpr\>* from containing the *end-of-input*
-was made deliberately as expressions like *lookahead-not* and *not* may be confusing to use
-if *end-of-input* is present, and so the decision was made to forbid it in general, requiring
-the end-user to specify it elsewhere in their production rules.
+This expression's *FIRST set* may not contain the *end-of-input*. The reason is because
+*lookahead-not* and *not* expressions can be confusing to reason about if they can include
+*end-of-input*, and so the decision was made to forbid it in general.
 
 ```
-
+TODO
 ```
 
 ### Not
@@ -431,20 +511,17 @@ the end-user to specify it elsewhere in their production rules.
 
 These expressions are similar almost identical to *lookahead-not*, except that
 these consume input, and are used to invert charsets and set-like composite
-expressions, and not for *merely peeking* at the next symbol.
+expressions, and not for merely *peeking* at the next symbol.
 
-Matches a set *S*, *consuming input*, where *S* is the set of all symbols,
-except the *end-of-input*, and except those in the *FIRST set* of *\<subexpr\>*.
+Matches the next glyph/token, *consuming input*, if and only if said said glyph/token
+is **not** in the *FIRST set* of this expression.
 
-The *FIRST set* of *\<subexpr\>* may not contain the *end-of-input*.
-
-This choice to forbid the *FIRST set* of *\<subexpr\>* from containing the *end-of-input*
-was made deliberately as expressions like *lookahead-not* and *not* may be confusing to use
-if *end-of-input* is present, and so the decision was made to forbid it in general, requiring
-the end-user to specify it elsewhere in their production rules.
+This expression's *FIRST set* may not contain the *end-of-input*. The reason is because
+*lookahead-not* and *not* expressions can be confusing to reason about if they can include
+*end-of-input*, and so the decision was made to forbid it in general.
 
 ```
-
+TODO
 ```
 
 ### Optional
@@ -466,7 +543,13 @@ Matches a sequence of *\<subexpr\>* zero or one times, *consuming input*.
 Matching is performed on a *greedy basis*, consuming as much input as possible.
 
 ```
+lexer section:
 
+    ABC     : 'a' 'b'? 'c' ; # matches strings 'abc' and 'ac'
+
+parser section:
+
+    Syntax  : ABC? end ;
 ```
 
 ### Kleene-Star
@@ -488,7 +571,13 @@ Matches a sequence of *\<subexpr\>* zero or more times, *consuming input*.
 Matching is performed on a *greedy basis*, consuming as much input as possible.
 
 ```
+lexer section:
 
+    ABC     : 'a' 'b'* 'c' ; # matches strings 'ac', 'abc', 'abbc', ...
+
+parser section:
+
+    Syntax  : ABC* end ;
 ```
 
 ### Kleene-Plus
@@ -510,5 +599,11 @@ Matches a sequence of *\<subexpr\>* one or more times, *consuming input*.
 Matching is performed on a *greedy basis*, consuming as much input as possible.
 
 ```
+lexer section:
 
+    ABC     : 'a' 'b'+ 'c' ; # matches strings 'abc', 'abbc', 'abbbc', ...
+
+parser section:
+
+    Syntax  : ABC+ end ;
 ```

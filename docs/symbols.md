@@ -19,22 +19,17 @@ Symbol IDs can identify one of three things:
 Certain *special symbols* are defined:
 
 - Unicode codepoint symbols include a special *end-of-input sentinel* symbol. This sentinel symbol is **not** a valid Unicode
-codepoint, and is TAUL's alternative to using *EOF* for the end-of-input.
+codepoint, and is simply TAUL's alternative to using *EOF* for the *end-of-input*.
 
 - LPR ID symbols include a special *end-of-input sentinel* symbol.
 
 - LPR ID symbols include a special *failure* symbol. This is used to define *failure tokens*.
 
-## Glyphs, Tokens And Parse Trees
+## Conflation With Glyphs And Tokens
 
-During *lexical analysis*, terminals are identified by Unicode codepoint symbols, while non-terminals are identified
-by LPR ID symbols.
+In TAUL source code and docs, *glyphs* and *tokens* are often conflated with *symbol IDs*, including with the
+term *symbol* often being used as a common name for glyphs/tokens.
 
-During *syntactic analysis*, terminals are identified by LPR ID symbols, while non-terminals are identified by PPR
-ID symbols.
+Strictly speaking, glyphs/tokens *contain* symbol IDs, plus *metadata*, acting as *carriers* for them.
 
-*Glyphs* are the inputs to lexical analysis, encapsulating Unicode codepoint symbols.
-
-*Tokens* are the outputs from lexical analysis, and the inputs to syntactic analysis, encapsulating LPR ID symbols.
-
-*Parse Trees* are the outputs from syntactic analysis, their nodes encapsulating PPR ID symbols.
+Nevertheless, this conflation is made, as these terms *play together fairly nicely*.

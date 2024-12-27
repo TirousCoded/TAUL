@@ -1,6 +1,6 @@
 # Grammars
 
-This document details the basics concepts and terminology relating to TAUL *grammars*.
+This document details the basics of TAUL *grammars*.
 
 ## Production Rules
 
