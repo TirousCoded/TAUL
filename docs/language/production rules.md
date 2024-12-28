@@ -29,7 +29,7 @@ lexer section:
     C       : 'c' ;
 
     skip ws : [ \t]+ ; # ws has 'skip' qualifier
-	
+    
 parser section:
 
     ABC     : A B C ; # ABC is a parser rule
@@ -52,7 +52,7 @@ to appear prior to the production rule.
 lexer section:
 
     A : ... ; # lexer rule
-	
+    
 parser section:
 
     B : ... ; # parser rule
@@ -62,7 +62,7 @@ Prior to the first section specifier appearing, production rules are in a *lexer
 
 ```
     A : ... ; # lexer rule
-	
+    
 parser section:
 
     B : ... ; # parser rule
@@ -107,11 +107,11 @@ The `precedence` qualifier *(parser rules only)* marks a PPR as *supporting dire
 lexer section:
 
     PLUS            : '+' ;
-	MULTIPLY        : '*' ;
-	NUMBER          : [0-9]+ ;
+    MULTIPLY        : '*' ;
+    NUMBER          : [0-9]+ ;
 
     skip ws         : [ \t]+ ;
-	
+    
 parser section:
 
     precedence Expr : Expr PLUS Expr
@@ -218,8 +218,8 @@ lexer section:
 parser section:
 
     Syntax  : A B_Or_D C ;
-	
-	B_Or_D  : B | D ;
+    
+    B_Or_D  : B | D ;
 ```
 
 ### End
@@ -240,7 +240,7 @@ lexer section:
     A   : 'a' ;
     B   : 'b' ;
     C   : 'c' ;
-	
+    
     END : end ; # creates END token when end-of-input is reached
 
 parser section:
@@ -292,7 +292,7 @@ lexer section:
     A      : 'a' ;
     B      : 'b' ;
     C      : 'c' ;
-	
+    
 parser section:
 
     Syntax : token token token ;
@@ -316,7 +316,7 @@ lexer section:
     A      : 'a' ;
     B      : 'b' ;
     C      : 'c' ;
-	
+    
 parser section:
 
     # Syntax matches 'a?b?c', where ? is a sequence of >=1 characters which fail
@@ -400,16 +400,16 @@ evaluation being *associated with a new branch being output*.
 lexer section:
 
     A               : HELPER ;
-	B               : 'b' ;
-	C               : 'c' ;
+    B               : 'b' ;
+    C               : 'c' ;
 
     support HELPER  : 'a' ;
-	
+    
 parser section:
 
     Syntax          : ABC end ;
-	
-	ABC             : A B C ;
+    
+    ABC             : A B C ;
 ```
 
 ### Sequence
@@ -435,7 +435,7 @@ lexer section:
     ABC     : 'a' ( 'b' | 'd' ) 'c' ;
 
     B       : 'b' ;
-	
+    
 parser section:
 
     Syntax  : B ( ABC | B B B ) ABC end ;
