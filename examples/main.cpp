@@ -18,7 +18,7 @@ int32_t main(int32_t argc, char** argv) {
     taul::grammar gram = loaded.value();
 
     // build parsing pipeline
-    taul::source_reader rdr(""_str); // <- just pass empty string for now, we'll change it out later
+    taul::source_reader rdr{};
     taul::lexer lxr(gram, lgr);
     taul::parser psr(gram, lgr);
     taul::regular_error_handler eh(lgr);

@@ -14,7 +14,7 @@ namespace taul {
     class source_reader final : public reader {
     public:
 
-        source_reader(str input, encoding in_e = utf8);
+        source_reader(str input = str(), encoding in_e = utf8);
         source_reader(const source_code& input);
 
         virtual ~source_reader() noexcept = default;

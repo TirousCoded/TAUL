@@ -45,7 +45,7 @@ All stages of TAUL spec compilation and loading are tested for errors.
 *Synopsis:*
 
 ```
-taulc compile <fetcher> <source-path> <output-path>
+taulc compile <fetcher> <source-path> <output-path> [[--include-path|-i]=<include-path> [--triangle-brackets|-t]]
 ```
 
 Compiles the TAUL spec file at *\<source-path\>*, if any, and if successful outputs a C++ header file at *\<output-path\>*, with this
