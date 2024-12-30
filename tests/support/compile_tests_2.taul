@@ -7,14 +7,17 @@ lexer section:
 	support LPR2	: any any | any | | ;
 
 	precedence LPR3 : any ; # semantically illegal
+	LPR4			: right_assoc any ; # semantically illegal
 
 parser section:
 
 	PPR0			: ;
 	PPR1			: any ;
 	PPR2			: any any | any | | ;
-	precedence PPR3 : any ;
+	precedence PPR3 : right_assoc any ;
 
 	skip PPR4		: any ; # semantically illegal
 	support PPR5	: any ; # semantically illegal
+	PPR6			: right_assoc any ; # semantically illegal
+	precedence PPR7	: right_assoc right_assoc any right_assoc any ;
 

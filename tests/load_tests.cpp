@@ -252,7 +252,7 @@ TEST(LoadTests, success_empty_multipleLPRsAndPPRs) {
 // conditions, w/ things like nesting being assumed to work if these
 // basic usages, and error usages, behaviour as expected
 
-static_assert(taul::spec_opcodes == 20); // we only care about expr instructions
+static_assert(taul::spec_opcodes == 21); // we only care about expr instructions
 
 // end
 
@@ -2227,11 +2227,75 @@ TEST(LoadTests, success_misc_precedencePPR_withAnEmptyBaseAlt) {
     else ADD_FAILURE();
 }
 
+// test precedence PPRs w/ base and recurse alts works
+
+TEST(LoadTests, success_misc_precedencePPR_withRightAssociativeRecurseAlt) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("a"_str)
+        .lpr_decl("b"_str)
+        .lpr_decl("c"_str)
+        .ppr_decl("ppr0"_str)
+        .lpr("a"_str)
+        .string("a")
+        .close()
+        .lpr("b"_str)
+        .string("b")
+        .close()
+        .lpr("c"_str)
+        .string("c")
+        .close()
+        .ppr("ppr0"_str, taul::precedence)
+        .right_assoc() // w/ right_assoc
+        .name("a"_str) // base alt
+        .alternative()
+        .right_assoc() // w/ right_assoc
+        .name("ppr0"_str) // recurse alt
+        .name("a"_str)
+        .alternative()
+        .right_assoc() // w/ right_assoc
+        .name("ppr0"_str) // recurse alt
+        .name("b"_str)
+        .alternative()
+        .right_assoc() // w/ right_assoc
+        .name("ppr0"_str) // recurse alt
+        .name("c"_str)
+        .alternative()
+        .right_assoc() // w/ right_assoc
+        .name("b"_str) // base alt
+        .alternative()
+        .right_assoc() // w/ right_assoc
+        .name("c"_str) // base alt
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_EQ(ec.total(), 0);
+
+    if (gram) {
+        TAUL_LOG(lgr, "{}", *gram);
+
+        EXPECT_EQ(gram->lprs(), 3);
+        EXPECT_EQ(gram->pprs(), 1);
+
+        if (gram->has_ppr("ppr0"_str)) {
+            EXPECT_EQ(gram->ppr("ppr0"_str)->name(), "ppr0"_str);
+            EXPECT_EQ(gram->ppr("ppr0"_str)->index(), 0);
+        }
+        else ADD_FAILURE();
+    }
+    else ADD_FAILURE();
+}
+
 
 // tests testing that the expected FIRST/FOLLOW/prefix sets are generated
 // for LPRs/PPRs for each type of expr
 
-static_assert(taul::spec_opcodes == 20); // we only care about expr instructions
+static_assert(taul::spec_opcodes == 21); // we only care about expr instructions
 
 // top-level
 
@@ -4651,8 +4715,8 @@ TEST(LoadTests, HasExpectedPrefixes_PPRs_KleenePlus) {
 // the below detail what errors each instruction can raise, and thus which must
 // be unit tested, and being specified *in order*
 
-static_assert(taul::spec_opcodes == 20);
-static_assert(taul::spec_errors == 24);
+static_assert(taul::spec_opcodes == 21);
+static_assert(taul::spec_errors == 25);
 
 // notice that a lot of errors actually arise on the close instruction, however, most
 // of these errors will be tested in association w/ the opening instruction instead
@@ -4699,6 +4763,294 @@ TEST(LoadTests, alternative_forErr_illegal_in_no_scope) {
 
     EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
     EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+// right-assoc
+//      illegal-in-no-scope
+//      illegal-right-assoc (in LPR)
+//      illegal-right-assoc (in non-precedence PPR)
+//      illegal-right-assoc (multiple right_assoc instrs)
+//      illegal-right-assoc (not at start of alt) (first alt)
+//      illegal-right-assoc (not at start of alt) (not first alt)
+//      illegal-right-assoc (in sequence)
+//      illegal-right-assoc (in lookahead)
+//      illegal-right-assoc (in lookahead-not)
+//      illegal-right-assoc (in not)
+//      illegal-right-assoc (in optional)
+//      illegal-right-assoc (in kleene-star)
+//      illegal-right-assoc (in kleene-plus)
+
+TEST(LoadTests, right_assoc_forErr_illegal_in_no_scope) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .right_assoc()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_in_no_scope), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_inLPR) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .lpr_decl("A")
+        .lpr("A")
+        .right_assoc()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_inNonPrecedencePPR) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("A")
+        .ppr("A")
+        .right_assoc()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_multipleRightAssocInstrs) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("A")
+        .ppr("A", taul::precedence)
+        .right_assoc()
+        .right_assoc()
+        .token()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_notAtStartOfAlt_firstAlt) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("A")
+        .ppr("A", taul::precedence)
+        .token()
+        .right_assoc()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_notAtStartOfAlt_notFirstAlt) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("A")
+        .ppr("A", taul::precedence)
+        .end()
+        .alternative()
+        .token()
+        .right_assoc()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_inSequence) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("A")
+        .ppr("A", taul::precedence)
+        .sequence()
+        .end()
+        .alternative() // putting right_assoc in next alt to test w/ a bit more *complexity*
+        .right_assoc()
+        .token()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_inLookAhead) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("A")
+        .ppr("A", taul::precedence)
+        .lookahead()
+        .right_assoc()
+        .token()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_inLookAheadNot) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("A")
+        .ppr("A", taul::precedence)
+        .lookahead_not()
+        .right_assoc()
+        .token()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_inNot) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("A")
+        .ppr("A", taul::precedence)
+        .not0()
+        .right_assoc()
+        .token()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_inOptional) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("A")
+        .ppr("A", taul::precedence)
+        .optional()
+        .right_assoc()
+        .token()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_inKleeneStar) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("A")
+        .ppr("A", taul::precedence)
+        .kleene_star()
+        .right_assoc()
+        .token()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
+    EXPECT_FALSE(gram);
+}
+
+TEST(LoadTests, right_assoc_forErr_illegal_right_assoc_inKleenePlus) {
+    const auto lgr = taul::make_stderr_logger();
+    taul::spec_error_counter ec{};
+
+    const auto s =
+        taul::spec_writer()
+        .ppr_decl("A")
+        .ppr("A", taul::precedence)
+        .kleene_plus()
+        .right_assoc()
+        .token()
+        .close()
+        .close()
+        .done();
+
+    const auto gram = taul::load(s, ec, lgr);
+
+    EXPECT_GE(ec.total(), 1); // <- remember, we don't impose rule that it need only raise 1
+    EXPECT_EQ(ec.count(taul::spec_error::illegal_right_assoc), 1);
     EXPECT_FALSE(gram);
 }
 

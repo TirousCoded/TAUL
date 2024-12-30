@@ -971,7 +971,7 @@ TEST_P(BaseParserTests, ParseNoTree_AllowMultipleRoundsOfParsingUsingSameStreamO
 // these tests are for expected TAUL semantics
 
 
-static_assert(taul::spec_opcodes == 20);
+static_assert(taul::spec_opcodes == 21);
 
 
 // for composite exprs, these tests will largely assume that so long
@@ -3116,6 +3116,100 @@ TEST_P(BaseParserTests, PPR_PrecedencePPR_SelfRefDoesNotFormSuffixRefIfWrappedIn
             {
                 expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
                 expected.on_lexical(taul::token::normal(gram.value(), "MULTIPLY"_str, 3, 1));
+                expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
+                {
+                    expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));
+                    expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 5, 1));
+                    expected.on_syntactic(gram->ppr("Expr"_str).value(), 6);
+                    {
+                        expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 6, 1));
+                    }
+                    expected.on_close();
+                }
+                expected.on_close();
+            }
+            expected.on_close();
+        }
+        expected.on_close();
+        expected.on_shutdown();
+
+        test_listener actual{};
+        actual.playback(result);
+
+        EXPECT_EQ(expected.output, actual.output);
+    }
+}
+
+static std::optional<taul::grammar> make_grammar_2m(std::shared_ptr<taul::logger> lgr) {
+    auto spec =
+        taul::spec_writer()
+        .lpr_decl("PLUS"_str)
+        .lpr_decl("NUMBER"_str)
+        .ppr_decl("Expr"_str)
+        .lpr("PLUS"_str)
+        .string("+"_str)
+        .close()
+        .lpr("NUMBER"_str)
+        .string("a"_str)
+        .close()
+        .ppr("Expr"_str, taul::precedence)
+        .right_assoc() // w/ right assoc
+        .name("Expr"_str) // recurse alt
+        .name("PLUS"_str)
+        .name("Expr"_str)
+        .alternative()
+        .name("NUMBER"_str) // base alt
+        .close()
+        .done();
+    return taul::load(spec, lgr);
+}
+
+TEST_P(BaseParserTests, PPR_PrecedencePPR_WithRightAssociativity) {
+    auto gram = make_grammar_2m(lgr);
+    //if (gram) TAUL_LOG(lgr, "{}", gram->fmt_internals());
+    ASSERT_TRUE(gram);
+    ASSERT_TRUE(gram->has_lpr("PLUS"_str));
+    ASSERT_TRUE(gram->has_lpr("NUMBER"_str));
+    ASSERT_TRUE(gram->has_ppr("Expr"_str));
+
+    auto psr = GetParam().factory(gram.value(), lgr);
+    ASSERT_TRUE(psr);
+
+    {
+        taul::source_reader input("a+a+a+a"_str);
+        taul::lexer lxr(gram.value());
+        lxr.bind_source(&input);
+        psr->bind_source(&lxr);
+        psr->reset();
+
+        auto result = psr->parse(gram->ppr("Expr"_str).value());
+
+        //  Expr (
+        //      NUMBER
+        //      PLUS
+        //      Expr (
+        //          NUMBER
+        //          PLUS
+        //          Expr (
+        //              NUMBER
+        //              PLUS
+        //              Expr (
+        //                  NUMBER
+        //              )
+        //          )
+        //      )
+        //  )
+
+        test_listener expected{};
+        expected.on_startup();
+        expected.on_syntactic(gram->ppr("Expr"_str).value(), 0);
+        {
+            expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 0, 1));
+            expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 1, 1));
+            expected.on_syntactic(gram->ppr("Expr"_str).value(), 2);
+            {
+                expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 2, 1));
+                expected.on_lexical(taul::token::normal(gram.value(), "PLUS"_str, 3, 1));
                 expected.on_syntactic(gram->ppr("Expr"_str).value(), 4);
                 {
                     expected.on_lexical(taul::token::normal(gram.value(), "NUMBER"_str, 4, 1));

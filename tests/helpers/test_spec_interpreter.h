@@ -33,7 +33,7 @@ protected:
         output += "shutdown\n";
     }
 
-    static_assert(taul::spec_opcodes == 20);
+    static_assert(taul::spec_opcodes == 21);
 
     inline void on_close() override final {
         output += "close\n";
@@ -41,6 +41,10 @@ protected:
     
     inline void on_alternative() override final {
         output += "alternative\n";
+    }
+    
+    inline void on_right_assoc() override final {
+        output += "right-assoc\n";
     }
 
     inline void on_lpr_decl(std::string_view name) override final {

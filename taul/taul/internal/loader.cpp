@@ -49,6 +49,16 @@ void taul::internal::loader::spec_stage::update_pos() {
     owner().pos = pos();
 }
 
+void taul::internal::loader::spec_stage::next_is_legal_right_assoc(std::optional<spec_opcode> peek) noexcept {
+    next_right_assoc_is_legal_flag =
+        peek == spec_opcode::right_assoc &&
+        in_precedence_scope();
+}
+
+void taul::internal::loader::spec_stage::clear_next_right_assoc_is_legal_flag() noexcept {
+    next_right_assoc_is_legal_flag = false;
+}
+
 void taul::internal::loader::spec_stage::check_err_scope_not_closed() {
     for (auto it = ess.rbegin(); it != ess.rend(); it++) {
         owner().raise(
@@ -390,6 +400,14 @@ void taul::internal::loader::spec_stage::check_err_illegal_ambiguity_due_to_only
     }
 }
 
+void taul::internal::loader::spec_stage::check_err_illegal_right_assoc(spec_opcode opcode) {
+    TAUL_ASSERT(opcode == spec_opcode::right_assoc);
+    if (next_right_assoc_is_legal_flag) return;
+    owner().raise(
+        spec_error::illegal_right_assoc,
+        "illegal right associativity specifier!");
+}
+
 void taul::internal::loader::spec_stage::on_startup() {
     TAUL_ASSERT(owner().ec);
     owner().success = true; // <- deem eval successful until proven otherwise
@@ -422,7 +440,16 @@ void taul::internal::loader::spec_stage::on_alternative() {
         next_alternative_for_top_ess();
         check_err_illegal_in_no_alternation_scope(ess.back().opcode);
     }
+    next_is_legal_right_assoc(peek());
     owner().sl.on_alternative();
+}
+
+void taul::internal::loader::spec_stage::on_right_assoc() {
+    update_pos();
+    check_err_illegal_in_no_scope(spec_opcode::right_assoc);
+    check_err_illegal_right_assoc(spec_opcode::right_assoc);
+    clear_next_right_assoc_is_legal_flag();
+    owner().sl.on_right_assoc();
 }
 
 void taul::internal::loader::spec_stage::on_lpr_decl(std::string_view name) {
@@ -473,6 +500,7 @@ void taul::internal::loader::spec_stage::on_ppr(std::string_view name, qualifier
     push_ess(ess_frame{ spec_opcode::ppr, owner().pos });
     push_dss(dss_frame{ name, false });
     if (qualifier == precedence) mark_precedence_scope();
+    next_is_legal_right_assoc(peek());
     owner().sl.on_ppr(name, qualifier);
 }
 
@@ -735,6 +763,11 @@ void taul::internal::loader::llspec_stage::on_close() {
 void taul::internal::loader::llspec_stage::on_alternative() {
     update_pos();
     owner().rule_pt_trans.on_alternative();
+}
+
+void taul::internal::loader::llspec_stage::on_right_assoc() {
+    update_pos();
+    owner().rule_pt_trans.on_right_assoc();
 }
 
 void taul::internal::loader::llspec_stage::on_lpr_decl(std::string_view name) {

@@ -393,6 +393,16 @@ void taul::internal::rule_pt_translator::on_alternative() {
     next_alternative();
 }
 
+void taul::internal::rule_pt_translator::on_right_assoc() {
+    if (cancelled) return;
+    assert_in_composite_expr();
+    assert_in_subrule();
+#if _DUMP_LOG
+    TAUL_LOG(make_stderr_logger(), "-> on_right_assoc");
+#endif
+    // do nothing
+}
+
 void taul::internal::rule_pt_translator::on_lpr_decl(std::string_view name) {
     if (cancelled) return;
     assert_not_in_composite_expr();

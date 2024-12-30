@@ -11,7 +11,7 @@ std::string taul::internal::fmt_llspec_opcode(llspec_opcode x) {
         return fmt_spec_opcode(spec_opcode(x));
     }
     else {
-        static_assert(llspec_opcodes == 22);
+        static_assert(llspec_opcodes == 23);
         switch (x) {
         case llspec_opcode::preced_pred: result = "preced_pred"; break;
         case llspec_opcode::pylon: result = "pylon"; break;
@@ -40,6 +40,11 @@ taul::internal::llspec_writer& taul::internal::llspec_writer::close() {
 
 taul::internal::llspec_writer& taul::internal::llspec_writer::alternative() {
     _temp._bin.write(llspec_opcode::alternative, _pos);
+    return *this;
+}
+
+taul::internal::llspec_writer& taul::internal::llspec_writer::right_assoc() {
+    _temp._bin.write(llspec_opcode::right_assoc, _pos);
     return *this;
 }
 
@@ -179,7 +184,7 @@ void taul::internal::llspec_interpreter::interpret(const llspec& x) {
 }
 
 bool taul::internal::llspec_interpreter::_step(buff_reader& rdr) {
-    static_assert(llspec_opcodes == 22);
+    static_assert(llspec_opcodes == 23);
     auto offset = rdr.offset;
     auto header = rdr.read<llspec_opcode, source_pos>();
     if (!header) return false;
@@ -199,6 +204,12 @@ bool taul::internal::llspec_interpreter::_step(buff_reader& rdr) {
     {
         setup_peek();
         on_alternative();
+    }
+    break;
+    case llspec_opcode::right_assoc:
+    {
+        setup_peek();
+        on_right_assoc();
     }
     break;
     case llspec_opcode::lpr_decl:

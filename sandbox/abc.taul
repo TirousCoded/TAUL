@@ -2,15 +2,16 @@
 
 lexer section:
 
-    A		: 'a' ;
-    B		: 'b' ;
-    C		: 'c' ;
-    D		: 'd' ;
-    JP		: '元気ですか' ;
+    PLUS            : '+' ;
+    A		        : 'a' ;
+
+    skip WS         : [ \t]+ ;
 
 parser section:
 
-    Start	: ABC+ ;
+    Start	        : Expr ;
 
-    ABC		: A ( B | D ) C ;
+    precedence Expr : right_assoc Expr PLUS Expr
+                    | A
+                    ;
 

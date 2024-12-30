@@ -284,10 +284,11 @@ namespace taul::internal {
         void on_startup();
         void on_shutdown();
 
-        static_assert(llspec_opcodes == 22);
+        static_assert(llspec_opcodes == 23);
 
         void on_close();
         void on_alternative();
+        void on_right_assoc();
         void on_lpr_decl(std::string_view name);
         void on_ppr_decl(std::string_view name);
         void on_lpr(std::string_view name, qualifier);

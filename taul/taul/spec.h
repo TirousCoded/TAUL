@@ -103,7 +103,7 @@ namespace taul {
         spec_writer& pos(source_pos new_pos);
 
 
-        static_assert(spec_opcodes == 20);
+        static_assert(spec_opcodes == 21);
 
         // TODO: the StringLike overloads have not been unit tested
 
@@ -117,6 +117,7 @@ namespace taul {
 
         spec_writer& close();
         spec_writer& alternative();
+        spec_writer& right_assoc();
 
         spec_writer& lpr_decl(std::string_view name);
         template<typename StringLike>
@@ -244,10 +245,11 @@ namespace taul {
         virtual void on_startup() {}
         virtual void on_shutdown() {}
 
-        static_assert(spec_opcodes == 20);
+        static_assert(spec_opcodes == 21);
 
         virtual void on_close() {}
         virtual void on_alternative() {}
+        virtual void on_right_assoc() {}
         virtual void on_lpr_decl(std::string_view name) {}
         virtual void on_ppr_decl(std::string_view name) {}
         virtual void on_lpr(std::string_view name, qualifier qualifier) {}
@@ -291,10 +293,11 @@ namespace taul {
 
     protected:
 
-        static_assert(spec_opcodes == 20);
+        static_assert(spec_opcodes == 21);
 
         void on_close() override final { deref_assert(client).pos(pos()).close(); }
         void on_alternative() override final { deref_assert(client).pos(pos()).alternative(); }
+        void on_right_assoc() override final { deref_assert(client).pos(pos()).right_assoc(); }
         void on_lpr_decl(std::string_view name) override final { deref_assert(client).pos(pos()).lpr_decl(name); }
         void on_ppr_decl(std::string_view name) override final { deref_assert(client).pos(pos()).ppr_decl(name); }
         void on_lpr(std::string_view name, qualifier qualifier) override final { deref_assert(client).pos(pos()).lpr(name, qualifier); }

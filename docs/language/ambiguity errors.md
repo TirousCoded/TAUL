@@ -29,7 +29,7 @@ lexer section:
     ABC : 'a' ( 'b' | 'd' ) 'c' # <- FIRST set includes 'a'
         | 'abc'                 # <- FIRST set includes 'a'
         | 'adc'                 # <- FIRST set includes 'a'
-	    ;
+        ;
 ```
 
 The following is a slightly more nuanced example of ambiguity:

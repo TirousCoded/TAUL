@@ -9,12 +9,17 @@ bottom) for details about how their implementation works.
 
 ## Basics
 
-PPRs with the `precedence` qualifier are allowed to have *direct left-recursion*.
+PPRs with the `precedence` qualifier are allowed to have *direct left-recursion*
+(ie. *indirect left-recursion is still illegal*.)
 
 Additionally, such PPRs incorporate a *precedence system* to allow for the easier
 writing of things like *binary operators* in *precedence hierarchies*. Take note that
 when listing *alternatives* for these, the precedence hierarchy described goes from
 *least to greatest precedence*.
+
+TAUL also includes a `right_assoc` keyword which can be *placed at the start* of
+alternatives to mark it as having *right associativity* (the default is for *left
+associativity*.)
 
 ```
 lexer section:
@@ -33,8 +38,8 @@ lexer section:
 
 parser section:
 
-    precedence Expr : Expr EQUALS Expr
-                    | Expr QUESTION Expr COLON Expr # ternary operator
+    precedence Expr : right_assoc Expr EQUALS Expr
+                    | right_assoc Expr QUESTION Expr COLON Expr # ternary operator
                     | Expr PLUS Expr
                     | Expr MULTIPLY Expr
                     | L_ROUND Expr R_ROUND
@@ -43,13 +48,12 @@ parser section:
 ```
 
 These are achieved by the system performing an invisible *rewrite* of the production
-rule into a different, non-left-recursive form. Note that this rewriting changing the
-parsing behaviour associated with the PPR.
+rule into a different, non-left-recursive form. Note that this *rewriting changes the
+parsing behaviour* associated with the PPR.
 
 This system is powerful, and basic use is fairly straightforward. However, explaining
-the *particulars* of how it works, as well as explaining the *strict technical limits*
-it imposes regarding what left-recursion *is/isn't allowed* will require the introducing
-of some concepts, and associated notation.
+the *particulars* of how it works, will require the introducing of some concepts, and
+associated notation.
 
 ## Concepts/Notation
 
@@ -105,8 +109,8 @@ parser section:
 
     # NOTE: our *special notation* introduced isn't used here
 
-    precedence Expr : Expr EQUALS Expr
-                    | Expr QUESTION Expr COLON Expr # ternary operator
+    precedence Expr : right_assoc Expr EQUALS Expr
+                    | right_assoc Expr QUESTION Expr COLON Expr # ternary operator
                     | Expr PLUS Expr
                     | Expr MULTIPLY Expr
                     | L_ROUND Expr R_ROUND
@@ -127,8 +131,8 @@ parser section:
                     ( L_ROUND Expr[0] R_ROUND
                     | NUMBER
                     )
-                    ( { <=0 } EQUALS Expr[1]
-                    | { <=1 } QUESTION Expr[0] COLON Expr[2]
+                    ( { <=0 } EQUALS Expr[0]
+                    | { <=1 } QUESTION Expr[0] COLON Expr[1]
                     | { <=2 } PLUS Expr[3]
                     | { <=3 } MULTIPLY Expr[4]
                     )*
@@ -138,13 +142,14 @@ parser section:
 For all the technical details as to what *exactly* TAUL does during rewriting,
 *go read the source code*.
 
-## Parse Behaviour
+## Particulars
 
-The above example result of precedence PPR rewriting specifies the ways in which
-rewriting modifies the observed parsing behaviour of the PPR, but for further
-clarity, this section provides a quick example of expected behaviour.
+Below goes over some *technical details* of TAUL's left-recursion support.
 
-*Grammar:*
+### Recurse Alternatives With Only Prefix-Ref Are Ignored
+
+If a *recurse alternative* has nothing but a prefix-ref name expression, that alternative
+will be ignored.
 
 ```
 lexer section:
@@ -153,8 +158,11 @@ lexer section:
 
 parser section:
 
-    precedence Expr : Expr EQUALS Expr
-                    | Expr QUESTION Expr COLON Expr # ternary operator
+    # NOTE: our *special notation* introduced isn't used here
+
+    precedence Expr : right_assoc Expr EQUALS Expr
+                    | right_assoc Expr QUESTION Expr COLON Expr
+                    | Expr # <- this alternative will be *ignored*
                     | Expr PLUS Expr
                     | Expr MULTIPLY Expr
                     | L_ROUND Expr R_ROUND
@@ -162,16 +170,37 @@ parser section:
                     ;
 ```
 
-*Input:*
+### Prefix/Suffix-Ref Are Recognized In Composite Expressions
+
+If you put a self-ref in a composite expression, the system *will not acknowledge if it's
+a prefix-ref or suffix-ref*, even if it would otherwise qualify.
+
+Keep this in mind, or your grammar may behave *unexpectedly*.
 
 ```
+lexer section:
 
+    # NOTE: omitted
+
+parser section:
+
+    # NOTE: our *special notation* introduced isn't used here
+
+    # the usage of '( Expr )' below will cause grammar to not recognize prefix/suffix-refs!
+	
+    precedence Expr : right_assoc Expr EQUALS ( Expr )
+                    | right_assoc ( Expr ) QUESTION Expr COLON Expr
+                    | ( Expr ) PLUS ( Expr )
+                    | Expr MULTIPLY ( Expr )
+                    | L_ROUND Expr R_ROUND
+                    | NUMBER
+                    ;
 ```
 
-*Output:*
+### Self-Refs Which Are Not Prefix/Suffix-Ref Have Precedence Value Zero
 
-```
+Pretty self-explanatory, but self-refs which are not prefix/suffix-refs have *precedence value 0*.
 
-```
+This means that ALL of their alternatives become available.
 
-TODO: after above, write sections for all the tiny nuances
+*(Examples of this can be seen in above part about rewrite of grammar with ternary operator.)*

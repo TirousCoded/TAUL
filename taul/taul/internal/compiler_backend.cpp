@@ -311,6 +311,24 @@ void taul::internal::compiler_backend::_handle_syntactic_begin() {
                 }
             }
         }
+        else if (name == "RightAssoc"_str) {
+            // the way we have it setup we gotta account for 
+            // toplevel Alts not being in an Expr
+            if (in_expr()) {
+                if (dbgsyms) expr_stk.back().sw_main.pos(nonterminal_stk.back().pos);
+                expr_stk.back().sw_main.right_assoc();
+            }
+            else {
+                if (in_lpr()) {
+                    if (dbgsyms) sw_lpr_defs.pos(nonterminal_stk.back().pos);
+                    sw_lpr_defs.right_assoc();
+                }
+                if (in_ppr()) {
+                    if (dbgsyms) sw_ppr_defs.pos(nonterminal_stk.back().pos);
+                    sw_ppr_defs.right_assoc();
+                }
+            }
+        }
     }
 }
 

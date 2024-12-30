@@ -6,11 +6,12 @@
 
 
 std::string taul::fmt_spec_opcode(spec_opcode x) {
-    static_assert(spec_opcodes == 20);
+    static_assert(spec_opcodes == 21);
     std::string result{};
     switch (x) {
     case spec_opcode::close:            result = "close";           break;
     case spec_opcode::alternative:      result = "alternative";     break;
+    case spec_opcode::right_assoc:      result = "right-assoc";     break;
     case spec_opcode::lpr_decl:         result = "lpr-decl";        break;
     case spec_opcode::ppr_decl:         result = "ppr-decl";        break;
     case spec_opcode::lpr:              result = "lpr";             break;

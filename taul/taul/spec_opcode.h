@@ -111,6 +111,11 @@ namespace taul {
 
         alternative,    // not an expr
 
+        // right_assoc is placed at the start of precedence PPR alternatives to mark
+        // them as having right associativity
+
+        right_assoc,    // not an expr
+
         lpr_decl,       // top-level
         ppr_decl,       // top-level
         lpr,            // top-level

@@ -49,6 +49,7 @@ namespace taul {
         illegal_in_single_subexpr_scope,    // illegal instruction use in single-subexpr scope
         illegal_in_no_end_subexpr_scope,    // illegal instruction use in no-end-subexpr scope
         illegal_ambiguity,                  // illegal grammar ambiguity
+        illegal_right_assoc,                // illegal right associativity specifier
 
         num,                                // this is not a valid spec error
     };

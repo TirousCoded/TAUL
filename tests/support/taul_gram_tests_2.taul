@@ -8,13 +8,15 @@ lexer section:
 
     skip support skip skip support D : any ; # semantically illegal
     precedence E : any ; # semantically illegal
+    F : right_assoc any ; # semantically illegal
 
 parser section:
 
     a : any ;
-    precedence b : any ;
+    precedence b : right_assoc any ;
 
     skip c : any ; # semantically illegal
     support d : any ; # semantically illegal
     skip support skip skip support e : any ; # semantically illegal
+    f : right_assoc any ; # semantically illegal
 

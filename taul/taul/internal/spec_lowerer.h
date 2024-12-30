@@ -80,6 +80,13 @@ namespace taul::internal {
         void reset_in_preced_ppr_flag();
 
 
+        // flag indicating that a right_assoc instr has marked current alt as right associative
+
+        bool in_right_assoc_alt_flag = false;
+
+        void reset_in_right_assoc_alt_flag();
+
+
         // these vectors carry the llspec portions for the base/recurse alts, w/ the ladder
         // excluding prefix-ref name exprs
 
@@ -111,14 +118,17 @@ namespace taul::internal {
         void reset_current_preced();
         void incr_current_preced();
 
+        preced_t suffix_ref_preced_based_on_if_right_assoc();
+
 
         void on_startup();
         void on_shutdown();
 
-        static_assert(spec_opcodes == 20);
+        static_assert(spec_opcodes == 21);
 
         void on_close();
         void on_alternative();
+        void on_right_assoc();
         void on_lpr_decl(std::string_view name);
         void on_ppr_decl(std::string_view name);
         void on_lpr(std::string_view name, qualifier qualifier);

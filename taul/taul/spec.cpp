@@ -29,6 +29,11 @@ taul::spec_writer& taul::spec_writer::alternative() {
     return *this;
 }
 
+taul::spec_writer& taul::spec_writer::right_assoc() {
+    _temp._bin.write(spec_opcode::right_assoc, _pos);
+    return *this;
+}
+
 taul::spec_writer& taul::spec_writer::lpr_decl(std::string_view name) {
     _temp._bin.write(spec_opcode::lpr_decl, _pos, name);
     return *this;
@@ -154,7 +159,7 @@ void taul::spec_interpreter::interpret(const spec& x) {
 }
 
 bool taul::spec_interpreter::_step(internal::buff_reader& rdr) {
-    static_assert(spec_opcodes == 20);
+    static_assert(spec_opcodes == 21);
     auto header = rdr.read<spec_opcode, source_pos>();
     if (!header) return false;
     auto [opcode, new_pos] = deref_assert(header);
@@ -173,6 +178,12 @@ bool taul::spec_interpreter::_step(internal::buff_reader& rdr) {
     {
         setup_peek();
         on_alternative();
+    }
+    break;
+    case spec_opcode::right_assoc:
+    {
+        setup_peek();
+        on_right_assoc();
     }
     break;
     case spec_opcode::lpr_decl:

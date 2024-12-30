@@ -21,6 +21,7 @@ lexer section:
     KW_SKIP                         : 'skip' END_OF_KW ;
     KW_SUPPORT                      : 'support' END_OF_KW ;
     KW_PRECEDENCE                   : 'precedence' END_OF_KW ;
+    KW_RIGHT_ASSOC                  : 'right_assoc' END_OF_KW ;
     KW_END                          : 'end' END_OF_KW ;
     KW_ANY                          : 'any' END_OF_KW ;
     KW_TOKEN                        : 'token' END_OF_KW ;
@@ -275,5 +276,7 @@ parser section:
 
     Alts                            : Alt ( Alt_Divider Alt )* ;
     Alt_Divider                     : OP_VBAR ;
-    Alt                             : Expr* ;
+    Alt                             : ( Expr | RightAssoc )* ; # it's a semantic error to misplace RightAssoc
+
+    RightAssoc                      : KW_RIGHT_ASSOC ;
 

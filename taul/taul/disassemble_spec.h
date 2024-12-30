@@ -46,10 +46,11 @@ namespace taul::internal {
         void on_startup() override final;
         void on_shutdown() override final;
 
-        static_assert(spec_opcodes == 20);
+        static_assert(spec_opcodes == 21);
 
         void on_close() override final;
         void on_alternative() override final;
+        void on_right_assoc() override final;
         void on_lpr_decl(std::string_view name) override final;
         void on_ppr_decl(std::string_view name) override final;
         void on_lpr(std::string_view name, qualifier qualifier) override final;
@@ -89,10 +90,11 @@ namespace taul::internal {
         void on_startup() override final;
         void on_shutdown() override final;
 
-        static_assert(llspec_opcodes == 22);
+        static_assert(llspec_opcodes == 23);
 
         void on_close() override final;
         void on_alternative() override final;
+        void on_right_assoc() override final;
         void on_lpr_decl(std::string_view name) override final;
         void on_ppr_decl(std::string_view name) override final;
         void on_lpr(std::string_view name, qualifier qualifier) override final;

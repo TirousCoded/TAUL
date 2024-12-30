@@ -54,6 +54,11 @@ void taul::internal::disassemble_spec_interpreter::on_alternative() {
     instruction++;
 }
 
+void taul::internal::disassemble_spec_interpreter::on_right_assoc() {
+    result += std::format("\n{} {}", fmt_here(), spec_opcode::right_assoc);
+    instruction++;
+}
+
 void taul::internal::disassemble_spec_interpreter::on_lpr_decl(std::string_view name) {
     result += std::format("\n{} {} ('{}')", fmt_here(), spec_opcode::lpr_decl, _clean_string(name));
     instruction++;
@@ -179,6 +184,11 @@ void taul::internal::disassemble_llspec_interpreter::on_close() {
 
 void taul::internal::disassemble_llspec_interpreter::on_alternative() {
     result += std::format("\n{} {}", fmt_here(), llspec_opcode::alternative);
+    instruction++;
+}
+
+void taul::internal::disassemble_llspec_interpreter::on_right_assoc() {
+    result += std::format("\n{} {}", fmt_here(), llspec_opcode::right_assoc);
     instruction++;
 }
 

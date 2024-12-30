@@ -33,7 +33,7 @@ namespace taul::internal {
     // are made at the llspec level
 
 
-    static_assert(spec_opcodes == 20); // update llspec_opcode whenever we add to spec_opcode
+    static_assert(spec_opcodes == 21); // update llspec_opcode whenever we add to spec_opcode
 
     enum class llspec_opcode : uint8_t {
 
@@ -41,6 +41,7 @@ namespace taul::internal {
 
         close,
         alternative,
+        right_assoc,
         lpr_decl,
         ppr_decl,
         lpr,
@@ -137,10 +138,11 @@ namespace taul::internal {
         llspec_writer& pos(source_pos new_pos);
 
 
-        static_assert(llspec_opcodes == 22);
+        static_assert(llspec_opcodes == 23);
 
         llspec_writer& close();
         llspec_writer& alternative();
+        llspec_writer& right_assoc();
 
         llspec_writer& lpr_decl(std::string_view name);
         template<typename StringLike>
@@ -240,10 +242,11 @@ namespace taul::internal {
         virtual void on_startup() {}
         virtual void on_shutdown() {}
 
-        static_assert(llspec_opcodes == 22);
+        static_assert(llspec_opcodes == 23);
 
         virtual void on_close() {}
         virtual void on_alternative() {}
+        virtual void on_right_assoc() {}
         virtual void on_lpr_decl(std::string_view name) {}
         virtual void on_ppr_decl(std::string_view name) {}
         virtual void on_lpr(std::string_view name, qualifier qualifier) {}
@@ -290,10 +293,11 @@ namespace taul::internal {
 
     protected:
 
-        static_assert(llspec_opcodes == 22);
+        static_assert(llspec_opcodes == 23);
 
         void on_close() override final { deref_assert(client).pos(pos()).close(); }
         void on_alternative() override final { deref_assert(client).pos(pos()).alternative(); }
+        void on_right_assoc() override final { deref_assert(client).pos(pos()).right_assoc(); }
         void on_lpr_decl(std::string_view name) override final { deref_assert(client).pos(pos()).lpr_decl(name); }
         void on_ppr_decl(std::string_view name) override final { deref_assert(client).pos(pos()).ppr_decl(name); }
         void on_lpr(std::string_view name, qualifier qualifier) override final { deref_assert(client).pos(pos()).lpr(name, qualifier); }

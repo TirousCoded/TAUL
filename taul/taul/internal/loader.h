@@ -254,7 +254,16 @@ namespace taul::internal {
         inline bool in_precedence_scope() const noexcept { return !ess.empty() && ess.back().precedence_scope; }
 
 
-        static_assert(spec_errors == 24);
+        // this flags is set by ppr or alternative when the next right_assoc instr
+        // is a legal one
+
+        bool next_right_assoc_is_legal_flag = false;
+
+        void next_is_legal_right_assoc(std::optional<spec_opcode> peek) noexcept;
+        void clear_next_right_assoc_is_legal_flag() noexcept;
+
+
+        static_assert(spec_errors == 25);
 
         void check_err_scope_not_closed();
         void check_err_stray_close();
@@ -279,6 +288,7 @@ namespace taul::internal {
         void check_err_illegal_charset_literal_due_to_illegal_codepoints(std::u32string_view s);
         void check_err_illegal_charset_literal_due_to_nonvisible_ascii(std::string_view unparsed_literal);
         void check_err_illegal_ambiguity_due_to_only_having_recurse_alts(spec_opcode opcode);
+        void check_err_illegal_right_assoc(spec_opcode opcode);
 
 
     protected:
@@ -286,10 +296,11 @@ namespace taul::internal {
         void on_startup() override final;
         void on_shutdown() override final;
 
-        static_assert(spec_opcodes == 20);
+        static_assert(spec_opcodes == 21);
 
         void on_close() override final;
         void on_alternative() override final;
+        void on_right_assoc() override final;
         void on_lpr_decl(std::string_view name) override final;
         void on_ppr_decl(std::string_view name) override final;
         void on_lpr(std::string_view name, qualifier qualifier) override final;
@@ -328,7 +339,7 @@ namespace taul::internal {
         void update_pos();
 
 
-        static_assert(spec_errors == 24);
+        static_assert(spec_errors == 25);
 
         void check_err_illegal_ambiguity();
         void check_err_illegal_ambiguity_due_to_trivial_left_recursion();
@@ -341,10 +352,11 @@ namespace taul::internal {
         void on_startup() override final;
         void on_shutdown() override final;
 
-        static_assert(llspec_opcodes == 22);
+        static_assert(llspec_opcodes == 23);
 
         void on_close() override final;
         void on_alternative() override final;
+        void on_right_assoc() override final;
         void on_lpr_decl(std::string_view name) override final;
         void on_ppr_decl(std::string_view name) override final;
         void on_lpr(std::string_view name, qualifier qualifier) override final;

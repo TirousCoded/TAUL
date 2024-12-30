@@ -43,7 +43,7 @@ protected:
 TEST_F(TAULGramTests, LPRs) {
     ASSERT_TRUE(gram);
 
-    EXPECT_EQ(gram->nonsupport_lprs(), 28);
+    EXPECT_EQ(gram->nonsupport_lprs(), 29);
 
     ASSERT_TRUE(gram->has_lpr("KW_LEXER"_str));
     ASSERT_TRUE(gram->has_lpr("KW_PARSER"_str));
@@ -51,6 +51,7 @@ TEST_F(TAULGramTests, LPRs) {
     ASSERT_TRUE(gram->has_lpr("KW_SKIP"_str));
     ASSERT_TRUE(gram->has_lpr("KW_SUPPORT"_str));
     ASSERT_TRUE(gram->has_lpr("KW_PRECEDENCE"_str));
+    ASSERT_TRUE(gram->has_lpr("KW_RIGHT_ASSOC"_str));
     ASSERT_TRUE(gram->has_lpr("KW_END"_str));
     ASSERT_TRUE(gram->has_lpr("KW_ANY"_str));
     ASSERT_TRUE(gram->has_lpr("KW_TOKEN"_str));
@@ -62,6 +63,7 @@ TEST_F(TAULGramTests, LPRs) {
     EXPECT_EQ(gram->lpr("KW_SKIP"_str)->qualifier(), taul::qualifier::none);
     EXPECT_EQ(gram->lpr("KW_SUPPORT"_str)->qualifier(), taul::qualifier::none);
     EXPECT_EQ(gram->lpr("KW_PRECEDENCE"_str)->qualifier(), taul::qualifier::none);
+    EXPECT_EQ(gram->lpr("KW_RIGHT_ASSOC"_str)->qualifier(), taul::qualifier::none);
     EXPECT_EQ(gram->lpr("KW_END"_str)->qualifier(), taul::qualifier::none);
     EXPECT_EQ(gram->lpr("KW_ANY"_str)->qualifier(), taul::qualifier::none);
     EXPECT_EQ(gram->lpr("KW_TOKEN"_str)->qualifier(), taul::qualifier::none);
@@ -113,7 +115,7 @@ TEST_F(TAULGramTests, LPRs) {
 TEST_F(TAULGramTests, PPRs) {
     ASSERT_TRUE(gram);
 
-    EXPECT_EQ(gram->pprs(), 36);
+    EXPECT_EQ(gram->pprs(), 37);
 
     ASSERT_TRUE(gram->has_ppr("Spec"_str));
 
@@ -163,6 +165,8 @@ TEST_F(TAULGramTests, PPRs) {
     ASSERT_TRUE(gram->has_ppr("Alts"_str));
     ASSERT_TRUE(gram->has_ppr("Alt_Divider"_str));
     ASSERT_TRUE(gram->has_ppr("Alt"_str));
+
+    ASSERT_TRUE(gram->has_ppr("RightAssoc"_str));
 }
 
 
@@ -219,6 +223,7 @@ _KW_TEST(KW_SECTION, "section", 7);
 _KW_TEST(KW_SKIP, "skip", 4);
 _KW_TEST(KW_SUPPORT, "support", 7);
 _KW_TEST(KW_PRECEDENCE, "precedence", 10);
+_KW_TEST(KW_RIGHT_ASSOC, "right_assoc", 11);
 _KW_TEST(KW_END, "end", 3);
 _KW_TEST(KW_ANY, "any", 3);
 _KW_TEST(KW_TOKEN, "token", 5);
@@ -574,6 +579,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
     ASSERT_TRUE(gram->has_lpr("KW_SKIP"_str));
     ASSERT_TRUE(gram->has_lpr("KW_SUPPORT"_str));
     ASSERT_TRUE(gram->has_lpr("KW_PRECEDENCE"_str));
+    ASSERT_TRUE(gram->has_lpr("KW_RIGHT_ASSOC"_str));
     ASSERT_TRUE(gram->has_lpr("KW_ANY"_str));
     ASSERT_TRUE(gram->has_lpr("OP_COLON"_str));
     ASSERT_TRUE(gram->has_lpr("OP_SEMICOLON"_str));
@@ -598,6 +604,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
     ASSERT_TRUE(gram->has_ppr("Alts"_str));
     ASSERT_TRUE(gram->has_ppr("Alt_Divider"_str));
     ASSERT_TRUE(gram->has_ppr("Alt"_str));
+    ASSERT_TRUE(gram->has_ppr("RightAssoc"_str));
 
     counter cntr{};
 
@@ -608,6 +615,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
     expected
         .syntactic("Spec"_str, cntr());
 
+    // lexer section
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("LexerSection"_str, cntr())
@@ -617,6 +625,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close();
 
+    // A
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("Rule"_str, cntr())
@@ -647,6 +656,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close();
     
+    // B
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("Rule"_str, cntr())
@@ -682,6 +692,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close();
     
+    // C
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("Rule"_str, cntr())
@@ -717,6 +728,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close();
 
+    // D
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("Rule"_str, cntr())
@@ -772,6 +784,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close();
 
+    // E
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("Rule"_str, cntr())
@@ -791,6 +804,40 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .syntactic("Rule_Alts"_str, cntr())
         .syntactic("Alts"_str, cntr())
         .syntactic("Alt"_str, cntr())
+        .syntactic("Expr"_str, cntr())
+        .syntactic("Base"_str, cntr())
+        .syntactic("Primary"_str, cntr())
+        .syntactic("Any"_str, cntr())
+        .lexical("KW_ANY"_str, cntr(4), 3)
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .lexical("OP_SEMICOLON"_str, cntr(30), 1)
+        .close()
+        .close();
+    
+    // F
+    expected
+        .syntactic("Clause"_str, cntr())
+        .syntactic("Rule"_str, cntr())
+        .syntactic("Rule_Qualifiers"_str, cntr())
+        .syntactic("Qualifiers"_str, cntr())
+        .close()
+        .close()
+        .syntactic("Rule_Name"_str, cntr())
+        .lexical("IDENTIFIER"_str, cntr(2), 1)
+        .close()
+        .lexical("OP_COLON"_str, cntr(2), 1)
+        .syntactic("Rule_Alts"_str, cntr())
+        .syntactic("Alts"_str, cntr())
+        .syntactic("Alt"_str, cntr())
+        .syntactic("RightAssoc"_str, cntr())
+        .lexical("KW_RIGHT_ASSOC"_str, cntr(12), 11)
+        .close()
         .syntactic("Expr"_str, cntr())
         .syntactic("Base"_str, cntr())
         .syntactic("Primary"_str, cntr())
@@ -807,6 +854,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close();
 
+    // parser section
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("ParserSection"_str, cntr())
@@ -816,6 +864,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close();
 
+    // a
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("Rule"_str, cntr())
@@ -846,6 +895,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close();
 
+    // b
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("Rule"_str, cntr())
@@ -865,6 +915,9 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .syntactic("Rule_Alts"_str, cntr())
         .syntactic("Alts"_str, cntr())
         .syntactic("Alt"_str, cntr())
+        .syntactic("RightAssoc"_str, cntr())
+        .lexical("KW_RIGHT_ASSOC"_str, cntr(12), 11)
+        .close()
         .syntactic("Expr"_str, cntr())
         .syntactic("Base"_str, cntr())
         .syntactic("Primary"_str, cntr())
@@ -881,6 +934,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close();
 
+    // c
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("Rule"_str, cntr())
@@ -916,6 +970,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close();
 
+    // d
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("Rule"_str, cntr())
@@ -951,6 +1006,7 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .close()
         .close();
 
+    // e
     expected
         .syntactic("Clause"_str, cntr())
         .syntactic("Rule"_str, cntr())
@@ -990,6 +1046,40 @@ TEST_F(TAULGramTests, Syntax_BasicTopLevel) {
         .syntactic("Rule_Alts"_str, cntr())
         .syntactic("Alts"_str, cntr())
         .syntactic("Alt"_str, cntr())
+        .syntactic("Expr"_str, cntr())
+        .syntactic("Base"_str, cntr())
+        .syntactic("Primary"_str, cntr())
+        .syntactic("Any"_str, cntr())
+        .lexical("KW_ANY"_str, cntr(4), 3)
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .close()
+        .lexical("OP_SEMICOLON"_str, cntr(30), 1)
+        .close()
+        .close();
+
+    // f
+    expected
+        .syntactic("Clause"_str, cntr())
+        .syntactic("Rule"_str, cntr())
+        .syntactic("Rule_Qualifiers"_str, cntr())
+        .syntactic("Qualifiers"_str, cntr())
+        .close()
+        .close()
+        .syntactic("Rule_Name"_str, cntr())
+        .lexical("IDENTIFIER"_str, cntr(2), 1)
+        .close()
+        .lexical("OP_COLON"_str, cntr(2), 1)
+        .syntactic("Rule_Alts"_str, cntr())
+        .syntactic("Alts"_str, cntr())
+        .syntactic("Alt"_str, cntr())
+        .syntactic("RightAssoc"_str, cntr())
+        .lexical("KW_RIGHT_ASSOC"_str, cntr(12), 11)
+        .close()
         .syntactic("Expr"_str, cntr())
         .syntactic("Base"_str, cntr())
         .syntactic("Primary"_str, cntr())

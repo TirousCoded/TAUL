@@ -3,8 +3,10 @@
 lexer section:
 
 	LPR0 : ( any | any any | | ) ;
+	LPR1 : ( right_assoc any right_assoc right_assoc any right_assoc any ) ;
 
 parser section:
 
 	PPR0 : ( any | any any | | ) ;
+	PPR1 : ( right_assoc any right_assoc right_assoc any right_assoc any ) ;
 

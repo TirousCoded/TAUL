@@ -66,6 +66,10 @@ void taul::internal::spec_lowerer::reset_in_preced_ppr_flag() {
     in_preced_ppr_flag = false;
 }
 
+void taul::internal::spec_lowerer::reset_in_right_assoc_alt_flag() {
+    in_right_assoc_alt_flag = false;
+}
+
 void taul::internal::spec_lowerer::consider_next_alt_a_base_alt_until_discerned_otherwise() {
     in_base_alt = true;
 }
@@ -87,6 +91,7 @@ void taul::internal::spec_lowerer::handle_begin_preced_ppr(std::string_view name
     bind_target(temp);
     reset_current_preced();
     consider_next_alt_a_base_alt_until_discerned_otherwise();
+    reset_in_right_assoc_alt_flag();
 }
 
 void taul::internal::spec_lowerer::handle_end_preced_ppr() {
@@ -134,6 +139,7 @@ void taul::internal::spec_lowerer::handle_preced_ppr_alt() {
     push_temp_to_base_or_recurse_alts_vector();
     incr_current_preced();
     consider_next_alt_a_base_alt_until_discerned_otherwise();
+    reset_in_right_assoc_alt_flag();
 }
 
 void taul::internal::spec_lowerer::push_temp_to_base_or_recurse_alts_vector() {
@@ -166,12 +172,20 @@ void taul::internal::spec_lowerer::incr_current_preced() {
     current_preced++;
 }
 
+taul::internal::preced_t taul::internal::spec_lowerer::suffix_ref_preced_based_on_if_right_assoc() {
+    return
+        in_right_assoc_alt_flag
+        ? current_preced
+        : current_preced + 1;
+}
+
 void taul::internal::spec_lowerer::on_startup() {
     cancelled = false;
     reset_target();
     reset_depth();
     reset_rule_subexprs();
     reset_in_preced_ppr_flag();
+    reset_in_right_assoc_alt_flag();
     reset_next_is_prefix_ref_flag();
     reset_current_preced();
 }
@@ -199,6 +213,12 @@ void taul::internal::spec_lowerer::on_alternative() {
     handle_preced_ppr_alt();
     const bool alt_of_preced_ppr_expr = in_preced_ppr_flag && at_rule_depth();
     if (!alt_of_preced_ppr_expr) target().pos(pos()).alternative(); // precedence PPR alts are written elsewhere
+}
+
+void taul::internal::spec_lowerer::on_right_assoc() {
+    if (cancelled) return;
+    // NOTE: don't propagate as these instrs to target() as they aren't needed anymore
+    in_right_assoc_alt_flag = true;
 }
 
 void taul::internal::spec_lowerer::on_lpr_decl(std::string_view name) {
@@ -276,12 +296,14 @@ void taul::internal::spec_lowerer::on_name(std::string_view name, std::optional<
             in_preced_ppr_flag &&
             is_self_ref(name);
         // if self_ref == true, suffix_ref == true means this name expr is a suffix-ref
+        // (if next instr is right_assoc, that means this is still suffix-ref, but won't detect it,
+        // but that's okay as that right_assoc will raise an error anyway)
         const bool suffix_ref =
             at_rule_depth() &&
             (peek == spec_opcode::close || peek == spec_opcode::alternative);
         const auto preced_val =
             self_ref
-            ? (suffix_ref ? current_preced + 1 : 0)
+            ? (suffix_ref ? suffix_ref_preced_based_on_if_right_assoc() : 0)
             : no_preced_val;
         target().pos(pos()).name(name, preced_val);
     }
