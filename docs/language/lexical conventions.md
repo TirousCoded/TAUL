@@ -27,7 +27,7 @@ TAUL supports the following *escape sequences*:
 \\              <- Backslash
 \xhh            <- Hex Literal (8-bit)
 \uhhhh          <- Hex Literal (16-bit)
-\uhhhhhhhh      <- Hex Literal (32-bit)
+\Uhhhhhhhh      <- Hex Literal (32-bit)
 ```
 
 Escaped characters which do not otherwise form one of the above escape 
@@ -61,7 +61,7 @@ A *whitespace token* is a sequence of one or more ASCII *space* or *tab* charact
 
 ### Newlines
 
-A *newline token* is either a *LF*, *CR*, or *CRLF* character sequence, preferring the *longest possible match*.
+A *newline token* is either a *LF*, *CR* or *CRLF* character sequence, preferring the *longest possible match*.
 
 ### Comments
 
@@ -93,19 +93,21 @@ An *operator token* is any of the following:
 - `:` *(colon)*
 - `;` *(semicolon)*
 - `|` *(vbar)*
-- `?`
-- `*`
-- `+`
-- `&`
+- `?` *(question mark)*
+- `*` *(asterisk)*
+- `+` *(plus)*
+- `&` *(ampersand)*
 - `-` *(minus)*
 - `~` *(tilde)*
-- `(`
-- `)`
+- `(` *(round bracket open)*
+- `)` *(round bracket close)*
 
 ### Identifiers
 
 An *identifier token* is a sequence of ASCII letters, digits, and underscores, which does not
 start with a digit, and which is not a keyword.
+
+TAUL identifiers ares *case-sensitive*.
 
 ```
 Abc
@@ -148,7 +150,7 @@ might otherwise have to diagnose (ie. from something not working.)
 A *charset (literal) token* is a pair of `[` and `]` characters with *visible characters* between
 them, including *escape sequences*.
 
-Modelled off *character sets in ANTLR*, a *charset* (aka. *character set*) is a pattern matching a
+Modelled off *character sets in ANTLR*, a *charset* (aka. *character set*) is a pattern matching
 *unit-length portions of text* containing *one character* which exists in the *set of characters*
 described by the literal.
 

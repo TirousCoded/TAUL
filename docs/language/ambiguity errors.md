@@ -7,8 +7,10 @@ This document explains when *illegal ambiguity errors* arise, so as to clear up 
 When a composite expression with *alternatives* is matched, one of the alternatives is selected to
 use for the match.
 
-Each alternative has a *FIRST set*, and the way the system selects which alternative to use is based
-on which alternative's *FIRST set*, if any, contains the next symbol being matched against.
+Each alternative has a *FIRST set*, which *given the set of input sequences the alternative's pattern
+can match* is the set of all of the *first* symbols of said sequences. The way the system selects which
+alternative to use is based on which alternative's *FIRST set*, if any, contains the next symbol being
+matched against.
 
 When two or more alternatives for a given composite expression contain the same symbol in their
 *FIRST sets*, the grammar is deemed *ambiguous*.
@@ -37,9 +39,9 @@ The following is a slightly more nuanced example of ambiguity:
 ```
 lexer section:
 
-    ABC : 'a' ( 'b' | 'd' ) 'c' # <- FIRST set includes 'a'
-        | ADC                   # <- FIRST set includes 'a'
-        ;
+    ABC         : 'a' ( 'b' | 'd' ) 'c' # <- FIRST set includes 'a'
+                | ADC                   # <- FIRST set includes 'a'
+                ;
 
     support ADC : 'adc' ; # <- note how ADC's FIRST set affects ABC's
 ```
