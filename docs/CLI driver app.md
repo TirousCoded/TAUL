@@ -59,10 +59,10 @@ Any compilation errors which arise are reported.
 
 All stages of TAUL spec compilation and loading are tested for errors.
 
-If provided, <include-path> tells taulc where it can find TAUL library header files, for situations where generated C++ takes the form 
+If provided, *\<include-path\>* tells taulc where it can find TAUL library header files, for situations where generated C++ takes the form 
 `#include "<include-path>/<X>"`, where *\<X\>* is the desired header file.
 
-If --triangle-brackets is provided, the above include directives will use `#include <...>` instead of `#include "..."`.
+If *--triangle-brackets* is provided, the above include directives will use `#include <...>` instead of `#include "..."`.
 
 No checks are made to ensure *\<include-path\>* is syntactic in C++.
 
