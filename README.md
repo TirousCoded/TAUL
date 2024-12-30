@@ -15,3 +15,5 @@ TAUL reference material is based around the idea of the end-user using the docs 
 alongside reading the documentation comments in `*.h` header files of the TAUL frontend.
 
 To this end, be view `taul/all.h` as a kind of *table of contents* in regards to the ladder.
+
+Finally, in `examples/` there's some example code for basic usage of the core functionality of the frontend.

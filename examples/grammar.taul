@@ -1,0 +1,30 @@
+
+
+# basic expression tree grammar
+
+lexer section:
+
+    PLUS            : '+' ;
+    MULTIPLY        : '*' ;
+    EQUALS          : '=' ;
+    QUESTION        : '?' ;
+    COLON           : ':' ;
+    L_ROUND         : '(' ;
+    R_ROUND         : ')' ;
+    
+    NUMBER          : [0-9]+ ;
+
+    skip WS         : [ \t]+ ;
+
+parser section:
+
+    Start           : Expr ;
+
+    precedence Expr : right_assoc Expr EQUALS Expr
+                    | right_assoc Expr QUESTION Expr COLON Expr # ternary operator
+                    | Expr PLUS Expr
+                    | Expr MULTIPLY Expr
+                    | L_ROUND Expr R_ROUND
+                    | NUMBER
+                    ;
+

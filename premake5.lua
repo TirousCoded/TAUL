@@ -2,7 +2,7 @@
 
 workspace "TAUL"
 
-	startproject "Tests"
+	startproject "Examples"
 	
 	language "C++"
 	cppdialect "C++20"
@@ -52,4 +52,5 @@ include "taul"
 include "taulc"
 include "tests"
 include "sandbox"
+include "examples"
 
