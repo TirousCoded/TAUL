@@ -17,8 +17,8 @@ writing of things like *binary operators* in *precedence hierarchies*. Take note
 when listing *alternatives* for these, the precedence hierarchy described goes from
 *least to greatest precedence*.
 
-TAUL also includes a `right_assoc` keyword which can be *placed at the start* of
-alternatives to mark it as having *right associativity* (the default is for *left
+TAUL also includes a `right_assoc` keyword which can be *placed at the start of
+alternatives* to mark it as having *right associativity* (the default is for *left
 associativity*.)
 
 ```
@@ -52,7 +52,7 @@ rule into a different, non-left-recursive form. Note that this *rewriting change
 parsing behaviour* associated with the PPR.
 
 This system is powerful, and basic use is fairly straightforward. However, explaining
-the *particulars* of how it works, will require the introducing of some concepts, and
+the *particulars* of how it works will require the introducing of some concepts and
 associated notation.
 
 ## Concepts/Notation
@@ -144,7 +144,7 @@ For all the technical details as to what *exactly* TAUL does during rewriting,
 
 ## Particulars
 
-Below goes over some *technical details* of TAUL's left-recursion support.
+Below goes over some *particulars* of TAUL's left-recursion support.
 
 ### Recurse Alternatives With Only Prefix-Ref Are Ignored
 
@@ -170,12 +170,12 @@ parser section:
                     ;
 ```
 
-### Prefix/Suffix-Ref Are Recognized In Composite Expressions
+### Prefix/Suffix-Refs Are Not Recognized In Composite Expressions
 
 If you put a self-ref in a composite expression, the system *will not acknowledge if it's
 a prefix-ref or suffix-ref*, even if it would otherwise qualify.
 
-Keep this in mind, or your grammar may behave *unexpectedly*.
+Keep this in mind, or your grammar may *behave incorrectly*.
 
 ```
 lexer section:
@@ -197,10 +197,9 @@ parser section:
                     ;
 ```
 
-### Self-Refs Which Are Not Prefix/Suffix-Ref Have Precedence Value Zero
+### Self-Refs Which Are Not Prefix/Suffix-Refs Have Precedence Value Zero
 
-Pretty self-explanatory, but self-refs which are not prefix/suffix-refs have *precedence value 0*.
-
-This means that ALL of their alternatives become available.
+Pretty self-explanatory, but self-refs which are not prefix/suffix-refs have *precedence value 0*,
+which means *all of their alternatives become available*.
 
 *(Examples of this can be seen in above part about rewrite of grammar with ternary operator.)*
