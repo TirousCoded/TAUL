@@ -61,3 +61,11 @@ parser section:
                 | NUMBER
                 ;
 ```
+
+## Ambiguity In Precedence PPRs
+
+In *precedence PPRs* keep in mind that ambiguity could be based on *ambiguity between recurse
+alternatives*, in which case you need to compare the expressions *after the prefix-ref*.
+
+Currently, TAUL error messages don't really make this distinction clear, and incorrectly report
+said ambiguity to be *"over the inputs of..."*, which is not correct wording.

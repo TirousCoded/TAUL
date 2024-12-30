@@ -7,6 +7,14 @@
 #include "string_and_charset.h"
 
 
+// TODO:
+//      in loader.h, currently we have a *layer over* fmt_symbol_id used to add LPR/PPR names to the fmt string
+//
+//      in future refactors, try and find a more *official* way to do this, w/out us having some extra
+//      fmt code for this at some random other point in our system
+//
+//      also, extend this to things like fmt for symbol_range too
+
 std::string taul::fmt_symbol_id(symbol_id x) {
     if (is_cp_id(x)) {
         if (is_end_id(x)) return "cp:<end-of-input>";

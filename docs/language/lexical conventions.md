@@ -79,6 +79,7 @@ A *keyword token* is any of the following:
 - `skip`
 - `support`
 - `precedence`
+- `right_assoc`
 - `end`
 - `any`
 - `token`

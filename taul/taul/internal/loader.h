@@ -50,6 +50,28 @@ namespace taul::internal {
         grammar_builder gb;
 
 
+        // these record names of LPRs/PPRs so we can ref them by index
+
+        std::vector<std::string_view> lpr_names, ppr_names;
+
+        std::optional<std::string_view> lpr_name_by_id(symbol_id id) const noexcept;
+        std::optional<std::string_view> ppr_name_by_id(symbol_id id) const noexcept;
+
+        // layer over fmt_symbol_id which includes LPR/PPR names
+
+        std::string fmt_symbol_id_ext(symbol_id x) const;
+
+        // for symbol_range
+
+        template<typename Symbol>
+        inline std::string fmt_symbol_range_ext(symbol_range<Symbol> x) const {
+            return
+                x.count() == 1
+                ? std::format("({})", fmt_symbol_id_ext(x.low))
+                : std::format("({}-{})", fmt_symbol_id_ext(x.low), fmt_symbol_id_ext(x.high));
+        }
+
+
         // success specifies whether or not the loading process has failed yet
 
         // if loading fails, interpretation will continue, to catch all errors,
@@ -216,11 +238,13 @@ namespace taul::internal {
         inline void add_lpr_decl(std::string_view name) {
             if (has_lpr_or_ppr_decl(name)) return; // name cannot already be used for another LPR/PPR
             lprs.emplace(name);
+            owner().lpr_names.push_back(name);
         }
 
         inline void add_ppr_decl(std::string_view name) {
             if (has_lpr_or_ppr_decl(name)) return; // name cannot already be used for another LPR/PPR
             pprs.emplace(name);
+            owner().ppr_names.push_back(name);
         }
 
         // this is for keeping track of what decls have been defined

@@ -18,7 +18,7 @@ when listing *alternatives* for these, the precedence hierarchy described goes f
 *least to greatest precedence*.
 
 TAUL also includes a `right_assoc` keyword which can be *placed at the start of
-alternatives* to mark it as having *right associativity* (the default is for *left
+alternatives* to mark it as having *right associativity* (the default is *left
 associativity*.)
 
 ```
@@ -203,3 +203,7 @@ Pretty self-explanatory, but self-refs which are not prefix/suffix-refs have *pr
 which means *all of their alternatives become available*.
 
 *(Examples of this can be seen in above part about rewrite of grammar with ternary operator.)*
+
+### Illegal To Have Only Recurse Alternatives
+
+Also pretty self-explanatory, but it's illegal to have a precedence PPR with only recurse alternatives.

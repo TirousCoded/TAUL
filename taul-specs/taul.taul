@@ -187,14 +187,6 @@ parser section:
     #
     #       - illegal to have PPR w/ only recurse alts
 
-    # TODO: alongside the above, make a todos.txt entry for adding a 'right_assoc' keyword which
-    #       can be used w/ precedence PPR alts to make them *right-associative* (as oppose to the
-    #       default *left-associativity*)
-    #
-    #       the actual practical affect this has on the alt is making it so that the suffix-ref
-    #       name expr is imbued w/ a precedence level EQUAL to that of the alt itself, rather
-    #       than the default of being ONE GREATER THAN IT
-
     Rule                            : Rule_Qualifiers Rule_Name OP_COLON Rule_Alts OP_SEMICOLON ;
     Rule_Qualifiers                 : Qualifiers ;
     Rule_Name                       : IDENTIFIER ;

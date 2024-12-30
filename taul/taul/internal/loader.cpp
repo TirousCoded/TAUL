@@ -13,6 +13,32 @@
 #endif
 
 
+std::optional<std::string_view> taul::internal::loader::lpr_name_by_id(symbol_id id) const noexcept {
+    if (!is_lpr_id(id)) return std::nullopt;
+    const size_t index = size_t(id - TAUL_FIRST_ID(lpr));
+    return
+        index < lpr_names.size()
+        ? std::make_optional(lpr_names[index])
+        : std::nullopt;
+}
+
+std::optional<std::string_view> taul::internal::loader::ppr_name_by_id(symbol_id id) const noexcept {
+    if (!is_ppr_id(id)) return std::nullopt;
+    const size_t index = size_t(id - TAUL_FIRST_ID(ppr));
+    return
+        index < ppr_names.size()
+        ? std::make_optional(ppr_names[index])
+        : std::nullopt;
+}
+
+std::string taul::internal::loader::fmt_symbol_id_ext(symbol_id x) const {
+    const auto lpr_nm = lpr_name_by_id(x);
+    const auto ppr_nm = ppr_name_by_id(x);
+    if (lpr_nm)             return std::format("{} ({})", x, std::string(*lpr_nm));
+    else if (ppr_nm)        return std::format("{} ({})", x, std::string(*ppr_nm));
+    else                    return fmt_symbol_id(x);
+}
+
 taul::internal::loader::loader(std::shared_ptr<source_code> src, spec_error_counter& ec, std::shared_ptr<logger> lgr)
     : src(src),
     ec(&ec),
@@ -176,7 +202,7 @@ void taul::internal::loader::spec_stage::check_err_illegal_in_lpr_scope(spec_opc
     if (in_lpr()) {
         owner().raise(
             spec_error::illegal_in_lpr_scope,
-            "{} illegal in lexer expr scope!",
+            "{} illegal in lexer rule!",
             opcode);
     }
 }
@@ -185,7 +211,7 @@ void taul::internal::loader::spec_stage::check_err_illegal_in_ppr_scope(spec_opc
     if (in_ppr()) {
         owner().raise(
             spec_error::illegal_in_ppr_scope,
-            "{} illegal in parser expr scope!",
+            "{} illegal in parser rule!",
             opcode);
     }
 }
@@ -194,7 +220,7 @@ void taul::internal::loader::spec_stage::check_err_illegal_in_no_scope(spec_opco
     if (!in_lpr_or_ppr()) {
         owner().raise(
             spec_error::illegal_in_no_scope,
-            "{} illegal outside expr scope!",
+            "{} illegal outside a production rule!",
             opcode);
     }
 }
@@ -229,20 +255,20 @@ void taul::internal::loader::spec_stage::check_err_illegal_in_single_terminal_sc
         else if (opcode == spec_opcode::name && in_lpr()) {
             owner().raise(
                 spec_error::illegal_in_single_terminal_scope,
-                "illegal {} in single-terminal scope in lexer expr!",
+                "{} is illegal here; in lexer exprs, name exprs is illegal within lookahead/lookahead-not/not exprs!",
                 opcode);
         }
         else if (opcode == spec_opcode::name && in_ppr() && !has_lpr_decl(s)) {
             owner().raise(
                 spec_error::illegal_in_single_terminal_scope,
-                "{} in single-terminal scope in parser expr must reference lpr!",
+                "{} is illegal here; in parser, name exprs within lookahead/lookahead-not/not expr must reference lexer rule!",
                 opcode);
         }
         else {
             TAUL_ASSERT(s.empty());
             owner().raise(
                 spec_error::illegal_in_single_terminal_scope,
-                "{} illegal in single-terminal scope!",
+                "{} is illegal within lookahead/lookahead-not/not exprs!",
                 opcode);
         }
     }
@@ -256,14 +282,14 @@ void taul::internal::loader::spec_stage::check_err_illegal_in_single_terminal_sc
         else if (opcode == spec_opcode::string && in_lpr() && s.length() > 1) {
             owner().raise(
                 spec_error::illegal_in_single_terminal_scope,
-                "length of {} in single-terminal scope in lexer expr must only 1 char!",
-                opcode);
+                "{} with length {} is illegal here; only length 1 strings are allowed!",
+                opcode, s.length());
         }
         else {
             TAUL_ASSERT(s.empty());
             owner().raise(
                 spec_error::illegal_in_single_terminal_scope,
-                "{} illegal in single-terminal scope!",
+                "{} is illegal within lookahead/lookahead-not/not exprs!",
                 opcode);
         }
     }
@@ -275,7 +301,7 @@ void taul::internal::loader::spec_stage::check_err_illegal_in_no_alternation_sco
         if (ess.back().alts >= 1) {
             owner().raise(
                 spec_error::illegal_in_no_alternation_scope,
-                "{} illegal in no-alternation scope due to having {} alts!",
+                "{} with {} alts is illegal here; no alternation is allowed!",
                 opcode, ess.back().alts);
         }
     }
@@ -287,7 +313,7 @@ void taul::internal::loader::spec_stage::check_err_illegal_in_single_subexpr_sco
         if (ess.back().subexprs != 1) {
             owner().raise(
                 spec_error::illegal_in_single_subexpr_scope,
-                "{} illegal in single-subexpr scope due to having alt with {} subexprs!",
+                "{} expr with {} subexprs is illegal here; only 1 subexpr is allowed!",
                 opcode, ess.back().subexprs);
         }
     }
@@ -298,7 +324,7 @@ void taul::internal::loader::spec_stage::check_err_illegal_in_no_end_subexpr_sco
     if (in_no_end_subexpr_scope()) {
         owner().raise(
             spec_error::illegal_in_no_end_subexpr_scope,
-            "{} illegal in no-end-subexpr scope!",
+            "{} expr is illegal here!",
             opcode);
     }
 }
@@ -379,7 +405,7 @@ void taul::internal::loader::spec_stage::check_err_illegal_charset_literal_due_t
         if (is_ascii(cp) && !is_visible_ascii(cp)) {
             owner().raise(
                 spec_error::illegal_charset_literal,
-                "charset literal '{}' contains unescaped non-visible ASCII {}!",
+                "charset literal [{}] contains unescaped non-visible ASCII {}!",
                 // take note how we use the string versions here, rather than charset versions,
                 // as we don't care about charset details much, just aesthetics of diagnostics
                 fmt_taul_string(parse_taul_string(unparsed_literal)), // <- help end-user better visualize what's wrong
@@ -664,20 +690,26 @@ void taul::internal::loader::llspec_stage::update_pos() {
 
 void taul::internal::loader::llspec_stage::check_err_illegal_ambiguity() {
     for (const auto& I : owner().rule_pt_trans.lexer_ptbd.collisions) {
+        const auto dbgsym_pos = owner().rule_pt_trans.lexer_id_alloc.output_debug.query(I.nonterminal).value().pos;
+        const auto dbgsym_name = owner().rule_pt_trans.fetch_name_str_lxr(I.nonterminal);
+        const auto inputs = owner().rule_pt_trans.lexer_pt.grouper.get_symbol_range(I.terminal_group);
         owner().raise_at(
-            owner().rule_pt_trans.lexer_id_alloc.output_debug.query(I.nonterminal).value().pos,
+            dbgsym_pos,
             spec_error::illegal_ambiguity,
             "{} is ambiguous over the inputs {}!",
-            owner().rule_pt_trans.fetch_name_str_lxr(I.nonterminal),
-            owner().rule_pt_trans.lexer_pt.grouper.get_symbol_range(I.terminal_group));
+            dbgsym_name,
+            owner().fmt_symbol_range_ext(inputs));
     }
     for (const auto& I : owner().rule_pt_trans.parser_ptbd.collisions) {
+        const auto dbgsym_pos = owner().rule_pt_trans.parser_id_alloc.output_debug.query(I.nonterminal).value().pos;
+        const auto dbgsym_name = owner().rule_pt_trans.fetch_name_str_psr(I.nonterminal);
+        const auto inputs = owner().rule_pt_trans.parser_pt.grouper.get_symbol_range(I.terminal_group);
         owner().raise_at(
-            owner().rule_pt_trans.parser_id_alloc.output_debug.query(I.nonterminal).value().pos,
+            dbgsym_pos,
             spec_error::illegal_ambiguity,
             "{} is ambiguous over the inputs {}!",
-            owner().rule_pt_trans.fetch_name_str_psr(I.nonterminal),
-            owner().rule_pt_trans.parser_pt.grouper.get_symbol_range(I.terminal_group));
+            dbgsym_name,
+            owner().fmt_symbol_range_ext(inputs));
     }
     check_err_illegal_ambiguity_due_to_trivial_left_recursion();
 }
@@ -693,7 +725,7 @@ void taul::internal::loader::llspec_stage::check_err_illegal_ambiguity_due_to_tr
             owner().raise(
                 spec_error::illegal_ambiguity,
                 "{} is ambiguous due to left-recursion!",
-                nonterminal);
+                owner().fmt_symbol_id_ext(nonterminal));
         }
     }
     for (size_t i = 0; i < owner().rule_pt_trans.parser_pt.rules.size(); i++) {
@@ -703,7 +735,7 @@ void taul::internal::loader::llspec_stage::check_err_illegal_ambiguity_due_to_tr
             owner().raise(
                 spec_error::illegal_ambiguity,
                 "{} is ambiguous due to left-recursion!",
-                nonterminal);
+                owner().fmt_symbol_id_ext(nonterminal));
         }
     }
 }
