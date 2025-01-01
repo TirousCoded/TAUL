@@ -39,22 +39,6 @@ namespace taul {
         inline source_pos operator()(source_len len = 0, source_len after_len = 0) {
             return next(len, after_len);
         }
-
-
-        // TODO: these have not been unit tested
-
-        // skip adds len to pos, returning the value of len (NOT pos!)
-
-        // skip exists to ease use with parse_tree_pattern::skip
-
-        inline source_len skip(source_len len) noexcept {
-            next(len);
-            return len;
-        }
-
-        inline source_len skip(std::string_view x) noexcept {
-            return skip(source_len(x.length()));
-        }
     };
 }
 

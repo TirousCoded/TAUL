@@ -5,6 +5,7 @@
 
 #include <optional>
 
+#include "source_pos_counter.h"
 #include "parse_tree.h"
 
 
@@ -138,18 +139,25 @@ namespace taul {
 
         parse_tree_pattern& close() noexcept;
 
+        // TODO: below, the source_pos_counter overloads have not been unit tested
+
         // skip adds len to the length of the current syntactic node of
         // the parse tree pattern
+
+        // if there is no current node, skip applies len to cntr, w/ it
+        // otherwise failing quietly
 
         // behaviour is undefined if there is no current node
 
         parse_tree_pattern& skip(source_len len) noexcept;
+        parse_tree_pattern& skip(source_len len, source_pos_counter& cntr) noexcept;
 
         // TODO: this skip overload has not been unit tested
 
         // this overload skips the length of x
 
         parse_tree_pattern& skip(std::string_view x) noexcept;
+        parse_tree_pattern& skip(std::string_view x, source_pos_counter& cntr) noexcept;
 
         // TODO: only the first overload for loose_syntactic has been unit tested,
         //       w/ the other being expected just to wrap it
