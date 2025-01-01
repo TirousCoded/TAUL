@@ -85,10 +85,14 @@ taul::parse_tree_pattern& taul::parse_tree_pattern::close() noexcept {
     return *this;
 }
 
-taul::parse_tree_pattern& taul::parse_tree_pattern::skip(source_len len) {
+taul::parse_tree_pattern& taul::parse_tree_pattern::skip(source_len len) noexcept {
     TAUL_ASSERT(!is_sealed());
     _get_current().len += len;
     return *this;
+}
+
+taul::parse_tree_pattern& taul::parse_tree_pattern::skip(std::string_view x) noexcept {
+    return skip(source_len(x.length()));
 }
 
 taul::parse_tree_pattern& taul::parse_tree_pattern::loose_syntactic(ppr_ref ppr, source_pos pos, source_len len) {

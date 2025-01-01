@@ -143,7 +143,13 @@ namespace taul {
 
         // behaviour is undefined if there is no current node
 
-        parse_tree_pattern& skip(source_len len);
+        parse_tree_pattern& skip(source_len len) noexcept;
+
+        // TODO: this skip overload has not been unit tested
+
+        // this overload skips the length of x
+
+        parse_tree_pattern& skip(std::string_view x) noexcept;
 
         // TODO: only the first overload for loose_syntactic has been unit tested,
         //       w/ the other being expected just to wrap it
