@@ -3,6 +3,13 @@
 #include "parse_tree_pattern.h"
 
 
+taul::parse_tree_pattern::autocloser::autocloser(parse_tree_pattern& client) noexcept
+    : _client(&client) {}
+
+taul::parse_tree_pattern::autocloser::~autocloser() noexcept {
+    deref_assert(_client).close();
+}
+
 taul::parse_tree_pattern::parse_tree_pattern(grammar gram)
     : _gram(gram) {}
 
@@ -58,6 +65,16 @@ taul::parse_tree_pattern& taul::parse_tree_pattern::syntactic(ppr_ref ppr, sourc
 
 taul::parse_tree_pattern& taul::parse_tree_pattern::syntactic(const str& name, source_pos pos) {
     return syntactic(_gram.ppr(name).value(), pos);
+}
+
+taul::parse_tree_pattern::autocloser taul::parse_tree_pattern::syntactic_autoclose(ppr_ref ppr, source_pos pos) {
+    syntactic(ppr, pos);
+    return autocloser(*this);
+}
+
+taul::parse_tree_pattern::autocloser taul::parse_tree_pattern::syntactic_autoclose(const str& name, source_pos pos) {
+    syntactic(name, pos);
+    return autocloser(*this);
 }
 
 taul::parse_tree_pattern& taul::parse_tree_pattern::close() noexcept {

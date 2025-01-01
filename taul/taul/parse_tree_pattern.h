@@ -21,6 +21,25 @@ namespace taul {
     class parse_tree_pattern final {
     public:
 
+        class autocloser final {
+        public:
+            autocloser(parse_tree_pattern& client) noexcept;
+
+            autocloser() = delete;
+            autocloser(const autocloser&) = delete;
+            autocloser(autocloser&&) noexcept = default;
+
+            ~autocloser() noexcept;
+            
+            autocloser& operator=(const autocloser&) = delete;
+            autocloser& operator=(autocloser&&) noexcept = default;
+
+
+        private:
+            parse_tree_pattern* _client = nullptr;
+        };
+
+
         parse_tree_pattern(grammar gram);
 
         parse_tree_pattern() = delete;
@@ -104,6 +123,13 @@ namespace taul {
         // behaviour is undefined if the grammar has no PPR under name
 
         parse_tree_pattern& syntactic(const str& name, source_pos pos);
+
+        // TODO: these ***_autoclose overloads have not been unit tested
+
+        // these overloads return an autocloser to automate closing
+
+        autocloser syntactic_autoclose(ppr_ref ppr, source_pos pos);
+        autocloser syntactic_autoclose(const str& name, source_pos pos);
 
         // close makes the parent of the current node the current node,
         // sealing the parse_tree if the current node is the root node
