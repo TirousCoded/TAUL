@@ -140,6 +140,7 @@ namespace taul {
         parse_tree_pattern& close() noexcept;
 
         // TODO: below, the source_pos_counter overloads have not been unit tested
+        // TODO: the semantic of allowing use before adding current node has not been unit tested
 
         // skip adds len to the length of the current syntactic node of
         // the parse tree pattern

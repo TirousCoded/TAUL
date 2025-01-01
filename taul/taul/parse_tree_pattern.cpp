@@ -86,7 +86,7 @@ taul::parse_tree_pattern& taul::parse_tree_pattern::close() noexcept {
 }
 
 taul::parse_tree_pattern& taul::parse_tree_pattern::skip(source_len len) noexcept {
-    if (!is_sealed()) _get_current().len += len;
+    if (_has_current()) _get_current().len += len;
     return *this;
 }
 
