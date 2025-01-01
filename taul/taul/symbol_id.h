@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 #include <format>
+#include <optional>
 
 #include "unicode.h"
 
@@ -160,9 +161,37 @@ namespace taul {
     constexpr bool is_ppr_id(symbol_id id) noexcept { return in_symbol_id_range(id, TAUL_FIRST_ID(ppr), TAUL_LAST_ID(ppr)); }
 
     constexpr bool is_normal_id(symbol_id id) noexcept { return is_normal_cp_id(id) || is_normal_lpr_id(id) || is_normal_ppr_id(id); }
+    constexpr bool is_special_id(symbol_id id) noexcept { return is_special_cp_id(id) || is_special_lpr_id(id) || is_special_ppr_id(id); }
+
     constexpr bool is_end_id(symbol_id id) noexcept { return id == end_cp_id || id == end_lpr_id; }
     constexpr bool is_failure_id(symbol_id id) noexcept { return id == failure_lpr_id; }
 
     constexpr bool is_symbol_id(symbol_id id) noexcept { return is_cp_id(id) || is_lpr_id(id) || is_ppr_id(id); }
+
+
+    // TODO: these have not yet been unit tested
+
+    // these are used to get the corresponding Unicode codepoint or LPR/PPR index value associated w/ an ID, if any
+
+    // these all fail if id is a special ID
+
+    constexpr std::optional<unicode_t> unicode_by_id(symbol_id id) noexcept {
+        return
+            is_normal_cp_id(id)
+            ? std::make_optional(unicode_t(id))
+            : std::nullopt;
+    }
+    constexpr std::optional<size_t> lpr_index_by_id(symbol_id id) noexcept {
+        return
+            is_normal_lpr_id(id)
+            ? std::make_optional(size_t(id - TAUL_FIRST_ID(lpr)))
+            : std::nullopt;
+    }
+    constexpr std::optional<size_t> ppr_index_by_id(symbol_id id) noexcept {
+        return
+            is_normal_ppr_id(id)
+            ? std::make_optional(size_t(id - TAUL_FIRST_ID(ppr)))
+            : std::nullopt;
+    }
 }
 

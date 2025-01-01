@@ -115,8 +115,8 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_LexicalNodeAsRoot) {
         .lexical("lpr"_str, 0, 3)
         .abort();
 
-    ASSERT_TRUE(p.match(success_0));
-    ASSERT_TRUE(p.match(success_1));
+    ASSERT_TRUE(p.match(success_0, lgr));
+    ASSERT_TRUE(p.match(success_1, lgr));
 
     auto failure_0 =
         taul::parse_tree(gram)
@@ -143,12 +143,12 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_LexicalNodeAsRoot) {
         .syntactic("ppr"_str, 0)
         .close();
 
-    ASSERT_FALSE(p.match(failure_0));
-    ASSERT_FALSE(p.match(failure_1));
-    ASSERT_FALSE(p.match(failure_2));
-    ASSERT_FALSE(p.match(failure_3));
-    ASSERT_FALSE(p.match(failure_4));
-    ASSERT_FALSE(p.match(failure_5));
+    ASSERT_FALSE(p.match(failure_0, lgr));
+    ASSERT_FALSE(p.match(failure_1, lgr));
+    ASSERT_FALSE(p.match(failure_2, lgr));
+    ASSERT_FALSE(p.match(failure_3, lgr));
+    ASSERT_FALSE(p.match(failure_4, lgr));
+    ASSERT_FALSE(p.match(failure_5, lgr));
 }
 
 TEST_F(ParseTreePatternTests, ConstructionAndMatching_LexicalNodeAsRoot_Failure) {
@@ -169,8 +169,8 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_LexicalNodeAsRoot_Failure)
         .failure(0, 3)
         .abort();
 
-    ASSERT_TRUE(p.match(success_0));
-    ASSERT_TRUE(p.match(success_1));
+    ASSERT_TRUE(p.match(success_0, lgr));
+    ASSERT_TRUE(p.match(success_1, lgr));
 
     auto failure_0 =
         taul::parse_tree(gram)
@@ -193,11 +193,11 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_LexicalNodeAsRoot_Failure)
         .syntactic("ppr"_str, 0)
         .close();
 
-    ASSERT_FALSE(p.match(failure_0));
-    ASSERT_FALSE(p.match(failure_1));
-    ASSERT_FALSE(p.match(failure_2));
-    ASSERT_FALSE(p.match(failure_3));
-    ASSERT_FALSE(p.match(failure_4));
+    ASSERT_FALSE(p.match(failure_0, lgr));
+    ASSERT_FALSE(p.match(failure_1, lgr));
+    ASSERT_FALSE(p.match(failure_2, lgr));
+    ASSERT_FALSE(p.match(failure_3, lgr));
+    ASSERT_FALSE(p.match(failure_4, lgr));
 }
 
 TEST_F(ParseTreePatternTests, ConstructionAndMatching_LexicalNodeAsRoot_End) {
@@ -218,8 +218,8 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_LexicalNodeAsRoot_End) {
         .end(0)
         .abort();
 
-    ASSERT_TRUE(p.match(success_0));
-    ASSERT_TRUE(p.match(success_1));
+    ASSERT_TRUE(p.match(success_0, lgr));
+    ASSERT_TRUE(p.match(success_1, lgr));
 
     auto failure_0 =
         taul::parse_tree(gram)
@@ -238,10 +238,10 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_LexicalNodeAsRoot_End) {
         .syntactic("ppr"_str, 0)
         .close();
 
-    ASSERT_FALSE(p.match(failure_0));
-    ASSERT_FALSE(p.match(failure_1));
-    ASSERT_FALSE(p.match(failure_2));
-    ASSERT_FALSE(p.match(failure_3));
+    ASSERT_FALSE(p.match(failure_0, lgr));
+    ASSERT_FALSE(p.match(failure_1, lgr));
+    ASSERT_FALSE(p.match(failure_2, lgr));
+    ASSERT_FALSE(p.match(failure_3, lgr));
 }
 
 TEST_F(ParseTreePatternTests, ConstructionAndMatching_SyntacticNodeAsRoot_Empty) {
@@ -265,8 +265,8 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_SyntacticNodeAsRoot_Empty)
         .abort()
         .close();
 
-    ASSERT_TRUE(p.match(success_0));
-    ASSERT_TRUE(p.match(success_1));
+    ASSERT_TRUE(p.match(success_0, lgr));
+    ASSERT_TRUE(p.match(success_1, lgr));
 
     auto failure_0 =
         taul::parse_tree(gram)
@@ -284,9 +284,9 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_SyntacticNodeAsRoot_Empty)
         .failure(10, 30)
         .close();
 
-    ASSERT_FALSE(p.match(failure_0));
-    ASSERT_FALSE(p.match(failure_1));
-    ASSERT_FALSE(p.match(failure_2));
+    ASSERT_FALSE(p.match(failure_0, lgr));
+    ASSERT_FALSE(p.match(failure_1, lgr));
+    ASSERT_FALSE(p.match(failure_2, lgr));
 }
 
 TEST_F(ParseTreePatternTests, ConstructionAndMatching_SyntacticNodeAsRoot_NestedLexicalAndSyntacticAndLooseSyntacticNodes) {
@@ -349,9 +349,9 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_SyntacticNodeAsRoot_Nested
         .close()
         .close();
 
-    ASSERT_TRUE(p.match(success_0));
-    ASSERT_TRUE(p.match(success_1));
-    ASSERT_TRUE(p.match(success_2));
+    ASSERT_TRUE(p.match(success_0, lgr));
+    ASSERT_TRUE(p.match(success_1, lgr));
+    ASSERT_TRUE(p.match(success_2, lgr));
 
     auto failure_0 =
         taul::parse_tree(gram)
@@ -454,12 +454,12 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_SyntacticNodeAsRoot_Nested
         .lexical("lpr"_str, 8, 1)
         .close();
 
-    ASSERT_FALSE(p.match(failure_0));
-    ASSERT_FALSE(p.match(failure_1));
-    ASSERT_FALSE(p.match(failure_2));
-    ASSERT_FALSE(p.match(failure_3));
-    ASSERT_FALSE(p.match(failure_4));
-    ASSERT_FALSE(p.match(failure_5));
+    ASSERT_FALSE(p.match(failure_0, lgr));
+    ASSERT_FALSE(p.match(failure_1, lgr));
+    ASSERT_FALSE(p.match(failure_2, lgr));
+    ASSERT_FALSE(p.match(failure_3, lgr));
+    ASSERT_FALSE(p.match(failure_4, lgr));
+    ASSERT_FALSE(p.match(failure_5, lgr));
 }
 
 TEST_F(ParseTreePatternTests, ConstructionAndMatching_SyntacticNodeAsRoot_Skip) {
@@ -511,11 +511,11 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_SyntacticNodeAsRoot_Skip) 
         .syntactic("ppr"_str, 0)
         .close();
 
-    ASSERT_TRUE(pa.match(success_0a));
-    ASSERT_TRUE(pa.match(success_1a));
-    ASSERT_TRUE(pa.match(success_2a));
-    ASSERT_TRUE(pb.match(success_0b));
-    ASSERT_TRUE(pb.match(success_1b));
+    ASSERT_TRUE(pa.match(success_0a, lgr));
+    ASSERT_TRUE(pa.match(success_1a, lgr));
+    ASSERT_TRUE(pa.match(success_2a, lgr));
+    ASSERT_TRUE(pb.match(success_0b, lgr));
+    ASSERT_TRUE(pb.match(success_1b, lgr));
 
     auto failure_0a =
         taul::parse_tree(gram)
@@ -534,9 +534,9 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_SyntacticNodeAsRoot_Skip) 
         .skip(1)
         .close();
 
-    ASSERT_FALSE(pa.match(failure_0a));
-    ASSERT_FALSE(pa.match(failure_1a));
-    ASSERT_FALSE(pa.match(failure_0b));
+    ASSERT_FALSE(pa.match(failure_0a, lgr));
+    ASSERT_FALSE(pa.match(failure_1a, lgr));
+    ASSERT_FALSE(pa.match(failure_0b, lgr));
 }
 
 TEST_F(ParseTreePatternTests, ConstructionAndMatching_LooseSyntacticNodeAsRoot) {
@@ -583,9 +583,9 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_LooseSyntacticNodeAsRoot) 
         .skip(10)
         .close();
 
-    ASSERT_TRUE(p.match(success_0));
-    ASSERT_TRUE(p.match(success_1));
-    ASSERT_TRUE(p.match(success_2));
+    ASSERT_TRUE(p.match(success_0, lgr));
+    ASSERT_TRUE(p.match(success_1, lgr));
+    ASSERT_TRUE(p.match(success_2, lgr));
 
     auto failure_0 =
         taul::parse_tree(gram)
@@ -603,8 +603,8 @@ TEST_F(ParseTreePatternTests, ConstructionAndMatching_LooseSyntacticNodeAsRoot) 
         taul::parse_tree(gram)
         .lexical("lpr"_str, 0, 10);
 
-    ASSERT_FALSE(p.match(failure_0));
-    ASSERT_FALSE(p.match(failure_1));
-    ASSERT_FALSE(p.match(failure_2));
+    ASSERT_FALSE(p.match(failure_0, lgr));
+    ASSERT_FALSE(p.match(failure_1, lgr));
+    ASSERT_FALSE(p.match(failure_2, lgr));
 }
 

@@ -258,10 +258,15 @@ namespace taul {
         lpr_ref lpr_at(size_t index) const;
         ppr_ref ppr_at(size_t index) const;
 
+        // TODO: these *by index* overloads have not been unit tested
+
+        std::optional<lpr_ref> lpr(size_t index) const noexcept;
+        std::optional<ppr_ref> ppr(size_t index) const noexcept;
+
         // lpr/ppr return LPR/PPR refs by name
 
-        std::optional<lpr_ref> lpr(const str& name) const;
-        std::optional<ppr_ref> ppr(const str& name) const;
+        std::optional<lpr_ref> lpr(const str& name) const noexcept;
+        std::optional<ppr_ref> ppr(const str& name) const noexcept;
 
 
         // these are used to check for the existence of LPRs/PPRs

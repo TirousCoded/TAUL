@@ -66,11 +66,16 @@ namespace taul {
         // match checks x against the parse tree pattern, returning if it
         // matches it or not
 
+        // match will output debug info about failed matches to lgr, if any
+
         // behaviour is undefined if is_sealed() == false
 
         // behaviour is undefined if x.is_sealed() == false
 
-        bool match(const parse_tree& x) const noexcept;
+        bool match(const parse_tree& x, std::shared_ptr<logger> lgr = nullptr) const;
+
+
+        // TODO: the methods below w/ source_pos_counter overloads have not been unit tested
 
 
         // TODO: only the first overload for lexical has been unit tested, w/ the
@@ -86,15 +91,19 @@ namespace taul {
 
         parse_tree_pattern& lexical(token tkn);
         parse_tree_pattern& lexical(lpr_ref lpr, source_pos pos, source_len len);
+        parse_tree_pattern& lexical(lpr_ref lpr, source_pos_counter& cntr, source_len len);
 
         // behaviour is undefined if the grammar has no LPR under name
 
         parse_tree_pattern& lexical(const str& name, source_pos pos, source_len len);
+        parse_tree_pattern& lexical(const str& name, source_pos_counter& cntr, source_len len);
 
         // these are used to summarize adding tokens
 
         parse_tree_pattern& failure(source_pos pos, source_len len = 0);
+        parse_tree_pattern& failure(source_pos_counter& cntr, source_len len = 0);
         parse_tree_pattern& end(source_pos pos);
+        parse_tree_pattern& end(source_pos_counter& cntr);
 
         // TODO: only the first overload for syntactic has been unit tested, w/ the
         //       other being expected just to wrap it
@@ -120,17 +129,21 @@ namespace taul {
         // tree pattern's associated grammar
 
         parse_tree_pattern& syntactic(ppr_ref ppr, source_pos pos);
+        parse_tree_pattern& syntactic(ppr_ref ppr, source_pos_counter& cntr);
 
         // behaviour is undefined if the grammar has no PPR under name
 
         parse_tree_pattern& syntactic(const str& name, source_pos pos);
+        parse_tree_pattern& syntactic(const str& name, source_pos_counter& cntr);
 
         // TODO: these ***_autoclose overloads have not been unit tested
 
         // these overloads return an autocloser to automate closing
 
         autocloser syntactic_autoclose(ppr_ref ppr, source_pos pos);
+        autocloser syntactic_autoclose(ppr_ref ppr, source_pos_counter& cntr);
         autocloser syntactic_autoclose(const str& name, source_pos pos);
+        autocloser syntactic_autoclose(const str& name, source_pos_counter& cntr);
 
         // close makes the parent of the current node the current node,
         // sealing the parse_tree if the current node is the root node
@@ -140,7 +153,6 @@ namespace taul {
         parse_tree_pattern& close() noexcept;
 
         // TODO: below, the source_pos_counter overloads have not been unit tested
-        // TODO: the semantic of allowing use before adding current node has not been unit tested
 
         // skip adds len to the length of the current syntactic node of
         // the parse tree pattern
@@ -184,10 +196,12 @@ namespace taul {
         // tree pattern's associated grammar
 
         parse_tree_pattern& loose_syntactic(ppr_ref ppr, source_pos pos, source_len len);
+        parse_tree_pattern& loose_syntactic(ppr_ref ppr, source_pos_counter& cntr, source_len len);
 
         // behaviour is undefined if the grammar has no PPR under name
 
         parse_tree_pattern& loose_syntactic(const str& name, source_pos pos, source_len len);
+        parse_tree_pattern& loose_syntactic(const str& name, source_pos_counter& cntr, source_len len);
 
 
     private:
@@ -196,6 +210,7 @@ namespace taul {
 
         struct _node_t final {
             size_t parent = _no_node; // the parent node of this node, if any
+            size_t index = 0; // the index of this in _nodes
             symbol_id id; // sym ID specifies if node is lexical or syntactic
             source_pos pos;
             source_len len;
@@ -212,6 +227,10 @@ namespace taul {
 
             bool is_lexical() const noexcept;
             bool is_syntactic() const noexcept;
+
+            std::optional<token> tkn(grammar gram) const noexcept;
+
+            std::string fmt(grammar gram) const;
         };
 
 
@@ -247,12 +266,14 @@ namespace taul {
             void consume_subtree();
         };
 
-        bool _match(const parse_tree& x) const;
-        bool _match_step(_match_state_t& s, parse_tree::const_iterator parent) const;
-        bool _match_lexical(_match_state_t& s, decltype(_nodes)::const_iterator our_it, parse_tree::const_iterator parent) const;
-        bool _match_syntactic(_match_state_t& s, decltype(_nodes)::const_iterator our_it, parse_tree::const_iterator parent) const;
-        bool _match_loose_syntactic(_match_state_t& s, decltype(_nodes)::const_iterator our_it, parse_tree::const_iterator parent) const;
-        bool _match_children(_match_state_t& s, parse_tree::const_iterator parent) const;
+        bool _match(const parse_tree& x, std::shared_ptr<logger> lgr) const;
+        bool _match_step(_match_state_t& s, parse_tree::const_iterator parent, std::shared_ptr<logger> lgr) const;
+        bool _match_lexical(_match_state_t& s, decltype(_nodes)::const_iterator our_it, parse_tree::const_iterator parent, std::shared_ptr<logger> lgr) const;
+        bool _match_syntactic(_match_state_t& s, decltype(_nodes)::const_iterator our_it, parse_tree::const_iterator parent, std::shared_ptr<logger> lgr) const;
+        bool _match_loose_syntactic(_match_state_t& s, decltype(_nodes)::const_iterator our_it, parse_tree::const_iterator parent, std::shared_ptr<logger> lgr) const;
+        bool _match_children(_match_state_t& s, parse_tree::const_iterator parent, std::shared_ptr<logger> lgr) const;
+
+        void _error(_match_state_t& s, decltype(_nodes)::const_iterator our_it, std::shared_ptr<logger> lgr) const;
     };
 }
 

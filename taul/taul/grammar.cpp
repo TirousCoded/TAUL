@@ -151,17 +151,27 @@ taul::lpr_ref taul::grammar::lpr_at(size_t index) const {
     if (!_data) {
         throw std::out_of_range("lpr_at index out-of-range!");
     }
-    return lpr_ref(&(_data->_lprs.at(index)), _data.get());
+    return lpr_ref(&(_data->_lprs.at(index)), _data.get()); // <- at will throw std::out_of_range
 }
 
 taul::ppr_ref taul::grammar::ppr_at(size_t index) const {
     if (!_data) {
         throw std::out_of_range("ppr_at index out-of-range!");
     }
-    return ppr_ref(&(_data->_pprs.at(index)), _data.get());
+    return ppr_ref(&(_data->_pprs.at(index)), _data.get()); // <- at will throw std::out_of_range
 }
 
-std::optional<taul::lpr_ref> taul::grammar::lpr(const str& name) const {
+std::optional<taul::lpr_ref> taul::grammar::lpr(size_t index) const noexcept {
+    if (index >= lprs()) return std::nullopt;
+    return lpr_at(index);
+}
+
+std::optional<taul::ppr_ref> taul::grammar::ppr(size_t index) const noexcept {
+    if (index >= pprs()) return std::nullopt;
+    return ppr_at(index);
+}
+
+std::optional<taul::lpr_ref> taul::grammar::lpr(const str& name) const noexcept {
     if (!_data) {
         return std::nullopt;
     }
@@ -170,10 +180,10 @@ std::optional<taul::lpr_ref> taul::grammar::lpr(const str& name) const {
         return std::nullopt;
     }
     TAUL_IN_BOUNDS(it->second.index, 0, _data->_lprs.size());
-    return std::make_optional(lpr_ref(&(_data->_lprs[it->second.index]), _data.get()));
+    return lpr_ref(&(_data->_lprs[it->second.index]), _data.get());
 }
 
-std::optional<taul::ppr_ref> taul::grammar::ppr(const str& name) const {
+std::optional<taul::ppr_ref> taul::grammar::ppr(const str& name) const noexcept {
     if (!_data) {
         return std::nullopt;
     }
@@ -182,7 +192,7 @@ std::optional<taul::ppr_ref> taul::grammar::ppr(const str& name) const {
         return std::nullopt;
     }
     TAUL_IN_BOUNDS(it->second.index, 0, _data->_pprs.size());
-    return std::make_optional(ppr_ref(&(_data->_pprs[it->second.index]), _data.get()));
+    return ppr_ref(&(_data->_pprs[it->second.index]), _data.get());
 }
 
 bool taul::grammar::has_rule(const str& name) const noexcept {

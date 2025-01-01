@@ -10,7 +10,7 @@ using namespace taul::string_literals; // TAUL uses a custom string type
 
 int32_t main(int32_t argc, char** argv) {
     // logger for TAUL diagnostics (including grammar compile/load errors)
-    auto lgr = taul::make_stderr_logger();
+    auto lgr = taul::stdout_lgr(); // <- memoizes, so can be spammed
 
     // load our grammar
     auto loaded = taul::load(std::filesystem::current_path() / "grammar.taul", lgr);
