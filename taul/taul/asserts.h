@@ -45,7 +45,7 @@ namespace taul {
     };
 
     template<deref_assert_input_type T>
-    inline auto&& deref_assert(T x) {
+    inline auto&& deref_assert(T&& x) {
         TAUL_ASSERT(bool(x));
         return *x;
     }
