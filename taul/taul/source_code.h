@@ -105,13 +105,13 @@ namespace taul {
     public:
 
         source_code() = default;
-        source_code(const source_code&) = delete;
-        source_code(source_code&& x) noexcept;
+        source_code(const source_code&) = default;
+        source_code(source_code&&) noexcept = default;
 
         ~source_code() noexcept = default;
 
-        source_code& operator=(const source_code&) = delete;
-        source_code& operator=(source_code&& rhs) noexcept;
+        source_code& operator=(const source_code&) = default;
+        source_code& operator=(source_code&&) noexcept = default;
 
 
         // str returns the concatenated source code string

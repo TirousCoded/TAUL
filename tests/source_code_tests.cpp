@@ -12,6 +12,8 @@
 using namespace taul::string_literals;
 
 
+// TODO: we don't have unit tests for copy ctor/assign
+
 TEST(SourceCodeTests, DefaultCtor) {
     taul::source_code sc{};
 

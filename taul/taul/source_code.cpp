@@ -25,21 +25,6 @@ std::string taul::source_location::fmt(bool include_origin) const {
         : std::format("[ln {}, ch {}]", line, chr);
 }
 
-taul::source_code::source_code(source_code&& x) noexcept {
-    std::swap(_concat, x._concat);
-    std::swap(_pages, x._pages);
-    std::swap(_pos_map, x._pos_map);
-}
-
-taul::source_code& taul::source_code::operator=(source_code&& rhs) noexcept {
-    if (this != &(rhs)) {
-        std::swap(_concat, rhs._concat);
-        std::swap(_pages, rhs._pages);
-        std::swap(_pos_map, rhs._pos_map);
-    }
-    return *this;
-}
-
 taul::str taul::source_code::str() const noexcept {
     return _concat;
 }

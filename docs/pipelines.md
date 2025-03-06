@@ -13,7 +13,7 @@ do not fall into either category.
 This is put here at the top as it's really important (though it does reference things
 explained later in this document.)
 
-Upon changing the *structure* of a pipeline, the *downstream-most components* should be
+Upon changing the *structure* of a pipeline, the *downstream-most component* should be
 *reset* in order to ensure that all components in the pipeline operate correctly following
 said structural change.
 
