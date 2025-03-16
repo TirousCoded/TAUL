@@ -24,6 +24,10 @@ namespace taul {
     }
 
 
+    // TODO: haven't encountered an issue w/ this yet, but one potential
+    //       downside of hash precomputation has to do w/ LARGE strings
+    //       since hash precomputation is likely O(n)
+
     // this is an custom string type to be used within TAUL, w/ 
     // features that play into what TAUL needs, including:
     //      1) immutability

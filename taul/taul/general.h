@@ -11,7 +11,7 @@ namespace taul {
 
     // IMPORTANT: don't forget to keep this up-to-date, lol
 
-    constexpr auto api_version = "version 1.1"; // TAUL's *official* version
+    constexpr auto api_version = "version 1.2"; // TAUL's *official* version
 
     
     template<typename T>
