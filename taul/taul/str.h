@@ -17,13 +17,6 @@
 namespace taul {
 
 
-    namespace internal {
-
-
-        struct str_literal_ctor_tag final {};
-    }
-
-
     // TODO: haven't encountered an issue w/ this yet, but one potential
     //       downside of hash precomputation has to do w/ LARGE strings
     //       since hash precomputation is likely O(n)
@@ -48,7 +41,6 @@ namespace taul {
     template<typename Char>
     class basic_str;
 
-
     // remember that further down we define a ***_str custom string
     // literal for defining taul::basic_str
 
@@ -59,32 +51,22 @@ namespace taul {
     using str32     = basic_str<char32_t>;
 
 
+    namespace internal {
+        template<typename Char>
+        inline basic_str<Char> make_str_via_lit(const Char* x, size_t len) noexcept;
+    }
+
+
     template<typename Char>
     class basic_str final {
     public:
-
         using char_t                    = Char;
-
         using this_t                    = basic_str<char_t>;
-
 
         using iterator                  = std::basic_string_view<char_t>::const_iterator;
         using const_iterator            = iterator;
         using reverse_iterator          = std::basic_string_view<char_t>::const_reverse_iterator;
         using const_reverse_iterator    = reverse_iterator;
-
-
-        // this is used to allow custom string literals to define their string
-        // w/out alloc, and in a way that is length-based, rather than using
-        // a C-string, so our custom string literals can contain stray nulls
-
-        // I don't want the end-user to be able to do this w/ taul::str, as I
-        // feeling adding in unowned memory strings other than via literals
-        // to static memory would add unhelpful nuance to the considerations
-        // end-users must make when reasoning about taul::str
-
-        // internal, do not use
-        inline basic_str(internal::str_literal_ctor_tag, const char_t* x, std::size_t len);
 
 
         // this initializes an empty string, w/out alloc
@@ -94,25 +76,22 @@ namespace taul {
         // initializes a string of length len, copying the
         // first len chars from ptr into it, w/ alloc
 
-        inline basic_str(const char_t* ptr, std::size_t len);
+        inline basic_str(const char_t* ptr, size_t len);
 
         // initializes a string of length n, filling it
         // w/ the value chr, w/ alloc
 
-        inline basic_str(std::size_t n, char_t chr);
+        inline basic_str(size_t n, char_t chr);
 
-        // converts a standard library string into this string type
+        // converts a standard library string (view) into this string type
 
         inline explicit basic_str(const std::basic_string<char_t>& x);
-
-        // converts a standard library string view into this string type
-
         inline explicit basic_str(std::basic_string_view<char_t> x);
 
         inline basic_str(const this_t& x);
         inline basic_str(this_t&& x) noexcept;
 
-        inline ~basic_str() noexcept;
+        ~basic_str() noexcept = default;
 
         inline this_t& operator=(const this_t& rhs);
         inline this_t& operator=(this_t&& rhs) noexcept;
@@ -131,42 +110,29 @@ namespace taul {
         static inline this_t lit(const char_t* x) noexcept;
 
 
-        inline std::size_t size() const noexcept;
-        inline std::size_t length() const noexcept;
+        inline size_t size() const noexcept;
+        inline size_t length() const noexcept;
 
         inline bool has_size() const noexcept;
         inline bool has_length() const noexcept;
         inline bool empty() const noexcept;
 
-
-        // data returns a pointer to the chars of the string
-
         // returns nullptr for an empty string
 
         inline const char_t* data() const noexcept;
 
-
-        // at returns the char at ind in the string
-
         // throws std::out_of_range if ind is out-of-bounds
 
-        inline char_t at(std::size_t ind) const;
-
-        // at_unchecked returns the char at ind in the string
+        inline char_t at(size_t ind) const;
 
         // behaviour is undefined if ind is out-of-bounds
 
-        inline char_t at_unchecked(std::size_t ind) const noexcept;
-
-        inline char_t operator[](std::size_t ind) const noexcept;
-
-        // back returns the final char in the string
+        inline char_t at_unchecked(size_t ind) const noexcept;
+        inline char_t operator[](size_t ind) const noexcept;
 
         // throws std::out_of_range if string is empty
 
         inline char_t back() const;
-
-        // front returns the first char in the string
 
         // throws std::out_of_range if string is empty
 
@@ -189,8 +155,8 @@ namespace taul {
         // will be reduced to fit
 
         inline this_t substr(
-            std::size_t offset, 
-            std::size_t len = std::size_t(-1)) const;
+            size_t offset, 
+            size_t len = size_t(-1)) const;
 
 
         inline iterator begin() const noexcept;
@@ -204,18 +170,13 @@ namespace taul {
         inline const_reverse_iterator crend() const noexcept;
 
 
-        // these strings can be converted explicitly into 
-        // standard library strings and string views
-
-        inline explicit operator std::basic_string<char_t>() const;
-
-        // these strings can be converted implicitly into 
-        // standard library strings
-
-        inline operator std::basic_string_view<char_t>() const noexcept;
+        inline explicit operator std::basic_string<char_t>() const; // explicit
+        inline operator std::basic_string_view<char_t>() const noexcept; // implicit
 
 
-        // equal returns if a and b are equal
+        inline size_t hash() const noexcept;
+        inline std::string fmt(unicode_t err = default_err) const;
+
 
         static inline bool equal(const this_t& a, const this_t& b) noexcept;
 
@@ -225,8 +186,6 @@ namespace taul {
         static inline bool equal(const this_t& a, const char_t* b) noexcept;
 
 
-        // concat returns the concatenation of strings a and b
-
         static inline this_t concat(const this_t& a, const this_t& b);
 
         // TODO: maybe add versions of below two w/ left-hand side being non-string
@@ -235,41 +194,28 @@ namespace taul {
         static inline this_t concat(const this_t& a, const char_t* b);
 
 
-        inline std::string fmt(unicode_t err = default_err) const;
-
-
-        inline std::size_t hash() const noexcept;
-
-
     private:
-        
         std::shared_ptr<char_t[]> _storage = nullptr;
         const char_t* _start = nullptr;
-        std::size_t _length = 0;
-        std::size_t _hash = std::size_t(-1);
+        size_t _length = 0;
+        size_t _hash = size_t(-1);
 
 
         struct no_precompute_hash_tag {};
-        struct init_via_literal_tag {};
-        struct init_via_substr_tag {};
-        struct init_via_concat_tag {};
 
         inline basic_str(no_precompute_hash_tag);
-        inline basic_str(init_via_literal_tag, const char_t* x);
-        inline basic_str(init_via_substr_tag, const this_t& original, std::size_t offset, std::size_t len);
-        inline basic_str(init_via_concat_tag, std::basic_string_view<char_t> a, std::basic_string_view<char_t> b);
         
 
         inline void _assert_default_init() const noexcept;
 
-        inline void _alloc_storage(std::size_t len);
+        inline void _alloc_storage(size_t len);
 
         inline void _init_via_storage_copy(const char_t* ptr);
         inline void _init_via_storage_fill(char_t chr);
         inline void _init_via_literal(const char_t* x);
-        inline void _init_via_substr(const this_t& original, std::size_t offset, std::size_t len);
+        inline void _init_via_substr(const this_t& original, size_t offset, size_t len);
         inline void _init_via_concat(std::basic_string_view<char_t> a, std::basic_string_view<char_t> b);
-        inline void _init_via_custom_literal(const char_t* x, std::size_t len);
+        inline void _init_via_custom_literal(const char_t* x, size_t len);
 
         inline void _precompute_hash() noexcept;
 
@@ -277,6 +223,12 @@ namespace taul {
         inline void _swap_fields(this_t& dest, this_t& src);
 
         inline std::basic_string_view<char_t> _get_string_view() const noexcept;
+
+
+        template<typename CharT>
+        friend basic_str<CharT> taul::internal::make_str_via_lit(const CharT* x, size_t len) noexcept;
+
+        static inline this_t _make_str_via_lit(const char_t* x, size_t len) noexcept;
     };
 
 
@@ -329,21 +281,13 @@ namespace taul {
 
 
     template<typename Char>
-    inline basic_str<Char>::basic_str(internal::str_literal_ctor_tag, const char_t* x, std::size_t len)
-        : basic_str(no_precompute_hash_tag{}) {
-        TAUL_ASSERT(x);
-        _init_via_custom_literal(x, len);
-        _precompute_hash();
-    }
-
-    template<typename Char>
     inline basic_str<Char>::basic_str()
         : basic_str(no_precompute_hash_tag{}) {
         _precompute_hash();
     }
 
     template<typename Char>
-    inline basic_str<Char>::basic_str(const char_t* ptr, std::size_t len) 
+    inline basic_str<Char>::basic_str(const char_t* ptr, size_t len) 
         : basic_str(no_precompute_hash_tag{}) {
         TAUL_ASSERT(ptr);
         _alloc_storage(len);
@@ -352,7 +296,7 @@ namespace taul {
     }
 
     template<typename Char>
-    inline basic_str<Char>::basic_str(std::size_t n, char_t chr) 
+    inline basic_str<Char>::basic_str(size_t n, char_t chr) 
         : basic_str(no_precompute_hash_tag{}) {
         _alloc_storage(n);
         _init_via_storage_fill(chr);
@@ -380,9 +324,6 @@ namespace taul {
     }
 
     template<typename Char>
-    inline basic_str<Char>::~basic_str() noexcept {}
-
-    template<typename Char>
     inline basic_str<Char>::this_t& basic_str<Char>::operator=(const this_t& rhs) {
         _assign_fields(*this, rhs);
         return *this;
@@ -399,16 +340,19 @@ namespace taul {
     template<typename Char>
     inline basic_str<Char>::this_t basic_str<Char>::lit(const char_t* x) noexcept {
         TAUL_ASSERT(x);
-        return this_t(init_via_literal_tag{}, x);
+        this_t result(no_precompute_hash_tag{});
+        result._init_via_literal(x);
+        result._precompute_hash();
+        return result;
     }
     
     template<typename Char>
-    inline std::size_t basic_str<Char>::size() const noexcept {
+    inline size_t basic_str<Char>::size() const noexcept {
         return _length;
     }
     
     template<typename Char>
-    inline std::size_t basic_str<Char>::length() const noexcept {
+    inline size_t basic_str<Char>::length() const noexcept {
         return size();
     }
     
@@ -433,17 +377,17 @@ namespace taul {
     }
     
     template<typename Char>
-    inline basic_str<Char>::char_t basic_str<Char>::at(std::size_t ind) const {
+    inline basic_str<Char>::char_t basic_str<Char>::at(size_t ind) const {
         return _get_string_view().at(ind);
     }
 
     template<typename Char>
-    inline basic_str<Char>::char_t basic_str<Char>::at_unchecked(std::size_t ind) const noexcept {
+    inline basic_str<Char>::char_t basic_str<Char>::at_unchecked(size_t ind) const noexcept {
         return _get_string_view()[ind];
     }
 
     template<typename Char>
-    inline basic_str<Char>::char_t basic_str<Char>::operator[](std::size_t ind) const noexcept {
+    inline basic_str<Char>::char_t basic_str<Char>::operator[](size_t ind) const noexcept {
         return at_unchecked(ind);
     }
 
@@ -458,8 +402,11 @@ namespace taul {
     }
 
     template<typename Char>
-    inline basic_str<Char>::this_t basic_str<Char>::substr(std::size_t offset, std::size_t len) const {
-        return this_t(init_via_substr_tag{}, *this, offset, len);
+    inline basic_str<Char>::this_t basic_str<Char>::substr(size_t offset, size_t len) const {
+        this_t result(no_precompute_hash_tag{});
+        result._init_via_substr(*this, offset, len);
+        result._precompute_hash();
+        return result;
     }
 
     template<typename Char>
@@ -511,39 +458,10 @@ namespace taul {
     inline basic_str<Char>::operator std::basic_string_view<typename basic_str<Char>::char_t>() const noexcept {
         return _get_string_view();
     }
-    
-    template<typename Char>
-    inline bool basic_str<Char>::equal(const this_t& a, const this_t& b) noexcept {
-        return equal(a, b._get_string_view());
-    }
 
     template<typename Char>
-    inline bool basic_str<Char>::equal(const this_t& a, std::basic_string_view<char_t> b) noexcept {
-        return
-            a.length() == b.length() &&
-            std::equal(a.begin(), a.end(), b.begin());
-    }
-
-    template<typename Char>
-    inline bool basic_str<Char>::equal(const this_t& a, const char_t* b) noexcept {
-        TAUL_ASSERT(b);
-        return equal(a, std::basic_string_view<char_t>(b, strlen(b)));
-    }
-
-    template<typename Char>
-    inline basic_str<Char>::this_t basic_str<Char>::concat(const this_t& a, const this_t& b) {
-        return concat(a, b._get_string_view());
-    }
-
-    template<typename Char>
-    inline basic_str<Char>::this_t basic_str<Char>::concat(const this_t& a, std::basic_string_view<char_t> b) {
-        return basic_str(init_via_concat_tag{}, a._get_string_view(), b);
-    }
-
-    template<typename Char>
-    inline basic_str<Char>::this_t basic_str<Char>::concat(const this_t& a, const char_t* b) {
-        TAUL_ASSERT(b);
-        return concat(a, std::basic_string_view<char_t>(b, strlen(b)));
+    inline size_t basic_str<Char>::hash() const noexcept {
+        return _hash;
     }
 
     namespace internal {
@@ -598,34 +516,52 @@ namespace taul {
     }
     
     template<typename Char>
-    inline std::size_t basic_str<Char>::hash() const noexcept {
-        return _hash;
+    inline bool basic_str<Char>::equal(const this_t& a, const this_t& b) noexcept {
+        return equal(a, b._get_string_view());
     }
 
     template<typename Char>
-    inline basic_str<Char>::basic_str(basic_str<Char>::no_precompute_hash_tag) {}
-    
-    template<typename Char>
-    inline basic_str<Char>::basic_str(basic_str<Char>::init_via_literal_tag, const char_t* x)
-        : basic_str(no_precompute_hash_tag{}) {
-        _init_via_literal(x);
-        _precompute_hash();
-    }
-    
-    template<typename Char>
-    inline basic_str<Char>::basic_str(init_via_substr_tag, const this_t& original, std::size_t offset, std::size_t len)
-        : basic_str(no_precompute_hash_tag{}) {
-        _init_via_substr(original, offset, len);
-        _precompute_hash();
+    inline bool basic_str<Char>::equal(const this_t& a, std::basic_string_view<char_t> b) noexcept {
+        return
+            a.length() == b.length() &&
+            std::equal(a.begin(), a.end(), b.begin());
     }
 
     template<typename Char>
-    inline basic_str<Char>::basic_str(init_via_concat_tag, std::basic_string_view<char_t> a, std::basic_string_view<char_t> b)
-        : basic_str(no_precompute_hash_tag{}) {
-        _alloc_storage(a.length() + b.length());
-        _init_via_concat(a, b);
-        _precompute_hash();
+    inline bool basic_str<Char>::equal(const this_t& a, const char_t* b) noexcept {
+        TAUL_ASSERT(b);
+        return equal(a, std::basic_string_view<char_t>(b, strlen(b)));
     }
+
+    template<typename Char>
+    inline basic_str<Char>::this_t basic_str<Char>::concat(const this_t& a, const this_t& b) {
+        return concat(a, b._get_string_view());
+    }
+
+    template<typename Char>
+    inline basic_str<Char>::this_t basic_str<Char>::concat(const this_t& a, std::basic_string_view<char_t> b) {
+        this_t result(no_precompute_hash_tag{});
+        result._alloc_storage(a.length() + b.length());
+        result._init_via_concat(a._get_string_view(), b);
+        result._precompute_hash();
+        return result;
+    }
+
+    template<typename Char>
+    inline basic_str<Char>::this_t basic_str<Char>::concat(const this_t& a, const char_t* b) {
+        TAUL_ASSERT(b);
+        return concat(a, std::basic_string_view<char_t>(b, strlen(b)));
+    }
+
+
+    template<typename Char>
+    basic_str<Char> internal::make_str_via_lit(const Char* x, size_t len) noexcept {
+        return basic_str<Char>::_make_str_via_lit(x, len);
+    }
+
+
+    template<typename Char>
+    inline basic_str<Char>::basic_str(no_precompute_hash_tag) {}
 
     template<typename Char>
     inline void basic_str<Char>::_assert_default_init() const noexcept {
@@ -635,13 +571,12 @@ namespace taul {
     }
 
     template<typename Char>
-    inline void basic_str<Char>::_alloc_storage(std::size_t len) {
+    inline void basic_str<Char>::_alloc_storage(size_t len) {
         _assert_default_init();
-        if (len > 0) {
-            _storage = std::make_shared<char_t[]>(len);
-            _start = _storage.get();
-            _length = len;
-        }
+        if (len == 0) return;
+        _storage = std::make_shared<char_t[]>(len);
+        _start = _storage.get();
+        _length = len;
     }
     
     template<typename Char>
@@ -669,7 +604,7 @@ namespace taul {
     }
 
     template<typename Char>
-    inline void basic_str<Char>::_init_via_substr(const this_t& original, std::size_t offset, std::size_t len) {
+    inline void basic_str<Char>::_init_via_substr(const this_t& original, size_t offset, size_t len) {
         _assert_default_init();
         const auto s = original._get_string_view().substr(offset, len);
         _storage = original._storage;
@@ -685,7 +620,7 @@ namespace taul {
     }
 
     template<typename Char>
-    inline void basic_str<Char>::_init_via_custom_literal(const char_t* x, std::size_t len) {
+    inline void basic_str<Char>::_init_via_custom_literal(const char_t* x, size_t len) {
         TAUL_ASSERT(x);
         _assert_default_init();
         _storage = nullptr;
@@ -722,20 +657,25 @@ namespace taul {
             : std::basic_string_view<char_t>{};
     }
 
+    template<typename Char>
+    inline typename basic_str<Char>::this_t basic_str<Char>::_make_str_via_lit(const char_t* x, size_t len) noexcept {
+        TAUL_ASSERT(x);
+        this_t result(no_precompute_hash_tag{});
+        result._init_via_custom_literal(x, len);
+        result._precompute_hash();
+        return result;
+    }
+
 
     namespace string_literals {
-
-
-        inline str operator""_str(const char* x, std::size_t len) { return str(internal::str_literal_ctor_tag{}, x, len); }
-        inline wstr operator""_str(const wchar_t* x, std::size_t len) { return wstr(internal::str_literal_ctor_tag{}, x, len); }
-        inline str8 operator""_str(const char8_t* x, std::size_t len) { return str8(internal::str_literal_ctor_tag{}, x, len); }
-        inline str16 operator""_str(const char16_t* x, std::size_t len) { return str16(internal::str_literal_ctor_tag{}, x, len); }
-        inline str32 operator""_str(const char32_t* x, std::size_t len) { return str32(internal::str_literal_ctor_tag{}, x, len); }
+        inline str operator""_str(const char* x, size_t len) { return internal::make_str_via_lit(x, len); }
+        inline wstr operator""_str(const wchar_t* x, size_t len) { return internal::make_str_via_lit(x, len); }
+        inline str8 operator""_str(const char8_t* x, size_t len) { return internal::make_str_via_lit(x, len); }
+        inline str16 operator""_str(const char16_t* x, size_t len) { return internal::make_str_via_lit(x, len); }
+        inline str32 operator""_str(const char32_t* x, size_t len) { return internal::make_str_via_lit(x, len); }
     }
 
     namespace literals {
-
-
         using namespace taul::string_literals;
     }
 }
@@ -758,7 +698,7 @@ namespace std {
 namespace std {
     template<typename Char>
     struct std::hash<taul::basic_str<Char>> {
-        inline std::size_t operator()(const taul::basic_str<Char>& s) const noexcept {
+        inline size_t operator()(const taul::basic_str<Char>& s) const noexcept {
             return s.hash();
         }
     };
