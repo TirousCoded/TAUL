@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <format>
+
 #include <taul/strings.h>
 #include <taul/hex.h>
 
